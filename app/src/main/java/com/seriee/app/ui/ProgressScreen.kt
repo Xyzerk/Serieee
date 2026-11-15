@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -456,7 +457,7 @@ private fun ProgressCard(
 @Composable
 private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>) {
     val p = LocalPalette.current
-    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val shape = remember { RoundedCornerShape(22.dp) }
     Row(
         modifier = Modifier
@@ -504,7 +505,7 @@ private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>)
                 val active = watchDays.contains(date.toString())
                 val letter = date.dayOfWeek.getDisplayName(
                     java.time.format.TextStyle.NARROW,
-                    context.resources.configuration.locales[0]
+                    configuration.locales[0]
                 ).uppercase().take(1)
                 Box(
                     modifier = Modifier
