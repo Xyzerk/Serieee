@@ -106,18 +106,38 @@ fun Poster(url: String, modifier: Modifier, shape: Shape = RoundedCornerShape(12
 @Composable
 fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val p = LocalPalette.current
+    val shape = CircleShape
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) p.primary else p.chip)
+            .then(
+                if (selected) {
+                    Modifier
+                        .clip(shape)
+                        .background(p.primary.copy(alpha = if (p.isGlass) 0.84f else 1f))
+                        .then(
+                            if (p.isGlass) Modifier.border(0.75.dp, Color.White.copy(alpha = 0.55f), shape)
+                            else Modifier
+                        )
+                } else {
+                    Modifier.liquidGlass(
+                        shape = shape,
+                        tint = if (p.isGlass) {
+                            if (p.isLight) Color.White.copy(alpha = 0.44f) else Color.White.copy(alpha = 0.10f)
+                        } else p.chip,
+                        blurRadius = 12.dp,
+                        refractionHeight = 8.dp,
+                        refractionAmount = 14.dp
+                    )
+                }
+            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+            .padding(horizontal = 13.dp, vertical = 7.dp)
     ) {
         Text(
             text = label,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (selected) p.onAccent else p.muted
+            color = if (selected) p.onAccent else p.text.copy(alpha = 0.82f)
         )
     }
 }
@@ -148,55 +168,81 @@ fun SField(
 ) {
     val p = LocalPalette.current
     if (filled) {
-        TextField(
-            value = value,
-            onValueChange = onChange,
-            modifier = modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = { Text(placeholder, fontSize = 14.sp) },
-            leadingIcon = leading,
-            trailingIcon = trailing,
-            visualTransformation = visualTransformation,
-            textStyle = TextStyle(fontSize = 14.sp),
-            shape = RoundedCornerShape(50),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = p.text,
-                unfocusedTextColor = p.text,
-                focusedContainerColor = p.chip,
-                unfocusedContainerColor = p.chip,
-                disabledContainerColor = p.chip,
-                cursorColor = p.primary,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                focusedPlaceholderColor = p.muted,
-                unfocusedPlaceholderColor = p.muted,
-                focusedLeadingIconColor = p.muted,
-                unfocusedLeadingIconColor = p.muted,
-                focusedTrailingIconColor = p.muted,
-                unfocusedTrailingIconColor = p.muted
+        val pillShape = CircleShape
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .liquidGlass(
+                    shape = pillShape,
+                    tint = if (p.isGlass) {
+                        if (p.isLight) Color.White.copy(alpha = 0.50f) else Color.White.copy(alpha = 0.10f)
+                    } else p.chip,
+                    blurRadius = 16.dp,
+                    refractionHeight = 10.dp,
+                    refractionAmount = 18.dp
+                )
+        ) {
+            TextField(
+                value = value,
+                onValueChange = onChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(placeholder, fontSize = 14.sp) },
+                leadingIcon = leading,
+                trailingIcon = trailing,
+                visualTransformation = visualTransformation,
+                textStyle = TextStyle(fontSize = 14.sp),
+                shape = pillShape,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = p.text,
+                    unfocusedTextColor = p.text,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    cursorColor = p.primary,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    focusedPlaceholderColor = p.muted,
+                    unfocusedPlaceholderColor = p.muted,
+                    focusedLeadingIconColor = p.muted,
+                    unfocusedLeadingIconColor = p.muted,
+                    focusedTrailingIconColor = p.muted,
+                    unfocusedTrailingIconColor = p.muted
+                )
             )
-        )
+        }
         return
     }
+    val fieldShape = RoundedCornerShape(16.dp)
+    val glassModifier = if (p.isGlass) {
+        Modifier.liquidGlass(
+            shape = fieldShape,
+            tint = if (p.isLight) Color.White.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.08f),
+            blurRadius = 12.dp,
+            refractionHeight = 8.dp,
+            refractionAmount = 12.dp,
+            withBorder = false
+        )
+    } else Modifier
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(glassModifier),
         singleLine = true,
         placeholder = { Text(placeholder, fontSize = 14.sp) },
         leadingIcon = leading,
         trailingIcon = trailing,
         visualTransformation = visualTransformation,
         textStyle = TextStyle(fontSize = 14.sp),
-        shape = RoundedCornerShape(12.dp),
+        shape = fieldShape,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = p.text,
             unfocusedTextColor = p.text,
-            focusedContainerColor = p.bg,
-            unfocusedContainerColor = p.bg,
+            focusedContainerColor = if (p.isGlass) Color.Transparent else p.bg,
+            unfocusedContainerColor = if (p.isGlass) Color.Transparent else p.bg,
             cursorColor = p.primary,
             focusedBorderColor = p.primary,
             unfocusedBorderColor = p.border,
@@ -218,17 +264,24 @@ fun <T> DropdownField(
 ) {
     val p = LocalPalette.current
     var expanded by remember { mutableStateOf(false) }
+    val fieldShape = RoundedCornerShape(16.dp)
     Column(modifier) {
         if (label.isNotEmpty()) FieldLabel(label)
         Box {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(p.bg)
-                    .border(1.dp, p.border, RoundedCornerShape(12.dp))
+                    .liquidGlass(
+                        shape = fieldShape,
+                        tint = if (p.isGlass) {
+                            if (p.isLight) Color.White.copy(alpha = 0.48f) else Color.White.copy(alpha = 0.10f)
+                        } else p.bg,
+                        blurRadius = 14.dp,
+                        refractionHeight = 8.dp,
+                        refractionAmount = 14.dp
+                    )
                     .clickable { expanded = true }
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -239,10 +292,15 @@ fun <T> DropdownField(
                 )
                 Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = p.muted)
             }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = if (p.isGlass) p.elevated else p.surface
+            ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.second) },
+                        text = { Text(option.second, color = p.text) },
                         onClick = {
                             onSelect(option.first)
                             expanded = false
@@ -340,9 +398,13 @@ fun StarRatingBadge(
     val p = LocalPalette.current
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color.Black.copy(alpha = 0.65f))
-            .padding(horizontal = 5.dp, vertical = 2.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = if (p.isGlass) 0.56f else 0.65f))
+            .then(
+                if (p.isGlass) Modifier.border(0.75.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                else Modifier
+            )
+            .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
@@ -372,9 +434,13 @@ fun GenreTagBadge(
     val accent = color ?: p.primary
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(accent.copy(alpha = 0.14f))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(CircleShape)
+            .background(accent.copy(alpha = if (p.isGlass) 0.18f else 0.14f))
+            .then(
+                if (p.isGlass) Modifier.border(0.5.dp, accent.copy(alpha = 0.32f), CircleShape)
+                else Modifier
+            )
+            .padding(horizontal = 7.dp, vertical = 2.dp)
     ) {
         Text(
             text = tag,

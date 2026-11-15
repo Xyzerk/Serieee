@@ -84,6 +84,8 @@ data class SeriePalette(
     val isLight: Boolean,
     val gradient: List<Color>? = null,
     val isGlass: Boolean = false,
+    /** Liquid Glass style: enables optical lens refraction & chromatic dispersion. */
+    val isLiquidGlass: Boolean = false,
     /** Liquid style: the background gradient slowly drifts. */
     val animatedGradient: Boolean = false
 )
@@ -117,6 +119,7 @@ private fun basePalette(
     star: Color = warning,
     gradient: List<Color>? = null,
     isGlass: Boolean = false,
+    isLiquidGlass: Boolean = false,
     animatedGradient: Boolean = false
 ) = SeriePalette(
     bg = bg,
@@ -140,6 +143,7 @@ private fun basePalette(
     isLight = isLight,
     gradient = gradient,
     isGlass = isGlass,
+    isLiquidGlass = isLiquidGlass,
     animatedGradient = animatedGradient
 )
 
@@ -270,48 +274,50 @@ private val FrostLight = basePalette(
 )
 
 private val LiquidDark = basePalette(
-    bg = Color(0xFF070C16),
-    card = Color(0x8C1A2436),
-    surface = Color(0xD90D1420),
-    elevated = Color(0xF21A2434),
-    chip = Color(0x521C2739),
-    border = Color(0x2EFFFFFF),
-    primary = Color(0xFF4F8DF7),
-    accent = Color(0xFF4F8DF7),
-    text = Color(0xFFF6F9FF),
-    muted = Color(0xFFADC0D8),
-    success = Color(0xFF34D399),
-    warning = Color(0xFFFBBF24),
-    danger = Color(0xFFF87171),
-    info = Color(0xFF93C5FD),
-    reminder = Color(0xFFFDBA74),
-    star = Color(0xFFFDE68A),
+    bg = Color(0xFF050914),
+    card = Color(0x521E293B),
+    surface = Color(0xCC0D1526),
+    elevated = Color(0xD9172238),
+    chip = Color(0x47FFFFFF),
+    border = Color(0x3DFFFFFF),
+    primary = Color(0xFF0A84FF),
+    accent = Color(0xFF38BDF8),
+    text = Color(0xFFF8FAFF),
+    muted = Color(0xFFC2D0E6),
+    success = Color(0xFF30D158),
+    warning = Color(0xFFFFD60A),
+    danger = Color(0xFFFF453A),
+    info = Color(0xFF64D2FF),
+    reminder = Color(0xFFFF9F0A),
+    star = Color(0xFFFFD60A),
     isLight = false,
-    gradient = listOf(Color(0xFF1D4ED8), Color(0xFF0B1020), Color(0xFF7C2A64)),
+    gradient = listOf(Color(0xFF0F3D91), Color(0xFF070D1D), Color(0xFF155E75), Color(0xFF6B1D5C)),
     isGlass = true,
+    isLiquidGlass = true,
     animatedGradient = true
 )
 
 private val LiquidLight = basePalette(
-    bg = Color(0xFFEDF3FF),
-    card = Color(0xB3FFFFFF),
-    surface = Color(0xD9FFFFFF),
-    elevated = Color(0xF2FFFFFF),
-    chip = Color(0x8CDCE7FF),
-    border = Color(0xFFC9D8EE),
-    primary = Color(0xFF2563EB),
-    accent = Color(0xFF2563EB),
-    text = Color(0xFF0B1220),
-    muted = Color(0xFF55627A),
-    success = Color(0xFF059669),
-    warning = Color(0xFFD97706),
-    danger = Color(0xFFDC2626),
-    info = Color(0xFF0369A1),
-    reminder = Color(0xFFEA580C),
-    star = Color(0xFFD97706),
+    bg = Color(0xFFEAF2FF),
+    card = Color(0x88FFFFFF),
+    surface = Color(0xD9F8FBFF),
+    elevated = Color(0xEBFFFFFF),
+    chip = Color(0x73FFFFFF),
+    border = Color(0xB8FFFFFF),
+    primary = Color(0xFF007AFF),
+    accent = Color(0xFF0EA5E9),
+    text = Color(0xFF0A1220),
+    muted = Color(0xFF475569),
+    success = Color(0xFF10B981),
+    warning = Color(0xFFF59E0B),
+    danger = Color(0xFFFF3B30),
+    info = Color(0xFF0284C7),
+    reminder = Color(0xFFFF6B00),
+    star = Color(0xFFF59E0B),
     isLight = true,
-    gradient = listOf(Color(0xFFBFDBFE), Color(0xFFF8FAFC), Color(0xFFFBCFE8)),
+    gradient = listOf(Color(0xFFBAE6FD), Color(0xFFF5F8FF), Color(0xFFE0E7FF), Color(0xFFFBCFE8)),
     isGlass = true,
+    isLiquidGlass = true,
     animatedGradient = true
 )
 
@@ -330,7 +336,8 @@ fun SeriePalette.opaque(): SeriePalette {
         elevated = elevated.compositeOver(bg),
         chip = chip.compositeOver(bg),
         border = border.copy(alpha = 1f).compositeOver(bg),
-        isGlass = false
+        isGlass = false,
+        isLiquidGlass = false
     )
 }
 
@@ -558,10 +565,7 @@ private fun SeriePalette.animatedColors(): SeriePalette {
     val aStar = anim(star)
 
     val animatedGradient = gradient?.let { colors ->
-        val first = anim(colors[0])
-        val second = if (colors.size > 1) anim(colors[1]) else null
-        val third = if (colors.size > 2) anim(colors[2]) else null
-        listOfNotNull(first, second, third)
+        colors.map { anim(it) }
     }
 
     return copy(

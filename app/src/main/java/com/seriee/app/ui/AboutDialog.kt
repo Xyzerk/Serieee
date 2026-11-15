@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -58,16 +59,17 @@ fun AboutDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = p.surface,
+            shape = RoundedCornerShape(28.dp),
+            color = if (p.isGlass) p.surface.copy(alpha = if (p.isLight) 0.90f else 0.84f) else p.surface,
             border = BorderStroke(1.dp, p.border)
         ) {
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            LiquidSheetHost {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
@@ -150,22 +152,11 @@ fun AboutDialog(
 
                 BodyText(stringResource(R.string.about_disclaimer))
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(p.primary)
-                        .clickable(onClick = onDismiss)
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        stringResource(R.string.about_close),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = p.onAccent
-                    )
-                }
+                PrimaryButton(
+                    text = stringResource(R.string.about_close),
+                    onClick = onDismiss
+                )
+            }
             }
         }
     }
@@ -201,11 +192,15 @@ private fun LinkRow(label: String, url: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(p.card)
-            .border(1.dp, p.border, RoundedCornerShape(10.dp))
+            .liquidGlass(
+                shape = RoundedCornerShape(14.dp),
+                tint = p.card,
+                blurRadius = 12.dp,
+                refractionHeight = 8.dp,
+                refractionAmount = 14.dp
+            )
             .clickable { runCatching { uriHandler.openUri(url) } }
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(

@@ -62,16 +62,17 @@ fun ChangelogDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = p.surface,
+            shape = RoundedCornerShape(28.dp),
+            color = if (p.isGlass) p.surface.copy(alpha = if (p.isLight) 0.90f else 0.84f) else p.surface,
             border = BorderStroke(1.dp, p.border)
         ) {
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
+            LiquidSheetHost {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -116,9 +117,13 @@ fun ChangelogDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(p.card)
-                            .border(1.dp, p.border, RoundedCornerShape(12.dp))
+                            .liquidGlass(
+                                shape = RoundedCornerShape(16.dp),
+                                tint = p.card,
+                                blurRadius = 12.dp,
+                                refractionHeight = 8.dp,
+                                refractionAmount = 14.dp
+                            )
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.Top
                     ) {
@@ -142,22 +147,11 @@ fun ChangelogDialog(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(p.primary)
-                        .clickable(onClick = onDismiss)
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        stringResource(R.string.changelog_got_it),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = p.onAccent
-                    )
-                }
+                PrimaryButton(
+                    text = stringResource(R.string.changelog_got_it),
+                    onClick = onDismiss
+                )
+            }
             }
         }
     }

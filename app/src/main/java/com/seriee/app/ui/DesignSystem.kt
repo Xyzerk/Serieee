@@ -32,9 +32,12 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -48,9 +51,25 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.Shadow
 import com.seriee.app.data.WatchStatus
+
+/** Backdrop capturing the ambient wallpaper/gradient behind in-page glass cards. */
+val LocalLiquidBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
+
+/** Backdrop capturing both background and scrolling content behind floating chrome. */
+val LocalChromeBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
 
 object SerieeType {
     val display = androidx.compose.ui.text.TextStyle(
@@ -74,10 +93,11 @@ object SerieeType {
 }
 
 object SerieeShape {
-    val chip = RoundedCornerShape(10.dp)
-    val field = RoundedCornerShape(14.dp)
-    val card = RoundedCornerShape(18.dp)
-    val sheet = RoundedCornerShape(24.dp)
+    val pill = RoundedCornerShape(50)
+    val chip = RoundedCornerShape(14.dp)
+    val field = RoundedCornerShape(16.dp)
+    val card = RoundedCornerShape(22.dp)
+    val sheet = RoundedCornerShape(28.dp)
 }
 
 object SerieeSpace {
@@ -111,11 +131,11 @@ fun statusColor(status: WatchStatus): Color {
 
 /** Specular highlight used on glass borders so they catch the light. */
 private fun SeriePalette.specularColors(): List<Color> {
-    val strong = if (isLight) 0.85f else 0.30f
-    val soft = if (isLight) 0.45f else 0.10f
+    val strong = if (isLight) 0.92f else 0.42f
+    val soft = if (isLight) 0.50f else 0.14f
     return listOf(
         Color.White.copy(alpha = strong),
-        Color.White.copy(alpha = 0.03f),
+        Color.White.copy(alpha = 0.06f),
         Color.White.copy(alpha = soft)
     )
 }
@@ -124,22 +144,164 @@ private fun SeriePalette.specularColors(): List<Color> {
  * Theme-aware outline: a brushed specular edge on glass styles, the palette
  * border everywhere else.
  */
-fun Modifier.themedBorder(p: SeriePalette, shape: Shape, width: androidx.compose.ui.unit.Dp = 1.dp): Modifier =
+fun Modifier.themedBorder(p: SeriePalette, shape: Shape, width: Dp = 1.dp): Modifier =
     border(
         width = width,
         brush = if (p.isGlass) Brush.linearGradient(p.specularColors()) else SolidColor(p.border),
         shape = shape
     )
 
-/** Translucent chrome (nav bar, sheets) with a specular edge on glass styles. */
-fun Modifier.glassChrome(p: SeriePalette, shape: Shape): Modifier = this
-    .clip(shape)
-    .background(if (p.isGlass) p.card.copy(alpha = if (p.isLight) 0.82f else 0.72f) else p.surface)
-    .themedBorder(p, shape)
+/**
+ * Apple Liquid Glass surface powered by `io.github.kyant0:backdrop`.
+ *
+ * Samples [backdrop] through vibrancy + Gaussian blur + optical SDF lens
+ * refraction and RGB chromatic dispersion when [palette.isGlass] is active,
+ * falling back cleanly to solid themed surfaces when [reduceTransparency] or
+ * an opaque style is chosen.
+ */
+fun Modifier.liquidGlass(
+    shape: Shape,
+    backdrop: LayerBackdrop? = null,
+    tint: Color? = null,
+    blurRadius: Dp = 18.dp,
+    refractionHeight: Dp = 12.dp,
+    refractionAmount: Dp = 24.dp,
+    chromaticAberration: Boolean = true,
+    elevated: Boolean = false,
+    withHighlight: Boolean = true,
+    withBorder: Boolean = true
+): Modifier = composed {
+    val p = LocalPalette.current
+    val activeBackdrop = backdrop ?: LocalLiquidBackdrop.current
+    val resolvedTint = tint ?: if (p.isGlass) {
+        if (p.isLight) Color.White.copy(alpha = 0.46f)
+        else Color(0xFF0E1729).copy(alpha = 0.48f)
+    } else {
+        p.card
+    }
+
+    if (p.isGlass && activeBackdrop != null) {
+        this
+            .drawBackdrop(
+                backdrop = activeBackdrop,
+                shape = { shape },
+                effects = {
+                    vibrancy()
+                    if (blurRadius > 0.dp) {
+                        blur(blurRadius.toPx())
+                    }
+                    if (p.isLiquidGlass && refractionAmount > 0.dp) {
+                        lens(
+                            refractionHeight = refractionHeight.toPx(),
+                            refractionAmount = refractionAmount.toPx(),
+                            chromaticAberration = chromaticAberration
+                        )
+                    }
+                },
+                highlight = if (withHighlight) {
+                    { Highlight.Default }
+                } else null,
+                shadow = if (elevated) {
+                    { Shadow.Default }
+                } else null,
+                onDrawSurface = {
+                    drawRect(resolvedTint)
+                }
+            )
+            .then(
+                if (withBorder) Modifier.themedBorder(p, shape, width = 0.75.dp) else Modifier
+            )
+    } else {
+        this
+            .clip(shape)
+            .background(tint ?: p.card)
+            .then(if (withBorder) Modifier.themedBorder(p, shape) else Modifier)
+    }
+}
+
+/** Translucent floating chrome (nav bar, top bar) with strong Liquid Glass optics. */
+fun Modifier.glassChrome(
+    p: SeriePalette,
+    shape: Shape,
+    backdrop: LayerBackdrop? = null
+): Modifier = composed {
+    val chromeBackdrop = backdrop ?: LocalChromeBackdrop.current ?: LocalLiquidBackdrop.current
+    val surfaceTint = if (p.isGlass) {
+        if (p.isLight) Color.White.copy(alpha = 0.42f)
+        else Color(0xFF0B1324).copy(alpha = 0.48f)
+    } else {
+        p.surface
+    }
+    liquidGlass(
+        shape = shape,
+        backdrop = chromeBackdrop,
+        tint = surfaceTint,
+        blurRadius = 22.dp,
+        refractionHeight = 18.dp,
+        refractionAmount = 36.dp,
+        chromaticAberration = true,
+        elevated = true,
+        withHighlight = true,
+        withBorder = true
+    )
+}
 
 /**
- * Full-screen backdrop. Liquid styles drift their gradient slowly; every other
- * gradient style renders it statically.
+ * Provides an ambient glass [LayerBackdrop] inside standalone Android windows
+ * such as [ModalBottomSheet] and [Dialog], so inner cards, fields, and buttons
+ * still exhibit Liquid Glass refraction and dispersion.
+ */
+@Composable
+fun LiquidSheetHost(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val p = LocalPalette.current
+    val sheetBackdrop = rememberLayerBackdrop()
+    Box(modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .layerBackdrop(sheetBackdrop)
+                .drawBehind {
+                    drawRect(if (p.isGlass) p.surface.copy(alpha = if (p.isLight) 0.90f else 0.84f) else p.surface)
+                    if (p.isGlass) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    p.primary.copy(alpha = if (p.isLight) 0.16f else 0.22f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(size.width * 0.15f, size.height * 0.12f),
+                                radius = size.maxDimension * 0.65f
+                            ),
+                            center = Offset(size.width * 0.15f, size.height * 0.12f),
+                            radius = size.maxDimension * 0.65f
+                        )
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    p.accent.copy(alpha = if (p.isLight) 0.14f else 0.18f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(size.width * 0.88f, size.height * 0.72f),
+                                radius = size.maxDimension * 0.6f
+                            ),
+                            center = Offset(size.width * 0.88f, size.height * 0.72f),
+                            radius = size.maxDimension * 0.6f
+                        )
+                    }
+                }
+        )
+        CompositionLocalProvider(LocalLiquidBackdrop provides sheetBackdrop) {
+            content()
+        }
+    }
+}
+
+/**
+ * Full-screen backdrop. Liquid styles drift their aurora gradient and luminous
+ * color orbs slowly so refracting glass cards catch shifting highlights.
  */
 @Composable
 fun SerieeBackground(p: SeriePalette, modifier: Modifier = Modifier) {
@@ -152,7 +314,7 @@ fun SerieeBackground(p: SeriePalette, modifier: Modifier = Modifier) {
                 initialValue = 0f,
                 targetValue = 1f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 18_000, easing = LinearEasing),
+                    animation = tween(durationMillis = 16_000, easing = LinearEasing),
                     repeatMode = RepeatMode.Reverse
                 ),
                 label = "liquidDrift"
@@ -164,10 +326,62 @@ fun SerieeBackground(p: SeriePalette, modifier: Modifier = Modifier) {
                         drawRect(
                             brush = Brush.linearGradient(
                                 colors = gradient,
-                                start = Offset(size.width * 0.2f * drift, 0f),
-                                end = Offset(size.width * (1f - 0.2f * drift), size.height)
+                                start = Offset(size.width * 0.25f * drift, 0f),
+                                end = Offset(size.width * (1f - 0.25f * drift), size.height)
                             )
                         )
+                        if (p.isGlass) {
+                            val orbA = Offset(
+                                x = size.width * (0.18f + 0.22f * drift),
+                                y = size.height * (0.14f + 0.08f * drift)
+                            )
+                            val orbB = Offset(
+                                x = size.width * (0.85f - 0.25f * drift),
+                                y = size.height * (0.52f - 0.10f * drift)
+                            )
+                            val orbC = Offset(
+                                x = size.width * (0.30f + 0.35f * drift),
+                                y = size.height * 0.86f
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        p.primary.copy(alpha = if (p.isLight) 0.30f else 0.34f),
+                                        Color.Transparent
+                                    ),
+                                    center = orbA,
+                                    radius = size.width * 0.65f
+                                ),
+                                center = orbA,
+                                radius = size.width * 0.65f
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        p.accent.copy(alpha = if (p.isLight) 0.24f else 0.26f),
+                                        Color.Transparent
+                                    ),
+                                    center = orbB,
+                                    radius = size.width * 0.60f
+                                ),
+                                center = orbB,
+                                radius = size.width * 0.60f
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        (gradient.lastOrNull() ?: p.accent).copy(
+                                            alpha = if (p.isLight) 0.28f else 0.32f
+                                        ),
+                                        Color.Transparent
+                                    ),
+                                    center = orbC,
+                                    radius = size.width * 0.70f
+                                ),
+                                center = orbC,
+                                radius = size.width * 0.70f
+                            )
+                        }
                     }
             )
         } else {
@@ -190,10 +404,20 @@ fun SerieeSurface(
         else -> p.card
     }
     Box(
-        modifier = modifier
-            .clip(shape)
-            .background(bg)
-            .then(if (level > 0) Modifier.themedBorder(p, shape) else Modifier)
+        modifier = if (level > 0 && p.isGlass) {
+            modifier.liquidGlass(
+                shape = shape,
+                tint = bg,
+                blurRadius = 16.dp,
+                refractionHeight = 10.dp,
+                refractionAmount = 18.dp
+            )
+        } else {
+            modifier
+                .clip(shape)
+                .background(bg)
+                .then(if (level > 0) Modifier.themedBorder(p, shape) else Modifier)
+        }
     ) {
         content()
     }
@@ -226,19 +450,29 @@ fun IconPillButton(
     contentDescription: String?,
     onClick: () -> Unit,
     tint: Color? = null,
+    backdrop: LayerBackdrop? = null,
     modifier: Modifier = Modifier
 ) {
     val p = LocalPalette.current
+    val effectiveBackdrop = backdrop ?: LocalLiquidBackdrop.current
     Box(
         modifier = modifier
-            .size(38.dp)
-            .clip(SerieeShape.chip)
-            .background(p.chip)
-            .border(1.dp, p.border, SerieeShape.chip)
+            .size(40.dp)
+            .liquidGlass(
+                shape = CircleShape,
+                backdrop = effectiveBackdrop,
+                tint = if (p.isGlass) {
+                    if (p.isLight) Color.White.copy(alpha = 0.52f)
+                    else Color.White.copy(alpha = 0.14f)
+                } else p.chip,
+                blurRadius = 14.dp,
+                refractionHeight = 8.dp,
+                refractionAmount = 16.dp
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = tint ?: p.muted, modifier = Modifier.size(18.dp))
+        Icon(icon, contentDescription = contentDescription, tint = tint ?: p.text.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
     }
 }
 
@@ -294,12 +528,28 @@ fun RadioCard(
     modifier: Modifier = Modifier
 ) {
     val p = LocalPalette.current
+    val tint = if (selected) {
+        p.primary.copy(alpha = if (p.isGlass) 0.22f else 0.12f)
+    } else if (p.isGlass) {
+        if (p.isLight) Color.White.copy(alpha = 0.44f) else Color.White.copy(alpha = 0.08f)
+    } else {
+        p.chip
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(SerieeShape.field)
-            .background(if (selected) p.primary.copy(alpha = 0.12f) else p.chip)
-            .border(1.dp, if (selected) p.primary.copy(alpha = 0.55f) else p.border, SerieeShape.field)
+            .liquidGlass(
+                shape = SerieeShape.field,
+                tint = tint,
+                blurRadius = 14.dp,
+                refractionHeight = 8.dp,
+                refractionAmount = 14.dp,
+                withBorder = !selected
+            )
+            .then(
+                if (selected) Modifier.border(1.dp, p.primary.copy(alpha = 0.65f), SerieeShape.field)
+                else Modifier
+            )
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -329,8 +579,15 @@ fun SegmentedTabs(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(SerieeShape.field)
-            .background(p.chip)
+            .liquidGlass(
+                shape = SerieeShape.pill,
+                tint = if (p.isGlass) {
+                    if (p.isLight) Color.White.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.10f)
+                } else p.chip,
+                blurRadius = 14.dp,
+                refractionHeight = 8.dp,
+                refractionAmount = 14.dp
+            )
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -339,8 +596,19 @@ fun SegmentedTabs(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(SerieeShape.chip)
-                    .background(if (active) p.primary else Color.Transparent)
+                    .clip(SerieeShape.pill)
+                    .background(
+                        if (active) {
+                            Brush.horizontalGradient(listOf(p.primary, p.accent))
+                        } else {
+                            SolidColor(Color.Transparent)
+                        }
+                    )
+                    .then(
+                        if (active && p.isGlass) {
+                            Modifier.border(0.75.dp, Color.White.copy(alpha = 0.45f), SerieeShape.pill)
+                        } else Modifier
+                    )
                     .selectable(selected = active, role = Role.Tab) { onSelect(index) }
                     .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center
@@ -366,17 +634,36 @@ fun PrimaryButton(
     gradient: Boolean = false
 ) {
     val p = LocalPalette.current
-    val brush = if (gradient) {
-        Brush.horizontalGradient(listOf(p.primary, p.accent))
+    val tintColor = if (enabled) {
+        p.primary.copy(alpha = if (p.isGlass) 0.78f else 1f)
     } else {
-        Brush.horizontalGradient(listOf(p.primary, p.primary))
+        p.chip
     }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .clip(SerieeShape.field)
-            .background(if (enabled) brush else Brush.horizontalGradient(listOf(p.chip, p.chip)))
+            .liquidGlass(
+                shape = SerieeShape.pill,
+                tint = tintColor,
+                blurRadius = 14.dp,
+                refractionHeight = 10.dp,
+                refractionAmount = 18.dp,
+                elevated = enabled && p.isGlass,
+                withBorder = true
+            )
+            .then(
+                if (enabled && gradient) {
+                    Modifier.background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                p.primary.copy(alpha = if (p.isGlass) 0.68f else 1f),
+                                p.accent.copy(alpha = if (p.isGlass) 0.68f else 1f)
+                            )
+                        )
+                    )
+                } else Modifier
+            )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center
@@ -403,9 +690,15 @@ fun SecondaryButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .clip(SerieeShape.field)
-            .background(p.chip)
-            .border(1.dp, p.border, SerieeShape.field)
+            .liquidGlass(
+                shape = SerieeShape.pill,
+                tint = if (p.isGlass) {
+                    if (p.isLight) Color.White.copy(alpha = 0.50f) else Color.White.copy(alpha = 0.12f)
+                } else p.chip,
+                blurRadius = 14.dp,
+                refractionHeight = 10.dp,
+                refractionAmount = 18.dp
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center
@@ -433,24 +726,39 @@ fun EmptyState(
     ) {
         Box(
             modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(p.chip)
-                .border(1.dp, p.border, CircleShape),
+                .size(64.dp)
+                .liquidGlass(
+                    shape = CircleShape,
+                    tint = if (p.isGlass) {
+                        if (p.isLight) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.12f)
+                    } else p.chip,
+                    blurRadius = 16.dp,
+                    refractionHeight = 14.dp,
+                    refractionAmount = 24.dp,
+                    elevated = true
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = p.accent, modifier = Modifier.size(26.dp))
+            Icon(icon, contentDescription = null, tint = p.accent, modifier = Modifier.size(28.dp))
         }
         Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = p.text, textAlign = TextAlign.Center)
         Text(hint, fontSize = 12.sp, color = p.muted, textAlign = TextAlign.Center, lineHeight = 17.sp)
         if (ctaLabel != null && onCta != null) {
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Box(
                 modifier = Modifier
-                    .clip(SerieeShape.field)
-                    .background(p.primary)
+                    .heightIn(min = 48.dp)
+                    .liquidGlass(
+                        shape = SerieeShape.pill,
+                        tint = p.primary.copy(alpha = if (p.isGlass) 0.80f else 1f),
+                        blurRadius = 14.dp,
+                        refractionHeight = 10.dp,
+                        refractionAmount = 18.dp,
+                        elevated = p.isGlass
+                    )
                     .clickable(onClick = onCta)
-                    .padding(horizontal = 18.dp, vertical = 10.dp)
+                    .padding(horizontal = 22.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(ctaLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = p.onAccent)
             }
@@ -465,9 +773,9 @@ fun SheetDragHandle() {
     Box(
         Modifier
             .padding(top = 10.dp, bottom = 6.dp)
-            .size(width = 36.dp, height = 4.dp)
+            .size(width = 40.dp, height = 5.dp)
             .clip(RoundedCornerShape(50))
-            .background(p.border)
+            .background(if (p.isGlass) Color.White.copy(alpha = if (p.isLight) 0.7f else 0.35f) else p.border)
     )
 }
 
@@ -476,14 +784,17 @@ fun GradientProgressBar(
     fraction: Float,
     modifier: Modifier = Modifier,
     colors: List<Color>? = null,
-    track: Color = LocalPalette.current.chip
+    track: Color? = null
 ) {
     val p = LocalPalette.current
+    val resolvedTrack = track ?: if (p.isGlass) {
+        if (p.isLight) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.14f)
+    } else p.chip
     val brush = Brush.horizontalGradient(colors ?: listOf(p.primary, p.accent))
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(50))
-            .background(track)
+            .background(resolvedTrack)
     ) {
         Box(
             Modifier
@@ -497,12 +808,17 @@ fun GradientProgressBar(
 
 @Composable
 fun StatusBadge(status: WatchStatus, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
     val color = statusColor(status)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(color.copy(alpha = 0.16f))
-            .padding(horizontal = 7.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = if (p.isGlass) 0.22f else 0.16f))
+            .then(
+                if (p.isGlass) Modifier.border(0.75.dp, color.copy(alpha = 0.45f), RoundedCornerShape(50))
+                else Modifier
+            )
+            .padding(horizontal = 9.dp, vertical = 3.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (status == WatchStatus.Completed) {

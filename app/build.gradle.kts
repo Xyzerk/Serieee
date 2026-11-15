@@ -25,6 +25,12 @@ android {
     compileSdk = 36
 
     signingConfigs {
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         create("release") {
             if (hasReleaseSigning) {
                 keyAlias = releaseProps.getProperty("keyAlias")
@@ -47,6 +53,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debugConfig")
+        }
         release {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
@@ -97,6 +106,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.github.kyant0:backdrop:1.0.6")
 
     testImplementation("junit:junit:4.13.2")
 }

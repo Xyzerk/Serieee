@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -100,20 +101,22 @@ fun BackupRestoreDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = p.surface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = if (p.isGlass) p.surface.copy(alpha = if (p.isLight) 0.90f else 0.84f) else p.surface,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         dragHandle = { SheetDragHandle() }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        LiquidSheetHost {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -185,9 +188,13 @@ fun BackupRestoreDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(p.card)
-                        .border(1.dp, p.border, RoundedCornerShape(16.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(20.dp),
+                            tint = p.card,
+                            blurRadius = 14.dp,
+                            refractionHeight = 8.dp,
+                            refractionAmount = 14.dp
+                        )
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -247,9 +254,13 @@ fun BackupRestoreDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(p.card)
-                        .border(1.dp, p.border, RoundedCornerShape(16.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(20.dp),
+                            tint = p.card,
+                            blurRadius = 14.dp,
+                            refractionHeight = 8.dp,
+                            refractionAmount = 14.dp
+                        )
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -381,9 +392,13 @@ fun BackupRestoreDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(p.card)
-                        .border(1.dp, p.border, RoundedCornerShape(16.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(20.dp),
+                            tint = p.card,
+                            blurRadius = 14.dp,
+                            refractionHeight = 8.dp,
+                            refractionAmount = 14.dp
+                        )
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -480,9 +495,13 @@ fun BackupRestoreDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(p.card)
-                        .border(1.dp, p.border, RoundedCornerShape(16.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(20.dp),
+                            tint = p.card,
+                            blurRadius = 14.dp,
+                            refractionHeight = 8.dp,
+                            refractionAmount = 14.dp
+                        )
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -568,6 +587,7 @@ fun BackupRestoreDialog(
                         }
                     }
                 }
+            }
         }
     }
 }

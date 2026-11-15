@@ -115,13 +115,14 @@ fun ProgressScreen(
         }
     }
 
+    val topInset = padding.calculateTopPadding()
+    val bottomInset = padding.calculateBottomPadding()
+
     Column(
-        Modifier
-            .fillMaxSize()
-            .padding(padding)
+        Modifier.fillMaxSize()
     ) {
         Column(
-            Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            Modifier.padding(start = 16.dp, end = 16.dp, top = topInset + 4.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
@@ -203,7 +204,8 @@ fun ProgressScreen(
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomInset + 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }, contentType = { it.type }) { item ->
@@ -228,7 +230,7 @@ private fun ProgressCard(
 ) {
     val p = LocalPalette.current
     val context = LocalContext.current
-    val shape = remember { RoundedCornerShape(16.dp) }
+    val shape = remember { RoundedCornerShape(22.dp) }
     // Memoize date-derived strings (they call SimpleDateFormat etc.)
     val badgeText = remember(item.releaseDate, item.status) {
         if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownShortBadge(context, item.releaseDate) else ""
@@ -247,9 +249,13 @@ private fun ProgressCard(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(p.card)
-            .border(1.dp, p.border, shape)
+            .liquidGlass(
+                shape = shape,
+                tint = p.card,
+                blurRadius = 16.dp,
+                refractionHeight = 10.dp,
+                refractionAmount = 18.dp
+            )
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -451,13 +457,18 @@ private fun ProgressCard(
 private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>) {
     val p = LocalPalette.current
     val context = LocalContext.current
+    val shape = remember { RoundedCornerShape(22.dp) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(p.card)
-            .border(1.dp, p.border, RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .liquidGlass(
+                shape = shape,
+                tint = p.card,
+                blurRadius = 16.dp,
+                refractionHeight = 10.dp,
+                refractionAmount = 18.dp
+            )
+            .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

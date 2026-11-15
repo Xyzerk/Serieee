@@ -139,6 +139,8 @@ fun SerieeOverflowMenu(
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = if (p.isGlass) p.elevated else p.surface,
         modifier = Modifier.width(312.dp)
     ) {
         AnimatedContent(

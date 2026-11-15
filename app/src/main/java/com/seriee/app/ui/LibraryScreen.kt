@@ -121,13 +121,14 @@ fun LibraryScreen(
         }
     }
 
+    val topInset = padding.calculateTopPadding()
+    val bottomInset = padding.calculateBottomPadding()
+
     Column(
-        Modifier
-            .fillMaxSize()
-            .padding(padding)
+        Modifier.fillMaxSize()
     ) {
         Column(
-            Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            Modifier.padding(start = 16.dp, end = 16.dp, top = topInset + 4.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             SField(
@@ -161,9 +162,13 @@ fun LibraryScreen(
                 Spacer(Modifier.width(12.dp))
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(p.card)
-                        .border(1.dp, p.border, RoundedCornerShape(12.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(16.dp),
+                            tint = p.card,
+                            blurRadius = 14.dp,
+                            refractionHeight = 8.dp,
+                            refractionAmount = 14.dp
+                        )
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -223,7 +228,8 @@ fun LibraryScreen(
         } else if (gridView) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 120.dp),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomInset + 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -233,7 +239,8 @@ fun LibraryScreen(
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomInset + 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }, contentType = { it.status }) { item ->
@@ -269,8 +276,16 @@ private fun GridItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
     val badgeShort = remember(item.releaseDate) { ReminderScheduler.countdownShortBadge(context, item.releaseDate) }
     val badgeText = remember(item.releaseDate) { ReminderScheduler.countdownBadgeText(context, item.releaseDate) }
     Column(Modifier.clickable(onClick = onClick)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f)) {
-            Poster(item.poster, Modifier.fillMaxSize(), RoundedCornerShape(16.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+                .then(
+                    if (p.isGlass) Modifier.border(0.75.dp, Color.White.copy(alpha = if (p.isLight) 0.7f else 0.25f), RoundedCornerShape(18.dp))
+                    else Modifier
+                )
+        ) {
+            Poster(item.poster, Modifier.fillMaxSize(), RoundedCornerShape(18.dp))
             if (item.status == WatchStatus.ComingSoon) {
                 // Top-Start Days Until Release Badge (e.g. D-5)
                 Box(
@@ -339,16 +354,20 @@ private fun GridItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(6.dp)
-                    .size(28.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(Color.Black.copy(alpha = if (p.isGlass) 0.45f else 0.5f))
+                    .then(
+                        if (p.isGlass) Modifier.border(0.75.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                        else Modifier
+                    )
                     .clickable(onClick = onPin),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.PushPin,
                     contentDescription = stringResource(R.string.pin),
-                    tint = if (item.pinned) p.star else Color.White.copy(alpha = 0.4f),
+                    tint = if (item.pinned) p.star else Color.White.copy(alpha = 0.6f),
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -385,7 +404,7 @@ private fun GridItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
 private fun ListItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
     val p = LocalPalette.current
     val context = LocalContext.current
-    val shape = remember { RoundedCornerShape(16.dp) }
+    val shape = remember { RoundedCornerShape(22.dp) }
     val detailedCountdown = remember(item.releaseDate) {
         ReminderScheduler.countdownDetailedText(context, item.releaseDate)
     }
@@ -395,9 +414,13 @@ private fun ListItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(p.card)
-            .border(1.dp, p.border, shape)
+            .liquidGlass(
+                shape = shape,
+                tint = p.card,
+                blurRadius = 16.dp,
+                refractionHeight = 10.dp,
+                refractionAmount = 18.dp
+            )
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -395,20 +396,22 @@ fun MediaFormDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = p.surface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = if (p.isGlass) p.surface.copy(alpha = if (p.isLight) 0.90f else 0.84f) else p.surface,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         dragHandle = { SheetDragHandle() }
     ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+        LiquidSheetHost {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         if (initial == null) stringResource(R.string.add_to_seriee) else stringResource(R.string.edit_media),
@@ -432,9 +435,13 @@ fun MediaFormDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(p.card)
-                        .border(1.dp, p.border, RoundedCornerShape(16.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(20.dp),
+                            tint = p.card,
+                            blurRadius = 14.dp,
+                            refractionHeight = 8.dp,
+                            refractionAmount = 14.dp
+                        )
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -570,9 +577,13 @@ fun MediaFormDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(p.card)
-                        .border(1.dp, p.border, RoundedCornerShape(14.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(18.dp),
+                            tint = p.card,
+                            blurRadius = 14.dp,
+                            refractionHeight = 8.dp,
+                            refractionAmount = 14.dp
+                        )
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -771,9 +782,13 @@ fun MediaFormDialog(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(p.card)
-                                    .border(1.dp, p.border, RoundedCornerShape(14.dp))
+                                    .liquidGlass(
+                                        shape = RoundedCornerShape(18.dp),
+                                        tint = p.card,
+                                        blurRadius = 14.dp,
+                                        refractionHeight = 8.dp,
+                                        refractionAmount = 14.dp
+                                    )
                                     .padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -1050,16 +1065,26 @@ fun MediaFormDialog(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
                     Box(
                         Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(p.chip)
+                            .liquidGlass(
+                                shape = CircleShape,
+                                tint = p.chip,
+                                blurRadius = 12.dp,
+                                refractionHeight = 8.dp,
+                                refractionAmount = 14.dp
+                            )
                             .clickable(onClick = onDismiss)
-                            .padding(horizontal = 18.dp, vertical = 11.dp)
-                    ) { Text(stringResource(R.string.cancel), color = p.muted, fontSize = 14.sp) }
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    ) { Text(stringResource(R.string.cancel), color = p.text.copy(alpha = 0.8f), fontSize = 14.sp) }
 
                     Box(
                         Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(p.primary)
+                            .liquidGlass(
+                                shape = CircleShape,
+                                tint = p.primary.copy(alpha = if (p.isGlass) 0.82f else 1f),
+                                blurRadius = 14.dp,
+                                refractionHeight = 8.dp,
+                                refractionAmount = 16.dp
+                            )
                             .clickable {
                                 error = null
                                 if (title.isBlank()) {
@@ -1127,9 +1152,10 @@ fun MediaFormDialog(
                                     )
                                 }
                             }
-                            .padding(horizontal = 22.dp, vertical = 11.dp)
+                            .padding(horizontal = 24.dp, vertical = 12.dp)
                     ) { Text(stringResource(R.string.save), color = p.onAccent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
                 }
+            }
         }
     }
 }

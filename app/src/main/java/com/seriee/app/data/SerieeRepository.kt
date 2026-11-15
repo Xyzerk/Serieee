@@ -57,14 +57,16 @@ class SerieeRepository(context: Context) {
     fun loadThemeMode(): AppThemeMode {
         val stored = prefs.getString(KEY_THEME_MODE, null)
         if (stored != null) return AppThemeMode.fromName(stored)
-        return LegacyThemeMap.migrate(prefs.getString(KEY_THEME, null)).first
+        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeMode.System
+        return LegacyThemeMap.migrate(legacy).first
     }
 
     /** Visual style, migrated from the legacy flat theme list when needed. */
     fun loadThemeStyle(): AppThemeStyle {
         val stored = prefs.getString(KEY_THEME_STYLE, null)
         if (stored != null) return AppThemeStyle.fromName(stored)
-        return LegacyThemeMap.migrate(prefs.getString(KEY_THEME, null)).second
+        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeStyle.Liquid
+        return LegacyThemeMap.migrate(legacy).second
     }
 
     fun saveTheme(mode: AppThemeMode, style: AppThemeStyle) {

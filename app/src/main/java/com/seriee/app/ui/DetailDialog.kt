@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -87,18 +88,20 @@ fun DetailDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = p.surface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = if (p.isGlass) p.surface.copy(alpha = if (p.isLight) 0.90f else 0.84f) else p.surface,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         dragHandle = { SheetDragHandle() }
     ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-        ) {
+        LiquidSheetHost {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 20.dp)
+            ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     Box(
                         Modifier
@@ -184,9 +187,15 @@ fun DetailDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(p.reminder.copy(alpha = 0.08f))
-                            .border(1.dp, p.reminder.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                            .liquidGlass(
+                                shape = RoundedCornerShape(20.dp),
+                                tint = p.reminder.copy(alpha = if (p.isGlass) 0.14f else 0.08f),
+                                blurRadius = 14.dp,
+                                refractionHeight = 8.dp,
+                                refractionAmount = 14.dp,
+                                withBorder = false
+                            )
+                            .border(1.dp, p.reminder.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                             .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -322,8 +331,13 @@ fun DetailDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(p.primary.copy(alpha = 0.2f))
+                            .liquidGlass(
+                                shape = RoundedCornerShape(16.dp),
+                                tint = p.primary.copy(alpha = if (p.isGlass) 0.22f else 0.2f),
+                                blurRadius = 14.dp,
+                                refractionHeight = 8.dp,
+                                refractionAmount = 14.dp
+                            )
                             .clickable { openUrl(context, item.streamUrl) }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -487,14 +501,20 @@ fun DetailDialog(
                     }
                     Box(
                         Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(p.primary)
+                            .liquidGlass(
+                                shape = CircleShape,
+                                tint = p.primary.copy(alpha = if (p.isGlass) 0.80f else 1f),
+                                blurRadius = 14.dp,
+                                refractionHeight = 8.dp,
+                                refractionAmount = 16.dp
+                            )
                             .clickable(onClick = onEdit)
-                            .padding(horizontal = 18.dp, vertical = 10.dp)
+                            .padding(horizontal = 20.dp, vertical = 11.dp)
                     ) {
                         Text(stringResource(R.string.edit_details), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.onAccent)
                     }
                 }
+            }
         }
     }
 
@@ -534,14 +554,20 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun PlayerButton(label: String, color: Color, modifier: Modifier, onClick: () -> Unit) {
+    val p = LocalPalette.current
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(color.copy(alpha = 0.18f))
+            .liquidGlass(
+                shape = CircleShape,
+                tint = color.copy(alpha = if (p.isGlass) 0.22f else 0.18f),
+                blurRadius = 12.dp,
+                refractionHeight = 8.dp,
+                refractionAmount = 14.dp
+            )
             .clickable(onClick = onClick)
             .padding(vertical = 11.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color)
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
     }
 }

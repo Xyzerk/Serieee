@@ -116,20 +116,22 @@ fun ImportSheet(
     ModalBottomSheet(
         onDismissRequest = { close() },
         sheetState = sheetState,
-        containerColor = p.surface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = if (p.isGlass) p.surface.copy(alpha = if (p.isLight) 0.90f else 0.84f) else p.surface,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         dragHandle = { SheetDragHandle() }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        LiquidSheetHost {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
             // Header
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -296,9 +298,13 @@ fun ImportSheet(
                         Column(
                             Modifier
                                 .fillMaxWidth()
-                                .clip(SerieeShape.field)
-                                .background(p.card)
-                                .border(1.dp, p.border, SerieeShape.field)
+                                .liquidGlass(
+                                    shape = SerieeShape.field,
+                                    tint = p.card,
+                                    blurRadius = 14.dp,
+                                    refractionHeight = 8.dp,
+                                    refractionAmount = 14.dp
+                                )
                                 .padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -381,6 +387,7 @@ fun ImportSheet(
                 }
             }
         }
+        }
     }
 }
 
@@ -395,9 +402,13 @@ private fun ResultBlock(
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(SerieeShape.card)
-            .background(p.card)
-            .border(1.dp, p.border, SerieeShape.card)
+            .liquidGlass(
+                shape = SerieeShape.card,
+                tint = p.card,
+                blurRadius = 14.dp,
+                refractionHeight = 8.dp,
+                refractionAmount = 14.dp
+            )
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
