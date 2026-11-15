@@ -64,7 +64,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -268,7 +267,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                                 .fillMaxSize()
                                 .drawBackdrop(
                                     backdrop = pagerBackdrop,
-                                    shape = { RectangleShape },
+                                    shape = { RoundedCornerShape(0.dp) },
                                     effects = {
                                         vibrancy()
                                         val blurPx = (safeIntensity * 6f).dp.toPx()
