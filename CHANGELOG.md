@@ -4,6 +4,43 @@ All notable changes to this project are documented here. The in-app "What's New"
 dialog is generated from the `changelog_*` strings in
 `app/src/main/res/values/strings.xml`.
 
+## [0.4.2] — 2026-11-15
+
+### Added
+
+- **Material You** style that follows the wallpaper palette on Android 12 and
+  newer, with Classic colours as the fallback on older devices.
+- Custom theme upgrades: two-stop gradient presets, an accent sampled from a
+  poster's artwork, and copy/paste **theme codes** for sharing a setup.
+- **Reduce transparency** switch (collapses glass surfaces to solid ones) and an
+  optional **AMOLED in battery saver** mode.
+- Appearance × style theme menu with live swatches, a WCAG contrast warning for
+  custom accents, and a full in-menu preview.
+- Vibrant status tokens (`info`, `reminder`, `star`) and a complete Material 3
+  colour scheme so stock dialogs, fields, and switches never fall back to
+  purple.
+
+### Changed
+
+- Themes are now two independent axes: appearance (Follow system / Light / Dark)
+  and style (Classic / AMOLED / Frost Glass / Liquid Glass / Material You /
+  Custom). Every style ships both a light and a dark variant; the previous flat
+  theme list is migrated automatically on upgrade.
+- Palette colours cross-fade when the theme changes, and Liquid Glass drifts its
+  background gradient.
+- Glass surfaces use specular gradient borders and translucent chrome instead of
+  flat outlines.
+- Built-in styles use the same colour for accent and primary, so the wordmark,
+  badges, and selection tints stay in sync.
+- Screens, dialogs, chips, and buttons now draw from palette tokens instead of
+  hardcoded brand colours.
+
+### Fixed
+
+- Light themes no longer flash the dark window background during startup.
+- Text and icons on filled buttons, chips, badges, and switches stay readable on
+  light accents.
+
 ## [0.4.0] — 2026-11-12
 
 ### Added

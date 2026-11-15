@@ -445,18 +445,18 @@ fun MediaFormDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(SerieColors.Blue600)
+                                .background(p.primary)
                                 .clickable(enabled = !fetchLoading) { doFetch() }
                                 .padding(horizontal = 14.dp, vertical = 12.dp)
                         ) {
-                            if (fetchLoading) CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                            else Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.fetch_search_button), tint = Color.White, modifier = Modifier.size(16.dp))
+                            if (fetchLoading) CircularProgressIndicator(color = p.onAccent, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                            else Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.fetch_search_button), tint = p.onAccent, modifier = Modifier.size(16.dp))
                         }
                     }
                     if (fetchLoading) {
                         Text(stringResource(R.string.fetch_loading), fontSize = 11.sp, color = p.muted)
                     }
-                    fetchError?.let { Text(it, color = SerieColors.Red, fontSize = 12.sp) }
+                    fetchError?.let { Text(it, color = p.danger, fontSize = 12.sp) }
                     if (hasSearched && !fetchLoading && fetchError == null && fetchResults.isEmpty()) {
                         Text(stringResource(R.string.fetch_no_results), fontSize = 12.sp, color = p.muted)
                     }
@@ -487,9 +487,9 @@ fun MediaFormDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(SerieColors.Blue600.copy(alpha = 0.2f))
+                                    .background(p.primary.copy(alpha = 0.2f))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) { Text(r.source, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SerieColors.Blue400) }
+                            ) { Text(r.source, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = p.primary) }
                         }
                     }
                     // stream candidates from last fetch are applied directly; user can edit streamUrl below
@@ -529,8 +529,8 @@ fun MediaFormDialog(
                             unfocusedTextColor = p.text,
                             focusedContainerColor = p.bg,
                             unfocusedContainerColor = p.bg,
-                            cursorColor = SerieColors.Blue500,
-                            focusedBorderColor = SerieColors.Blue500,
+                            cursorColor = p.primary,
+                            focusedBorderColor = p.primary,
                             unfocusedBorderColor = p.border
                         )
                     )
@@ -589,13 +589,13 @@ fun MediaFormDialog(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .background(
-                                if (status == WatchStatus.ComingSoon) SerieColors.Orange.copy(
+                                if (status == WatchStatus.ComingSoon) p.reminder.copy(
                                     alpha = 0.08f
                                 ) else p.card
                             )
                             .border(
                                 1.dp,
-                                if (status == WatchStatus.ComingSoon) SerieColors.Orange.copy(alpha = 0.35f) else p.border,
+                                if (status == WatchStatus.ComingSoon) p.reminder.copy(alpha = 0.35f) else p.border,
                                 RoundedCornerShape(16.dp)
                             )
                             .padding(14.dp),
@@ -610,7 +610,7 @@ fun MediaFormDialog(
                                 Icon(
                                     imageVector = if (reminderEnabled) Icons.Filled.NotificationsActive else Icons.Filled.Alarm,
                                     contentDescription = null,
-                                    tint = if (reminderEnabled) SerieColors.Orange else p.muted,
+                                    tint = if (reminderEnabled) p.reminder else p.muted,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(Modifier.width(10.dp))
@@ -633,7 +633,7 @@ fun MediaFormDialog(
                                         }
                                     }
                                 },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = SerieColors.Orange)
+                                colors = SwitchDefaults.colors(checkedThumbColor = contrastOn(p.reminder), checkedTrackColor = p.reminder)
                             )
                         }
                         if (reminderEnabled || status == WatchStatus.ComingSoon) {
@@ -643,10 +643,10 @@ fun MediaFormDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(SerieColors.Orange.copy(alpha = 0.15f))
+                                        .background(p.reminder.copy(alpha = 0.15f))
                                         .border(
                                             1.dp,
-                                            SerieColors.Orange.copy(alpha = 0.4f),
+                                            p.reminder.copy(alpha = 0.4f),
                                             RoundedCornerShape(12.dp)
                                         )
                                         .clickable {
@@ -662,9 +662,9 @@ fun MediaFormDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = SerieColors.Orange, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = p.reminder, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.pick_release_date), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SerieColors.Orange)
+                                    Text(stringResource(R.string.pick_release_date), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = p.reminder)
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(stringResource(R.string.preset), fontSize = 11.sp, color = p.muted)
@@ -690,7 +690,7 @@ fun MediaFormDialog(
                                             .padding(horizontal = 12.dp, vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(Icons.Filled.EditCalendar, contentDescription = stringResource(R.string.change_date), tint = SerieColors.Orange, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Filled.EditCalendar, contentDescription = stringResource(R.string.change_date), tint = p.reminder, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(8.dp))
                                         Column(Modifier.weight(1f)) {
                                             Text(ReminderScheduler.formatReleaseDate(context, releaseDate), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.text)
@@ -699,10 +699,10 @@ fun MediaFormDialog(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .background(SerieColors.Orange.copy(alpha = 0.2f))
+                                                .background(p.reminder.copy(alpha = 0.2f))
                                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
-                                            Text(ReminderScheduler.timeUntilRelease(context, releaseDate), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SerieColors.Orange)
+                                            Text(ReminderScheduler.timeUntilRelease(context, releaseDate), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = p.reminder)
                                         }
                                     }
                                 }
@@ -787,14 +787,14 @@ fun MediaFormDialog(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .background(SerieColors.Red.copy(alpha = 0.15f))
+                                                .background(p.danger.copy(alpha = 0.15f))
                                                 .clickable {
                                                     seasonsDraft =
                                                         seasonsDraft.filter { it.number != draft.number }
                                                             .toMutableList()
                                                 }
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
-                                        ) { Text(stringResource(R.string.remove_season, draft.number), fontSize = 10.sp, color = SerieColors.Red) }
+                                        ) { Text(stringResource(R.string.remove_season, draft.number), fontSize = 10.sp, color = p.danger) }
                                     }
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -864,10 +864,10 @@ fun MediaFormDialog(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(100.dp))
-                                                .background(if (chipSelected) SerieColors.Blue600 else p.chip)
+                                                .background(if (chipSelected) p.primary else p.chip)
                                                 .border(
                                                     1.dp,
-                                                    if (chipSelected) SerieColors.Blue600 else p.border,
+                                                    if (chipSelected) p.primary else p.border,
                                                     RoundedCornerShape(100.dp)
                                                 )
                                                 .clickable {
@@ -880,7 +880,7 @@ fun MediaFormDialog(
                                             Text(
                                                 stringResource(R.string.episode_missing_only),
                                                 fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
-                                                color = if (chipSelected) Color.White else p.muted
+                                                color = if (chipSelected) p.onAccent else p.muted
                                             )
                                         }
                                     }
@@ -975,7 +975,7 @@ fun MediaFormDialog(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(SerieColors.Blue600)
+                                                .background(p.primary)
                                                 .clickable(
                                                     enabled = gotoText.isNotBlank(),
                                                     onClick = goToPage
@@ -983,13 +983,13 @@ fun MediaFormDialog(
                                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(stringResource(R.string.episode_go), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text(stringResource(R.string.episode_go), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = p.onAccent)
                                         }
                                     }
                                 }
 
                                 if (pageEps.isEmpty() && showMissingOnly) {
-                                    Text(stringResource(R.string.episode_all_picked), fontSize = 11.sp, color = SerieColors.Emerald)
+                                    Text(stringResource(R.string.episode_all_picked), fontSize = 11.sp, color = p.success)
                                 } else {
                                     // Only the visible page is composed — 50 rows max even for 1000+ ep shows.
                                     pageEps.forEach { ep ->
@@ -1037,7 +1037,7 @@ fun MediaFormDialog(
                                     .padding(horizontal = 12.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Filled.FolderOpen, null, tint = SerieColors.Blue400, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.FolderOpen, null, tint = p.primary, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(stringResource(R.string.pick_file), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.text)
                             }
@@ -1045,7 +1045,7 @@ fun MediaFormDialog(
                     }
                 }
 
-                error?.let { Text(it, color = SerieColors.Red, fontSize = 12.sp) }
+                error?.let { Text(it, color = p.danger, fontSize = 12.sp) }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
                     Box(
@@ -1059,7 +1059,7 @@ fun MediaFormDialog(
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(SerieColors.Blue600)
+                            .background(p.primary)
                             .clickable {
                                 error = null
                                 if (title.isBlank()) {
@@ -1128,7 +1128,7 @@ fun MediaFormDialog(
                                 }
                             }
                             .padding(horizontal = 22.dp, vertical = 11.dp)
-                    ) { Text(stringResource(R.string.save), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+                    ) { Text(stringResource(R.string.save), color = p.onAccent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
                 }
         }
     }
@@ -1181,13 +1181,13 @@ private fun EpisodeAssignRow(ep: Int, file: EpisodeFile?, onPick: () -> Unit) {
         Text("E$ep", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = p.text, modifier = Modifier.width(48.dp))
         Text(
             file?.displayName ?: stringResource(R.string.episode_missing),
-            fontSize = 11.sp, color = if (file != null) SerieColors.Emerald else p.muted,
+            fontSize = 11.sp, color = if (file != null) p.success else p.muted,
             maxLines = 1, modifier = Modifier.weight(1f)
         )
         if (file != null) {
             Text(
                 stringResource(R.string.episode_picked_ok),
-                fontSize = 9.sp, color = SerieColors.Emerald,
+                fontSize = 9.sp, color = p.success,
                 modifier = Modifier.padding(end = 6.dp)
             )
         }
@@ -1195,13 +1195,13 @@ private fun EpisodeAssignRow(ep: Int, file: EpisodeFile?, onPick: () -> Unit) {
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
                 .background(
-                    if (file != null) SerieColors.Emerald.copy(alpha = 0.15f) else SerieColors.Blue600.copy(
+                    if (file != null) p.success.copy(alpha = 0.15f) else p.primary.copy(
                         alpha = 0.15f
                     )
                 )
                 .clickable(onClick = onPick)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
-        ) { Text(if (file != null) "✓" else "+", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (file != null) SerieColors.Emerald else SerieColors.Blue400) }
+        ) { Text(if (file != null) "✓" else "+", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (file != null) p.success else p.primary) }
     }
 }
 
@@ -1211,13 +1211,13 @@ private fun PosterSourceChip(label: String, selected: Boolean, onClick: () -> Un
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(100.dp))
-            .background(if (selected) SerieColors.Blue600 else p.chip)
+            .background(if (selected) p.primary else p.chip)
             .border(
                 1.dp,
-                if (selected) SerieColors.Blue600 else p.border,
+                if (selected) p.primary else p.border,
                 RoundedCornerShape(100.dp)
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (selected) Color.White else p.muted) }
+    ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (selected) p.onAccent else p.muted) }
 }

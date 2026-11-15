@@ -27,8 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,18 +73,14 @@ fun AboutDialog(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(SerieColors.Blue600, SerieColors.Indigo500)
-                                )
-                            ),
+                            .background(p.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             "S",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
+                            color = p.onAccent
                         )
                     }
                     Spacer(Modifier.width(12.dp))
@@ -160,7 +154,7 @@ fun AboutDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(SerieColors.Blue600)
+                        .background(p.primary)
                         .clickable(onClick = onDismiss)
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
@@ -169,7 +163,7 @@ fun AboutDialog(
                         stringResource(R.string.about_close),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = p.onAccent
                     )
                 }
             }
@@ -218,7 +212,7 @@ private fun LinkRow(label: String, url: String) {
             label,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = if (p.isLight) SerieColors.Blue600 else SerieColors.Blue400,
+            color = p.primary,
             modifier = Modifier.weight(1f)
         )
         Icon(

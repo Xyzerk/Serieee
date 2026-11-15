@@ -2,6 +2,7 @@ package com.seriee.app.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class WatchStatusTest {
@@ -27,16 +28,49 @@ class WatchStatusTest {
     }
 
     @Test
-    fun `theme names round-trip and old names still load`() {
-        AppTheme.entries.forEach { theme ->
-            assertEquals(theme, AppTheme.valueOf(theme.name))
+    fun `theme axes round-trip and legacy names migrate`() {
+        AppThemeMode.entries.forEach { mode ->
+            assertEquals(mode, AppThemeMode.fromName(mode.name))
         }
-        listOf("Dark", "Amoled", "Glass", "Light").forEach { old ->
-            assertNotNull(AppTheme.valueOf(old))
+        AppThemeStyle.entries.forEach { style ->
+            assertEquals(style, AppThemeStyle.fromName(style.name))
         }
-        assertNotNull(AppTheme.valueOf("FollowSystem"))
-        assertNotNull(AppTheme.valueOf("LiquidGlass"))
-        assertNotNull(AppTheme.valueOf("Custom"))
+        val expected = mapOf(
+            "FollowSystem" to (AppThemeMode.System to AppThemeStyle.Classic),
+            "Dark" to (AppThemeMode.Dark to AppThemeStyle.Classic),
+            "Amoled" to (AppThemeMode.Dark to AppThemeStyle.Amoled),
+            "Glass" to (AppThemeMode.Dark to AppThemeStyle.Frost),
+            "LiquidGlass" to (AppThemeMode.Dark to AppThemeStyle.Liquid),
+            "Light" to (AppThemeMode.Light to AppThemeStyle.Classic),
+            "Custom" to (AppThemeMode.Dark to AppThemeStyle.Custom),
+            null to (AppThemeMode.Dark to AppThemeStyle.Classic)
+        )
+        expected.forEach { (legacy, axes) ->
+            assertEquals(axes, LegacyThemeMap.migrate(legacy))
+        }
+    }
+
+    @Test
+    fun `theme codes survive a clipboard round trip`() {
+        val preset = ThemePreset(
+            mode = AppThemeMode.Light,
+            style = AppThemeStyle.Liquid,
+            accent = 0xFFF0559BL,
+            backgroundStart = 0xFF0EA5E9L,
+            backgroundEnd = 0xFF6366F1L,
+            gradient = true,
+            reduceTransparency = true
+        )
+        val encoded = ThemePresetCodec.encode(preset)
+        assertEquals(preset, ThemePresetCodec.decode(encoded))
+    }
+
+    @Test
+    fun `theme codes reject unrelated clipboard text`() {
+        assertNull(ThemePresetCodec.decode("hello world"))
+        assertNull(ThemePresetCodec.decode(null))
+        assertNull(ThemePresetCodec.decode("https://example.com"))
+        assertNotNull(ThemePresetCodec.decode(ThemePresetCodec.encode(ThemePreset())))
     }
 
     @Test

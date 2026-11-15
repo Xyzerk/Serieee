@@ -17,17 +17,56 @@ enum class WatchStatus(@StringRes val labelRes: Int) {
     Dropped(R.string.status_dropped)
 }
 
-enum class AppTheme(
+/**
+ * How the app picks light or dark surfaces.
+ *
+ * Appearance and [AppThemeStyle] are independent axes: every style ships both
+ * a light and a dark variant.
+ */
+enum class AppThemeMode(@StringRes val labelRes: Int) {
+    System(R.string.theme_mode_system),
+    Light(R.string.theme_mode_light),
+    Dark(R.string.theme_mode_dark);
+
+    companion object {
+        fun fromName(name: String?): AppThemeMode =
+            entries.firstOrNull { it.name == name } ?: System
+    }
+}
+
+/** Visual treatment applied on top of the chosen appearance. */
+enum class AppThemeStyle(
     @StringRes val labelRes: Int,
     @StringRes val descriptionRes: Int
 ) {
-    FollowSystem(R.string.theme_follow_system, R.string.theme_follow_system_desc),
-    Dark(R.string.theme_dark, R.string.theme_dark_desc),
-    Amoled(R.string.theme_amoled, R.string.theme_amoled_desc),
-    Glass(R.string.theme_glass, R.string.theme_glass_desc),
-    LiquidGlass(R.string.theme_liquid_glass, R.string.theme_liquid_glass_desc),
-    Light(R.string.theme_light, R.string.theme_light_desc),
-    Custom(R.string.theme_custom, R.string.theme_custom_desc)
+    Classic(R.string.theme_style_classic, R.string.theme_style_classic_desc),
+    Amoled(R.string.theme_style_amoled, R.string.theme_style_amoled_desc),
+    Frost(R.string.theme_style_frost, R.string.theme_style_frost_desc),
+    Liquid(R.string.theme_style_liquid, R.string.theme_style_liquid_desc),
+    MaterialYou(R.string.theme_style_material_you, R.string.theme_style_material_you_desc),
+    Custom(R.string.theme_style_custom, R.string.theme_style_custom_desc);
+
+    companion object {
+        fun fromName(name: String?): AppThemeStyle =
+            entries.firstOrNull { it.name == name } ?: Classic
+    }
+}
+
+/**
+ * Maps the flat [AppTheme] list used up to 0.4.1 onto the appearance/style pair.
+ * Kept pure so it can be unit-tested and reused for theme codes.
+ */
+object LegacyThemeMap {
+    fun migrate(name: String?): Pair<AppThemeMode, AppThemeStyle> = when (name) {
+        "FollowSystem" -> AppThemeMode.System to AppThemeStyle.Classic
+        "Dark" -> AppThemeMode.Dark to AppThemeStyle.Classic
+        "Amoled" -> AppThemeMode.Dark to AppThemeStyle.Amoled
+        "Glass" -> AppThemeMode.Dark to AppThemeStyle.Frost
+        "LiquidGlass" -> AppThemeMode.Dark to AppThemeStyle.Liquid
+        "Light" -> AppThemeMode.Light to AppThemeStyle.Classic
+        "Custom" -> AppThemeMode.Dark to AppThemeStyle.Custom
+        else -> AppThemeMode.Dark to AppThemeStyle.Classic
+    }
 }
 
 enum class AppLanguage(@StringRes val labelRes: Int, val tag: String) {

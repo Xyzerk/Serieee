@@ -15,7 +15,8 @@ import androidx.lifecycle.viewModelScope
 import com.seriee.app.R
 import com.seriee.app.data.AniListListClient
 import com.seriee.app.data.AppLanguage
-import com.seriee.app.data.AppTheme
+import com.seriee.app.data.AppThemeMode
+import com.seriee.app.data.AppThemeStyle
 import com.seriee.app.data.ImportError
 import com.seriee.app.data.ImportException
 import com.seriee.app.data.ImportMapper
@@ -26,6 +27,7 @@ import com.seriee.app.data.ImportUiState
 import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.SerieeRepository
+import com.seriee.app.data.ThemePresetCodec
 import com.seriee.app.data.WatchStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -39,12 +41,22 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
 
     var items by mutableStateOf(repo.loadItems())
         private set
-    private val _theme = mutableStateOf(repo.loadTheme())
-    val theme: AppTheme get() = _theme.value
+    private val _themeMode = mutableStateOf(repo.loadThemeMode())
+    val themeMode: AppThemeMode get() = _themeMode.value
+    private val _themeStyle = mutableStateOf(repo.loadThemeStyle())
+    val themeStyle: AppThemeStyle get() = _themeStyle.value
     private val _customAccent = mutableStateOf(Color(repo.loadCustomAccent()))
     val customAccent: Color get() = _customAccent.value
+    private val _customBackgroundStart = mutableStateOf(Color(repo.loadCustomBackgroundStart()))
+    val customBackgroundStart: Color get() = _customBackgroundStart.value
+    private val _customBackgroundEnd = mutableStateOf(Color(repo.loadCustomBackgroundEnd()))
+    val customBackgroundEnd: Color get() = _customBackgroundEnd.value
     private val _customGradient = mutableStateOf(repo.loadCustomGradient())
     val customGradient: Boolean get() = _customGradient.value
+    private val _reduceTransparency = mutableStateOf(repo.loadReduceTransparency())
+    val reduceTransparency: Boolean get() = _reduceTransparency.value
+    private val _batterySaverAmoled = mutableStateOf(repo.loadBatterySaverAmoled())
+    val batterySaverAmoled: Boolean get() = _batterySaverAmoled.value
     private val _gridView = mutableStateOf(repo.loadGridView())
     val gridView: Boolean get() = _gridView.value
     private val _language = mutableStateOf(repo.loadLanguage())
@@ -263,21 +275,84 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         repo.saveLastSeenVersionCode(currentVersionCode)
     }
 
-    fun setTheme(value: AppTheme) {
-        _theme.value = value
-        repo.saveTheme(value)
+    fun setThemeMode(value: AppThemeMode) {
+        if (_themeMode.value == value) return
+        _themeMode.value = value
+        repo.saveTheme(_themeMode.value, _themeStyle.value)
+    }
+
+    fun setThemeStyle(value: AppThemeStyle) {
+        if (_themeStyle.value == value) return
+        _themeStyle.value = value
+        repo.saveTheme(_themeMode.value, _themeStyle.value)
     }
 
     fun setCustomAccent(value: Color) {
         _customAccent.value = value
         repo.saveCustomAccent(value.toArgb())
-        if (_theme.value != AppTheme.Custom) setTheme(AppTheme.Custom)
+        ensureCustomStyle()
+    }
+
+    fun setCustomBackground(start: Color, end: Color) {
+        _customBackgroundStart.value = start
+        _customBackgroundEnd.value = end
+        repo.saveCustomBackground(start.toArgb(), end.toArgb())
+        if (!_customGradient.value) setCustomGradient(true) else ensureCustomStyle()
     }
 
     fun setCustomGradient(value: Boolean) {
         _customGradient.value = value
         repo.saveCustomGradient(value)
-        if (_theme.value != AppTheme.Custom) setTheme(AppTheme.Custom)
+        ensureCustomStyle()
+    }
+
+    /** Editing any custom colour moves the app onto the Custom style. */
+    private fun ensureCustomStyle() {
+        if (_themeStyle.value != AppThemeStyle.Custom) setThemeStyle(AppThemeStyle.Custom)
+    }
+
+    fun setReduceTransparency(value: Boolean) {
+        _reduceTransparency.value = value
+        repo.saveReduceTransparency(value)
+    }
+
+    fun setBatterySaverAmoled(value: Boolean) {
+        _batterySaverAmoled.value = value
+        repo.saveBatterySaverAmoled(value)
+    }
+
+    /** Portable text snapshot of the current theme, shared through the clipboard. */
+    fun themeCode(): String = ThemePresetCodec.encode(
+        com.seriee.app.data.ThemePreset(
+            mode = _themeMode.value,
+            style = _themeStyle.value,
+            accent = _customAccent.value.toArgb().toLong() and 0xFFFFFFFFL,
+            backgroundStart = _customBackgroundStart.value.toArgb().toLong() and 0xFFFFFFFFL,
+            backgroundEnd = _customBackgroundEnd.value.toArgb().toLong() and 0xFFFFFFFFL,
+            gradient = _customGradient.value,
+            reduceTransparency = _reduceTransparency.value
+        )
+    )
+
+    /** Applies a pasted theme code. Returns false when the text is not a theme. */
+    fun applyThemeCode(raw: String?): Boolean {
+        val preset = ThemePresetCodec.decode(raw) ?: return false
+        _themeMode.value = preset.mode
+        _themeStyle.value = preset.style
+        _customAccent.value = Color(preset.accent.toInt())
+        _customBackgroundStart.value = Color(preset.backgroundStart.toInt())
+        _customBackgroundEnd.value = Color(preset.backgroundEnd.toInt())
+        _customGradient.value = preset.gradient
+        _reduceTransparency.value = preset.reduceTransparency
+        repo.saveTheme(preset.mode, preset.style)
+        repo.saveCustomAccent(_customAccent.value.toArgb())
+        repo.saveCustomBackground(
+            _customBackgroundStart.value.toArgb(),
+            _customBackgroundEnd.value.toArgb()
+        )
+        repo.saveCustomGradient(preset.gradient)
+        repo.saveReduceTransparency(preset.reduceTransparency)
+        return true
     }
 
     fun setGridView(value: Boolean) {

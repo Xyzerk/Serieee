@@ -250,12 +250,12 @@ private fun ViewToggle(selected: Boolean, onClick: () -> Unit, icon: @Composable
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) SerieColors.Blue600 else Color.Transparent)
+            .background(if (selected) p.primary else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
-        icon(if (selected) Color.White else p.muted)
+        icon(if (selected) p.onAccent else p.muted)
     }
 }
 
@@ -278,19 +278,19 @@ private fun GridItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
                         .align(Alignment.TopStart)
                         .padding(6.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(SerieColors.Orange)
+                        .background(p.reminder)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (item.reminderEnabled) {
-                            Icon(Icons.Filled.NotificationsActive, null, tint = Color.White, modifier = Modifier.size(10.dp))
+                            Icon(Icons.Filled.NotificationsActive, null, tint = contrastOn(p.reminder), modifier = Modifier.size(10.dp))
                             Spacer(Modifier.width(2.dp))
                         }
                         Text(
                             badgeShort,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
+                            color = contrastOn(p.reminder)
                         )
                     }
                 }
@@ -312,7 +312,7 @@ private fun GridItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
                         Icon(
                             Icons.Filled.HourglassTop,
                             contentDescription = null,
-                            tint = SerieColors.Orange,
+                            tint = p.reminder,
                             modifier = Modifier.size(11.dp)
                         )
                         Spacer(Modifier.width(3.dp))
@@ -348,7 +348,7 @@ private fun GridItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
                 Icon(
                     Icons.Filled.PushPin,
                     contentDescription = stringResource(R.string.pin),
-                    tint = if (item.pinned) SerieColors.Amber else Color.White.copy(alpha = 0.4f),
+                    tint = if (item.pinned) p.star else Color.White.copy(alpha = 0.4f),
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -417,7 +417,7 @@ private fun ListItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
                     if (item.pinned) {
                         Icon(
                             Icons.Filled.PushPin, contentDescription = null,
-                            tint = SerieColors.Amber, modifier = Modifier.size(12.dp)
+                            tint = p.star, modifier = Modifier.size(12.dp)
                         )
                         Spacer(Modifier.width(6.dp))
                     }
@@ -443,7 +443,7 @@ private fun ListItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
                     Icon(
                         Icons.Filled.HourglassTop,
                         contentDescription = null,
-                        tint = SerieColors.Orange,
+                        tint = p.reminder,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(Modifier.width(4.dp))
@@ -451,7 +451,7 @@ private fun ListItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
                         "${stringResource(item.type.labelRes)} • $detailedCountdown",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = SerieColors.Orange,
+                        color = p.reminder,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -513,7 +513,7 @@ private fun ListItem(item: MediaItem, onClick: () -> Unit, onPin: () -> Unit) {
         ) {
             Icon(
                 Icons.Filled.PushPin, contentDescription = stringResource(R.string.pin),
-                tint = if (item.pinned) SerieColors.Amber else p.muted,
+                tint = if (item.pinned) p.star else p.muted,
                 modifier = Modifier.size(18.dp)
             )
         }

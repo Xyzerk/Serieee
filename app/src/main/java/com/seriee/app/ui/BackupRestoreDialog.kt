@@ -122,7 +122,7 @@ fun BackupRestoreDialog(
                     Icon(
                         Icons.Filled.Storage,
                         contentDescription = null,
-                        tint = SerieColors.Blue400,
+                        tint = p.primary,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(Modifier.width(10.dp))
@@ -172,7 +172,7 @@ fun BackupRestoreDialog(
                             stringResource(R.string.reset_streak),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = SerieColors.Red,
+                            color = p.danger,
                             modifier = Modifier.clickable {
                                 vm.resetStreak()
                                 android.widget.Toast.makeText(context, context.getString(R.string.streak_reset_done), android.widget.Toast.LENGTH_SHORT).show()
@@ -195,7 +195,7 @@ fun BackupRestoreDialog(
                         Icon(
                             Icons.Filled.FileDownload,
                             contentDescription = null,
-                            tint = SerieColors.Blue400,
+                            tint = p.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
@@ -218,7 +218,7 @@ fun BackupRestoreDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(SerieColors.Blue600)
+                            .background(p.primary)
                             .clickable {
                                 val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                                 exportLauncher.launch("seriee_backup_$timeStamp.json")
@@ -230,7 +230,7 @@ fun BackupRestoreDialog(
                         Icon(
                             Icons.Filled.FileDownload,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = p.onAccent,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
@@ -238,7 +238,7 @@ fun BackupRestoreDialog(
                             stringResource(R.string.save_backup_file),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            color = p.onAccent
                         )
                     }
                 }
@@ -257,7 +257,7 @@ fun BackupRestoreDialog(
                         Icon(
                             Icons.Filled.FileUpload,
                             contentDescription = null,
-                            tint = SerieColors.Emerald,
+                            tint = p.success,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
@@ -301,7 +301,7 @@ fun BackupRestoreDialog(
                             Icon(
                                 if (!replaceMode) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
                                 contentDescription = null,
-                                tint = if (!replaceMode) SerieColors.Blue400 else p.muted,
+                                tint = if (!replaceMode) p.primary else p.muted,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(8.dp))
@@ -329,7 +329,7 @@ fun BackupRestoreDialog(
                             Icon(
                                 if (replaceMode) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
                                 contentDescription = null,
-                                tint = if (replaceMode) SerieColors.Orange else p.muted,
+                                tint = if (replaceMode) p.warning else p.muted,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(8.dp))
@@ -353,7 +353,7 @@ fun BackupRestoreDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(SerieColors.Emerald)
+                            .background(p.success)
                             .clickable {
                                 importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
                             }
@@ -364,7 +364,7 @@ fun BackupRestoreDialog(
                         Icon(
                             Icons.Filled.FileUpload,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = p.onAccent,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
@@ -372,7 +372,7 @@ fun BackupRestoreDialog(
                             stringResource(R.string.pick_backup_file),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            color = p.onAccent
                         )
                     }
                 }
@@ -436,7 +436,7 @@ fun BackupRestoreDialog(
                             Icon(
                                 imageVector = Icons.Filled.Storage,
                                 contentDescription = null,
-                                tint = SerieColors.Emerald,
+                                tint = p.success,
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
@@ -450,14 +450,14 @@ fun BackupRestoreDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(SerieColors.Blue600)
+                                .background(p.primary)
                                 .clickable {
                                     vm.setTmdbKey(keyInput)
                                     showKey = false
                                     android.widget.Toast.makeText(context, context.getString(R.string.tmdb_api_key_save), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                                 .padding(horizontal = 14.dp, vertical = 9.dp)
-                        ) { Text(stringResource(R.string.tmdb_api_key_save), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White) }
+                        ) { Text(stringResource(R.string.tmdb_api_key_save), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.onAccent) }
                         if (vm.tmdbKey.isNotBlank()) {
                             Box(
                                 modifier = Modifier
@@ -530,7 +530,7 @@ fun BackupRestoreDialog(
                             Icon(
                                 imageVector = Icons.Filled.Storage,
                                 contentDescription = null,
-                                tint = SerieColors.Emerald,
+                                tint = p.success,
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
@@ -544,14 +544,14 @@ fun BackupRestoreDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(SerieColors.Blue600)
+                                .background(p.primary)
                                 .clickable {
                                     vm.setOmdbKey(omdbInput)
                                     omdbShow = false
                                     android.widget.Toast.makeText(context, context.getString(R.string.omdb_api_key_save), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                                 .padding(horizontal = 14.dp, vertical = 9.dp)
-                        ) { Text(stringResource(R.string.omdb_api_key_save), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White) }
+                        ) { Text(stringResource(R.string.omdb_api_key_save), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.onAccent) }
                         if (vm.omdbKey.isNotBlank()) {
                             Box(
                                 modifier = Modifier

@@ -31,7 +31,7 @@ Seriee is free software under the [Apache License 2.0](LICENSE). It is local-fir
 
 **Collection import** — bring an existing list from **AniList** (public username, no token) or a **MyAnimeList** `.xml`/`.xml.gz` export. Preview new/updated/unchanged counts, merge without losing local edits, or replace after confirmation. Entries match by source ID, then normalized title and type; IDs use `anilist-…` / `mal-…`.
 
-**Themes & language** — Follow system, Dark, AMOLED, Frost Glass, Liquid Glass, Light, and Custom; a two-level menu with eight accent presets and solid/gradient backgrounds (live preview), plus System default, English, and Bahasa Indonesia. Theme, accent, background, view mode, language, and API keys persist on-device.
+**Themes & language** — two independent axes: appearance (**Follow system / Light / Dark**) and style (**Classic, AMOLED, Frost Glass, Liquid Glass, Material You on Android 12+, or Custom**). Every style has light and dark variants; Custom adds eight accent presets, artwork-sampled accents, gradient presets, and copy/paste theme codes. Extras include a **Reduce transparency** switch and an optional **AMOLED in battery saver** mode. Plus System default, English, and Bahasa Indonesia. Theme, accent, background, view mode, language, and API keys persist on-device.
 
 **Changelog & About** — a What's New dialog once per version (reopenable from the overflow menu), and an About screen with version, data-source credits, privacy policy, license, and repository links.
 

@@ -73,8 +73,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
 import com.seriee.app.SerieeViewModel
-import com.seriee.app.data.AppLanguage
-import com.seriee.app.data.AppTheme
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -126,18 +124,13 @@ fun SerieeApp(vm: SerieeViewModel) {
         }
     }
 
-    Scaffold(
-        containerColor = p.bg,
+    Box(Modifier.fillMaxSize()) {
+        SerieeBackground(p)
+        Scaffold(
+            containerColor = Color.Transparent,
         topBar = {
             SerieeTopBar(
-                theme = vm.theme,
-                customAccent = vm.customAccent,
-                customGradient = vm.customGradient,
-                language = vm.language,
-                onTheme = vm::setTheme,
-                onAccent = vm::setCustomAccent,
-                onGradient = vm::setCustomGradient,
-                onLanguage = vm::setLanguage,
+                vm = vm,
                 onOpenBackupRestore = { showBackupRestore = true },
                 onOpenImport = {
                     vm.beginImport()
@@ -200,16 +193,8 @@ fun SerieeApp(vm: SerieeViewModel) {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(p.bg)
                 .nestedScroll(scrollConnection)
         ) {
-            p.gradient?.let { colors ->
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Brush.linearGradient(colors))
-                )
-            }
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -268,6 +253,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                 }
                 }
             }
+        }
         }
     }
 
@@ -348,14 +334,7 @@ fun SerieeApp(vm: SerieeViewModel) {
 
 @Composable
 private fun SerieeTopBar(
-    theme: AppTheme,
-    customAccent: Color,
-    customGradient: Boolean,
-    language: AppLanguage,
-    onTheme: (AppTheme) -> Unit,
-    onAccent: (Color) -> Unit,
-    onGradient: (Boolean) -> Unit,
-    onLanguage: (AppLanguage) -> Unit,
+    vm: SerieeViewModel,
     onOpenBackupRestore: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenChangelog: () -> Unit,
@@ -369,7 +348,7 @@ private fun SerieeTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(p.bg)
+            .background(if (p.gradient != null) p.bg.copy(alpha = 0.58f) else p.bg)
             .statusBarsPadding()
             .height(64.dp)
             .padding(horizontal = 16.dp),
@@ -434,20 +413,14 @@ private fun SerieeTopBar(
                     )
                 }
                 SerieeOverflowMenu(
+                    vm = vm,
                     expanded = optionsMenu,
                     onDismiss = { optionsMenu = false },
-                    theme = theme,
-                    customAccent = customAccent,
-                    customGradient = customGradient,
-                    onTheme = onTheme,
-                    onAccent = onAccent,
-                    onGradient = onGradient,
-                    language = language,
-                    onLanguage = onLanguage,
                     onBackupRestore = onOpenBackupRestore,
                     onImport = onOpenImport,
                     onChangelog = onOpenChangelog,
-                    onAbout = onOpenAbout
+                    onAbout = onOpenAbout,
+                    artworkPoster = vm.items.firstOrNull { !it.poster.isNullOrBlank() }?.poster
                 )
             }
         }
@@ -472,13 +445,7 @@ private fun SerieeNavBar(
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(if (p.isGlass) p.card.copy(alpha = 0.72f) else p.surface)
-            .border(
-                1.dp,
-                if (p.isGlass) Color.White.copy(alpha = 0.10f) else p.border,
-                RoundedCornerShape(22.dp)
-            )
+            .glassChrome(p, RoundedCornerShape(22.dp))
             .padding(horizontal = 6.dp)
     ) {
         BoxWithConstraints(

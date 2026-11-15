@@ -1,5 +1,11 @@
 package com.seriee.app.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -25,12 +32,16 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -93,8 +104,75 @@ fun statusColor(status: WatchStatus): Color {
         WatchStatus.Completed -> p.success
         WatchStatus.PlanToWatch -> p.muted
         WatchStatus.ComingSoon -> p.warning
-        WatchStatus.OnHold -> Color(0xFFFB923C)
+        WatchStatus.OnHold -> p.reminder
         WatchStatus.Dropped -> p.danger
+    }
+}
+
+/** Specular highlight used on glass borders so they catch the light. */
+private fun SeriePalette.specularColors(): List<Color> {
+    val strong = if (isLight) 0.85f else 0.30f
+    val soft = if (isLight) 0.45f else 0.10f
+    return listOf(
+        Color.White.copy(alpha = strong),
+        Color.White.copy(alpha = 0.03f),
+        Color.White.copy(alpha = soft)
+    )
+}
+
+/**
+ * Theme-aware outline: a brushed specular edge on glass styles, the palette
+ * border everywhere else.
+ */
+fun Modifier.themedBorder(p: SeriePalette, shape: Shape, width: androidx.compose.ui.unit.Dp = 1.dp): Modifier =
+    border(
+        width = width,
+        brush = if (p.isGlass) Brush.linearGradient(p.specularColors()) else SolidColor(p.border),
+        shape = shape
+    )
+
+/** Translucent chrome (nav bar, sheets) with a specular edge on glass styles. */
+fun Modifier.glassChrome(p: SeriePalette, shape: Shape): Modifier = this
+    .clip(shape)
+    .background(if (p.isGlass) p.card.copy(alpha = if (p.isLight) 0.82f else 0.72f) else p.surface)
+    .themedBorder(p, shape)
+
+/**
+ * Full-screen backdrop. Liquid styles drift their gradient slowly; every other
+ * gradient style renders it statically.
+ */
+@Composable
+fun SerieeBackground(p: SeriePalette, modifier: Modifier = Modifier) {
+    val gradient = p.gradient
+    Box(modifier = modifier.fillMaxSize().background(p.bg)) {
+        if (gradient == null) return@Box
+        if (p.animatedGradient) {
+            val transition = rememberInfiniteTransition(label = "liquidBackground")
+            val drift by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 18_000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "liquidDrift"
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        drawRect(
+                            brush = Brush.linearGradient(
+                                colors = gradient,
+                                start = Offset(size.width * 0.2f * drift, 0f),
+                                end = Offset(size.width * (1f - 0.2f * drift), size.height)
+                            )
+                        )
+                    }
+            )
+        } else {
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(gradient)))
+        }
     }
 }
 
@@ -115,7 +193,7 @@ fun SerieeSurface(
         modifier = modifier
             .clip(shape)
             .background(bg)
-            .then(if (level > 0) Modifier.border(1.dp, p.border, shape) else Modifier)
+            .then(if (level > 0) Modifier.themedBorder(p, shape) else Modifier)
     ) {
         content()
     }

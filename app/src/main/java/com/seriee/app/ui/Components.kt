@@ -109,7 +109,7 @@ fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) SerieColors.Blue600 else p.chip)
+            .background(if (selected) p.primary else p.chip)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 7.dp)
     ) {
@@ -117,7 +117,7 @@ fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
             text = label,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (selected) Color.White else p.muted
+            color = if (selected) p.onAccent else p.muted
         )
     }
 }
@@ -265,7 +265,7 @@ fun StarRatingBar(
     labelBelow: Boolean = false
 ) {
     val p = LocalPalette.current
-    val starColor = SerieColors.Amber
+    val starColor = p.star
     val labelText = when (rating) {
         5 -> stringResource(R.string.rating_masterpiece)
         4 -> stringResource(R.string.rating_great)
@@ -337,6 +337,7 @@ fun StarRatingBadge(
     modifier: Modifier = Modifier
 ) {
     if (rating <= 0) return
+    val p = LocalPalette.current
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
@@ -347,7 +348,7 @@ fun StarRatingBadge(
             Icon(
                 Icons.Filled.Star,
                 contentDescription = null,
-                tint = SerieColors.Amber,
+                tint = p.star,
                 modifier = Modifier.size(11.dp)
             )
             Spacer(Modifier.width(2.dp))
@@ -368,7 +369,7 @@ fun GenreTagBadge(
     color: Color? = null
 ) {
     val p = LocalPalette.current
-    val accent = color ?: SerieColors.Blue400
+    val accent = color ?: p.primary
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
@@ -436,11 +437,11 @@ fun TagInputField(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(SerieColors.Blue600)
+                                .background(p.primary)
                                 .clickable { addTag(input) }
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
-                            Text(stringResource(R.string.add), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(stringResource(R.string.add), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = p.onAccent)
                         }
                     }
                 } else null,
@@ -453,8 +454,8 @@ fun TagInputField(
                     unfocusedTextColor = p.text,
                     focusedContainerColor = p.bg,
                     unfocusedContainerColor = p.bg,
-                    cursorColor = SerieColors.Blue500,
-                    focusedBorderColor = SerieColors.Blue500,
+                    cursorColor = p.primary,
+                    focusedBorderColor = p.primary,
                     unfocusedBorderColor = p.border,
                     focusedPlaceholderColor = p.muted,
                     unfocusedPlaceholderColor = p.muted
@@ -475,8 +476,8 @@ fun TagInputField(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(SerieColors.Blue600.copy(alpha = 0.2f))
-                            .border(1.dp, SerieColors.Blue600.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .background(p.primary.copy(alpha = 0.2f))
+                            .border(1.dp, p.primary.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
                             .clickable { onTagsChanged(tags - tag) }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
@@ -485,13 +486,13 @@ fun TagInputField(
                                 tag,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = SerieColors.Blue400
+                                color = p.primary
                             )
                             Spacer(Modifier.width(4.dp))
                             Icon(
                                 Icons.Filled.Close,
                                 contentDescription = stringResource(R.string.remove_tag, tag),
-                                tint = SerieColors.Blue400,
+                                tint = p.primary,
                                 modifier = Modifier.size(12.dp)
                             )
                         }
@@ -514,7 +515,7 @@ fun TagInputField(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (isSelected) SerieColors.Blue600 else p.chip)
+                            .background(if (isSelected) p.primary else p.chip)
                             .clickable {
                                 if (isSelected) {
                                     onTagsChanged(tags.filterNot { it.equals(genre, ignoreCase = true) })
@@ -537,7 +538,7 @@ fun TagInputField(
                             Text(
                                 genre,
                                 fontSize = 11.sp,
-                                color = if (isSelected) Color.White else p.muted,
+                                color = if (isSelected) p.onAccent else p.muted,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
                         }

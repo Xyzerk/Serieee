@@ -50,13 +50,28 @@ class SerieeRepository(context: Context) {
         prefs.edit().putString(KEY_DATA, arr.toString()).apply()
     }
 
-    fun loadTheme(): AppTheme {
-        val name = prefs.getString(KEY_THEME, AppTheme.Dark.name) ?: AppTheme.Dark.name
-        return runCatching { AppTheme.valueOf(name) }.getOrDefault(AppTheme.Dark)
+    /**
+     * Appearance (light/dark/system). Falls back to the legacy flat theme list so
+     * users upgrading from 0.4.1 keep the look they picked.
+     */
+    fun loadThemeMode(): AppThemeMode {
+        val stored = prefs.getString(KEY_THEME_MODE, null)
+        if (stored != null) return AppThemeMode.fromName(stored)
+        return LegacyThemeMap.migrate(prefs.getString(KEY_THEME, null)).first
     }
 
-    fun saveTheme(theme: AppTheme) {
-        prefs.edit().putString(KEY_THEME, theme.name).apply()
+    /** Visual style, migrated from the legacy flat theme list when needed. */
+    fun loadThemeStyle(): AppThemeStyle {
+        val stored = prefs.getString(KEY_THEME_STYLE, null)
+        if (stored != null) return AppThemeStyle.fromName(stored)
+        return LegacyThemeMap.migrate(prefs.getString(KEY_THEME, null)).second
+    }
+
+    fun saveTheme(mode: AppThemeMode, style: AppThemeStyle) {
+        prefs.edit()
+            .putString(KEY_THEME_MODE, mode.name)
+            .putString(KEY_THEME_STYLE, style.name)
+            .apply()
     }
 
     /** Custom theme accent, stored as ARGB. Defaults to the blue primary. */
@@ -66,11 +81,36 @@ class SerieeRepository(context: Context) {
         prefs.edit().putInt(KEY_CUSTOM_ACCENT, argb).apply()
     }
 
+    /** Custom gradient stops, stored as ARGB. */
+    fun loadCustomBackgroundStart(): Int = prefs.getInt(KEY_CUSTOM_BG_START, 0xFF1D4ED8.toInt())
+    fun loadCustomBackgroundEnd(): Int = prefs.getInt(KEY_CUSTOM_BG_END, 0xFF7C2A64.toInt())
+
+    fun saveCustomBackground(start: Int, end: Int) {
+        prefs.edit()
+            .putInt(KEY_CUSTOM_BG_START, start)
+            .putInt(KEY_CUSTOM_BG_END, end)
+            .apply()
+    }
+
     /** Custom theme background: true = gradient, false = solid. */
     fun loadCustomGradient(): Boolean = prefs.getBoolean(KEY_CUSTOM_GRADIENT, false)
 
     fun saveCustomGradient(gradient: Boolean) {
         prefs.edit().putBoolean(KEY_CUSTOM_GRADIENT, gradient).apply()
+    }
+
+    /** Accessibility: collapse translucent glass surfaces to opaque ones. */
+    fun loadReduceTransparency(): Boolean = prefs.getBoolean(KEY_REDUCE_TRANSPARENCY, false)
+
+    fun saveReduceTransparency(value: Boolean) {
+        prefs.edit().putBoolean(KEY_REDUCE_TRANSPARENCY, value).apply()
+    }
+
+    /** Smart theme: switch the dark Classic style to AMOLED while battery saver runs. */
+    fun loadBatterySaverAmoled(): Boolean = prefs.getBoolean(KEY_BATTERY_AMOLED, false)
+
+    fun saveBatterySaverAmoled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_BATTERY_AMOLED, value).apply()
     }
 
     fun loadGridView(): Boolean = prefs.getBoolean(KEY_GRID, true)
@@ -266,8 +306,14 @@ class SerieeRepository(context: Context) {
     private companion object {
         const val KEY_DATA = "seriee_data_v2"
         const val KEY_THEME = "seriee_theme"
+        const val KEY_THEME_MODE = "seriee_theme_mode"
+        const val KEY_THEME_STYLE = "seriee_theme_style"
         const val KEY_CUSTOM_ACCENT = "custom_accent"
+        const val KEY_CUSTOM_BG_START = "custom_background_start"
+        const val KEY_CUSTOM_BG_END = "custom_background_end"
         const val KEY_CUSTOM_GRADIENT = "custom_background_gradient"
+        const val KEY_REDUCE_TRANSPARENCY = "seriee_reduce_transparency"
+        const val KEY_BATTERY_AMOLED = "seriee_battery_amoled"
         const val KEY_GRID = "seriee_grid"
         const val KEY_LANG = "seriee_lang"
         const val KEY_TMDB = "tmdb_api_key"

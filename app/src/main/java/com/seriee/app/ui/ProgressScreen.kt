@@ -262,14 +262,14 @@ private fun ProgressCard(
                         .align(Alignment.TopStart)
                         .padding(3.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(SerieColors.Orange)
+                        .background(p.reminder)
                         .padding(horizontal = 4.dp, vertical = 1.dp)
                 ) {
                     Text(
                         badgeText,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = contrastOn(p.reminder)
                     )
                 }
             }
@@ -339,7 +339,7 @@ private fun ProgressCard(
                         Icon(
                             Icons.Filled.HourglassTop,
                             contentDescription = null,
-                            tint = SerieColors.Orange,
+                            tint = p.reminder,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(Modifier.width(4.dp))
@@ -347,20 +347,20 @@ private fun ProgressCard(
                             badgeLong,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = SerieColors.Orange
+                            color = p.reminder
                         )
                     }
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(SerieColors.Orange.copy(alpha = 0.2f))
+                            .background(p.reminder.copy(alpha = 0.2f))
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
                             badgeText,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = SerieColors.Orange
+                            color = p.reminder
                         )
                     }
                 }
@@ -370,8 +370,8 @@ private fun ProgressCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp),
-                    colors = listOf(SerieColors.Orange, SerieColors.Amber),
-                    track = SerieColors.Orange.copy(alpha = 0.15f)
+                    colors = listOf(p.reminder, p.star),
+                    track = p.reminder.copy(alpha = 0.15f)
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -464,13 +464,13 @@ private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>)
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(SerieColors.Orange.copy(alpha = 0.15f)),
+                .background(p.reminder.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Filled.Whatshot,
                 contentDescription = stringResource(R.string.streak_label),
-                tint = SerieColors.Orange,
+                tint = p.reminder,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -499,10 +499,10 @@ private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>)
                     modifier = Modifier
                         .size(24.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (active) SerieColors.Orange else p.chip)
+                        .background(if (active) p.reminder else p.chip)
                         .border(
                             1.dp,
-                            if (date == today) SerieColors.Orange else Color.Transparent,
+                            if (date == today) p.reminder else Color.Transparent,
                             RoundedCornerShape(50)
                         ),
                     contentAlignment = Alignment.Center
@@ -511,7 +511,7 @@ private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>)
                         letter,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (active) Color.White else p.muted
+                        color = if (active) contrastOn(p.reminder) else p.muted
                     )
                 }
             }

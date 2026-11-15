@@ -122,9 +122,9 @@ fun DetailDialog(
                             Box(
                                 Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(SerieColors.Blue600.copy(alpha = 0.25f))
+                                    .background(p.primary.copy(alpha = 0.25f))
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) { Text(stringResource(item.type.labelRes), fontSize = 11.sp, color = SerieColors.Blue400) }
+                            ) { Text(stringResource(item.type.labelRes), fontSize = 11.sp, color = p.primary) }
                             Spacer(Modifier.width(8.dp))
                             StatusBadge(item.status)
                         }
@@ -185,8 +185,8 @@ fun DetailDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(SerieColors.Orange.copy(alpha = 0.08f))
-                            .border(1.dp, SerieColors.Orange.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                            .background(p.reminder.copy(alpha = 0.08f))
+                            .border(1.dp, p.reminder.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                             .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -202,7 +202,7 @@ fun DetailDialog(
                                 Icon(
                                     imageVector = if (item.reminderEnabled) Icons.Filled.NotificationsActive else Icons.Filled.NotificationsOff,
                                     contentDescription = null,
-                                    tint = if (item.reminderEnabled) SerieColors.Orange else p.muted,
+                                    tint = if (item.reminderEnabled) p.reminder else p.muted,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(Modifier.width(8.dp))
@@ -210,20 +210,20 @@ fun DetailDialog(
                                     if (item.reminderEnabled) stringResource(R.string.reminder_alarm_on) else stringResource(R.string.reminder_alarm_off),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (item.reminderEnabled) SerieColors.Orange else p.muted
+                                    color = if (item.reminderEnabled) p.reminder else p.muted
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(SerieColors.Orange.copy(alpha = 0.2f))
+                                    .background(p.reminder.copy(alpha = 0.2f))
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     ReminderScheduler.timeUntilRelease(context, item.releaseDate),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = SerieColors.Orange
+                                    color = p.reminder
                                 )
                             }
                         }
@@ -244,7 +244,7 @@ fun DetailDialog(
                             Icon(
                                 Icons.Filled.CalendarMonth,
                                 contentDescription = stringResource(R.string.calendar),
-                                tint = SerieColors.Orange,
+                                tint = p.reminder,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(8.dp))
@@ -264,7 +264,7 @@ fun DetailDialog(
                             Icon(
                                 Icons.Filled.EditCalendar,
                                 contentDescription = stringResource(R.string.change_date),
-                                tint = SerieColors.Orange,
+                                tint = p.reminder,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -278,7 +278,7 @@ fun DetailDialog(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(if (item.reminderEnabled) p.chip else SerieColors.Orange.copy(alpha = 0.2f))
+                                        .background(if (item.reminderEnabled) p.chip else p.reminder.copy(alpha = 0.2f))
                                         .clickable(onClick = onToggleReminder)
                                         .padding(vertical = 9.dp),
                                     contentAlignment = Alignment.Center
@@ -287,7 +287,7 @@ fun DetailDialog(
                                         if (item.reminderEnabled) stringResource(R.string.turn_off_alarm) else stringResource(R.string.turn_on_alarm),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (item.reminderEnabled) p.muted else SerieColors.Orange
+                                        color = if (item.reminderEnabled) p.muted else p.reminder
                                     )
                                 }
                             }
@@ -296,7 +296,7 @@ fun DetailDialog(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(SerieColors.Blue600.copy(alpha = 0.18f))
+                                        .background(p.primary.copy(alpha = 0.18f))
                                         .clickable {
                                             onTestReminder()
                                             android.widget.Toast.makeText(context, context.getString(R.string.notification_sent), android.widget.Toast.LENGTH_SHORT).show()
@@ -308,7 +308,7 @@ fun DetailDialog(
                                         stringResource(R.string.test_alarm_now),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = SerieColors.Blue400
+                                        color = p.primary
                                     )
                                 }
                             }
@@ -323,23 +323,23 @@ fun DetailDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(SerieColors.Blue600.copy(alpha = 0.2f))
+                            .background(p.primary.copy(alpha = 0.2f))
                             .clickable { openUrl(context, item.streamUrl) }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Public, null, tint = SerieColors.Blue400, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Filled.Public, null, tint = p.primary, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
                             item.streamUrl,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = SerieColors.Blue400,
+                            color = p.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = SerieColors.Blue400, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = p.primary, modifier = Modifier.size(16.dp))
                     }
                 }
 
@@ -359,14 +359,14 @@ fun DetailDialog(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(100.dp))
-                                        .background(if (idx == safeSeasonIdx) SerieColors.Blue600 else p.chip)
+                                        .background(if (idx == safeSeasonIdx) p.primary else p.chip)
                                         .clickable { selectedSeasonIdx = idx }
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
                                         stringResource(R.string.season_format, s.number),
                                         fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                        color = if (idx == safeSeasonIdx) Color.White else p.muted
+                                        color = if (idx == safeSeasonIdx) p.onAccent else p.muted
                                     )
                                 }
                             }
@@ -408,7 +408,7 @@ fun DetailDialog(
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(
                                                 when {
-                                                    isCurrent -> SerieColors.Blue600
+                                                    isCurrent -> p.primary
                                                     file != null -> p.chip
                                                     else -> p.chip.copy(alpha = 0.5f)
                                                 }
@@ -426,7 +426,7 @@ fun DetailDialog(
                                         Text(
                                             "E$ep",
                                             fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                            color = if (isCurrent) Color.White else if (file != null) p.text else p.muted
+                                            color = if (isCurrent) p.onAccent else if (file != null) p.text else p.muted
                                         )
                                     }
                                 }
@@ -435,7 +435,7 @@ fun DetailDialog(
                             val currentFile = episodeByNumber[season.currentEp]
                             Text(
                                 "S${season.number}E${season.currentEp} — ${currentFile?.displayName ?: stringResource(R.string.episode_missing)}",
-                                fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = SerieColors.Blue400,
+                                fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = p.primary,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis
                             )
                             Spacer(Modifier.height(8.dp))
@@ -443,7 +443,7 @@ fun DetailDialog(
                     } else {
                         Text(
                             stringResource(R.string.file_label, item.videoPath.ifBlank { "video" }),
-                            fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = SerieColors.Blue400,
+                            fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = p.primary,
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                         Spacer(Modifier.height(8.dp))
@@ -455,10 +455,10 @@ fun DetailDialog(
                         season?.episodes?.find { it.number == season.currentEp }?.uri ?: item.videoUri
                     } else item.videoUri
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlayerButton("VLC Player", SerieColors.Orange, Modifier.weight(1f)) {
+                        PlayerButton("VLC Player", p.reminder, Modifier.weight(1f)) {
                             openVideoUri(context, playUri, VLC_PACKAGE)
                         }
-                        PlayerButton("MX Player", SerieColors.Indigo500, Modifier.weight(1f)) {
+                        PlayerButton("MX Player", p.info, Modifier.weight(1f)) {
                             openVideoUri(context, playUri, MX_PACKAGE)
                         }
                     }
@@ -481,18 +481,18 @@ fun DetailDialog(
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Delete, null, tint = SerieColors.Red, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Filled.Delete, null, tint = p.danger, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.delete), fontSize = 12.sp, color = SerieColors.Red)
+                        Text(stringResource(R.string.delete), fontSize = 12.sp, color = p.danger)
                     }
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(SerieColors.Blue600)
+                            .background(p.primary)
                             .clickable(onClick = onEdit)
                             .padding(horizontal = 18.dp, vertical = 10.dp)
                     ) {
-                        Text(stringResource(R.string.edit_details), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        Text(stringResource(R.string.edit_details), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.onAccent)
                     }
                 }
         }
@@ -510,7 +510,7 @@ fun DetailDialog(
                 TextButton(onClick = {
                     confirmDelete = false
                     onDelete()
-                }) { Text(stringResource(R.string.delete), color = SerieColors.Red) }
+                }) { Text(stringResource(R.string.delete), color = p.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel), color = p.muted) }

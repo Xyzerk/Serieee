@@ -1,20 +1,40 @@
 package com.seriee.app.ui
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.PowerManager
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import com.seriee.app.data.AppTheme
+import com.seriee.app.data.AppThemeMode
+import com.seriee.app.data.AppThemeStyle
 
 object SerieColors {
     val Blue400 = Color(0xFF60A5FA)
@@ -33,8 +53,9 @@ object SerieColors {
 /**
  * Resolved design tokens for the active theme.
  *
- * [accent] is independent from [primary]: primary stays blue for selection and
- * CTAs, while accent is used for the wordmark, badges and the custom theme.
+ * [accent] mirrors [primary] for every built-in style so the wordmark, badges,
+ * selection tints and gradients stay in sync. It only diverges for
+ * [AppThemeStyle.Custom], where the user picks their own accent.
  */
 @Immutable
 data class SeriePalette(
@@ -54,9 +75,26 @@ data class SeriePalette(
     val success: Color,
     val warning: Color,
     val danger: Color,
+    /** Informational blue, used for badges that are not the primary CTA. */
+    val info: Color,
+    /** Reminder / release-date orange. */
+    val reminder: Color,
+    /** Rating stars and highlights. */
+    val star: Color,
     val isLight: Boolean,
     val gradient: List<Color>? = null,
-    val isGlass: Boolean = false
+    val isGlass: Boolean = false,
+    /** Liquid style: the background gradient slowly drifts. */
+    val animatedGradient: Boolean = false
+)
+
+/** User-controlled colours for [AppThemeStyle.Custom]. */
+@Immutable
+data class CustomThemeColors(
+    val accent: Color = SerieColors.Blue500,
+    val backgroundStart: Color = Color(0xFF1D4ED8),
+    val backgroundEnd: Color = Color(0xFF7C2A64),
+    val gradient: Boolean = false
 )
 
 private fun basePalette(
@@ -74,8 +112,12 @@ private fun basePalette(
     warning: Color,
     danger: Color,
     isLight: Boolean,
+    info: Color = primary,
+    reminder: Color = warning,
+    star: Color = warning,
     gradient: List<Color>? = null,
-    isGlass: Boolean = false
+    isGlass: Boolean = false,
+    animatedGradient: Boolean = false
 ) = SeriePalette(
     bg = bg,
     card = card,
@@ -86,18 +128,24 @@ private fun basePalette(
     primary = primary,
     accent = accent,
     accentSoft = accent.copy(alpha = 0.16f),
-    onAccent = if (accent.luminance() > 0.6f) Color(0xFF0F172A) else Color.White,
+    onAccent = contrastOn(accent),
     text = text,
     muted = muted,
     success = success,
     warning = warning,
     danger = danger,
+    info = info,
+    reminder = reminder,
+    star = star,
     isLight = isLight,
     gradient = gradient,
-    isGlass = isGlass
+    isGlass = isGlass,
+    animatedGradient = animatedGradient
 )
 
-private val DarkPalette = basePalette(
+// ------------------------------------------------------------------ palettes
+
+private val ClassicDark = basePalette(
     bg = Color(0xFF0A0F18),
     card = Color(0xFF151E2D),
     surface = Color(0xFF111826),
@@ -105,16 +153,39 @@ private val DarkPalette = basePalette(
     chip = Color(0xFF1C2739),
     border = Color(0xFF233047),
     primary = Color(0xFF3B82F6),
-    accent = Color(0xFFF0559B),
+    accent = Color(0xFF3B82F6),
     text = Color(0xFFF2F6FC),
     muted = Color(0xFF8C9EB5),
     success = Color(0xFF34D399),
     warning = Color(0xFFFBBF24),
     danger = Color(0xFFF87171),
+    info = Color(0xFF60A5FA),
+    reminder = Color(0xFFFB923C),
+    star = Color(0xFFFBBF24),
     isLight = false
 )
 
-private val AmoledPalette = basePalette(
+private val ClassicLight = basePalette(
+    bg = Color(0xFFF7F9FC),
+    card = Color(0xFFFFFFFF),
+    surface = Color(0xFFFFFFFF),
+    elevated = Color(0xFFFFFFFF),
+    chip = Color(0xFFEEF2F7),
+    border = Color(0xFFE3E9F2),
+    primary = Color(0xFF2563EB),
+    accent = Color(0xFF2563EB),
+    text = Color(0xFF0F172A),
+    muted = Color(0xFF64748B),
+    success = Color(0xFF059669),
+    warning = Color(0xFFD97706),
+    danger = Color(0xFFDC2626),
+    info = Color(0xFF2563EB),
+    reminder = Color(0xFFEA580C),
+    star = Color(0xFFD97706),
+    isLight = true
+)
+
+private val AmoledDark = basePalette(
     bg = Color(0xFF000000),
     card = Color(0xFF0A0A0A),
     surface = Color(0xFF070707),
@@ -128,10 +199,33 @@ private val AmoledPalette = basePalette(
     success = Color(0xFF34D399),
     warning = Color(0xFFFBBF24),
     danger = Color(0xFFF87171),
+    info = Color(0xFF60A5FA),
+    reminder = Color(0xFFFB923C),
+    star = Color(0xFFFBBF24),
     isLight = false
 )
 
-private val GlassPalette = basePalette(
+private val AmoledLight = basePalette(
+    bg = Color(0xFFFFFFFF),
+    card = Color(0xFFFFFFFF),
+    surface = Color(0xFFFFFFFF),
+    elevated = Color(0xFFFFFFFF),
+    chip = Color(0xFFF2F2F2),
+    border = Color(0xFFD4D4D4),
+    primary = Color(0xFF1D4ED8),
+    accent = Color(0xFF1D4ED8),
+    text = Color(0xFF000000),
+    muted = Color(0xFF5B5B5B),
+    success = Color(0xFF047857),
+    warning = Color(0xFFB45309),
+    danger = Color(0xFFB91C1C),
+    info = Color(0xFF1D4ED8),
+    reminder = Color(0xFFC2410C),
+    star = Color(0xFFB45309),
+    isLight = true
+)
+
+private val FrostDark = basePalette(
     bg = Color(0xFF0B1220),
     card = Color(0x99151E2D),
     surface = Color(0xCC111826),
@@ -145,12 +239,37 @@ private val GlassPalette = basePalette(
     success = Color(0xFF34D399),
     warning = Color(0xFFFBBF24),
     danger = Color(0xFFF87171),
+    info = Color(0xFF7DD3FC),
+    reminder = Color(0xFFFDBA74),
+    star = Color(0xFFFCD34D),
     isLight = false,
     gradient = listOf(Color(0xFF1E3A8A), Color(0xFF0B1220), Color(0xFF4C1D3D)),
     isGlass = true
 )
 
-private val LiquidGlassPalette = basePalette(
+private val FrostLight = basePalette(
+    bg = Color(0xFFEAF1FA),
+    card = Color(0xB3FFFFFF),
+    surface = Color(0xCCFFFFFF),
+    elevated = Color(0xF2FFFFFF),
+    chip = Color(0x8CE8EEF7),
+    border = Color(0xFFC7D4E6),
+    primary = Color(0xFF2563EB),
+    accent = Color(0xFF2563EB),
+    text = Color(0xFF0F172A),
+    muted = Color(0xFF52627A),
+    success = Color(0xFF059669),
+    warning = Color(0xFFD97706),
+    danger = Color(0xFFDC2626),
+    info = Color(0xFF0369A1),
+    reminder = Color(0xFFEA580C),
+    star = Color(0xFFD97706),
+    isLight = true,
+    gradient = listOf(Color(0xFFDBEAFE), Color(0xFFF5F8FD), Color(0xFFFCE7F3)),
+    isGlass = true
+)
+
+private val LiquidDark = basePalette(
     bg = Color(0xFF070C16),
     card = Color(0x8C1A2436),
     surface = Color(0xD90D1420),
@@ -158,106 +277,386 @@ private val LiquidGlassPalette = basePalette(
     chip = Color(0x521C2739),
     border = Color(0x2EFFFFFF),
     primary = Color(0xFF4F8DF7),
-    accent = Color(0xFFF0559B),
+    accent = Color(0xFF4F8DF7),
     text = Color(0xFFF6F9FF),
     muted = Color(0xFFADC0D8),
     success = Color(0xFF34D399),
     warning = Color(0xFFFBBF24),
     danger = Color(0xFFF87171),
+    info = Color(0xFF93C5FD),
+    reminder = Color(0xFFFDBA74),
+    star = Color(0xFFFDE68A),
     isLight = false,
     gradient = listOf(Color(0xFF1D4ED8), Color(0xFF0B1020), Color(0xFF7C2A64)),
-    isGlass = true
+    isGlass = true,
+    animatedGradient = true
 )
 
-private val LightPalette = basePalette(
-    bg = Color(0xFFF7F9FC),
-    card = Color(0xFFFFFFFF),
-    surface = Color(0xFFFFFFFF),
-    elevated = Color(0xFFFFFFFF),
-    chip = Color(0xFFEEF2F7),
-    border = Color(0xFFE3E9F2),
+private val LiquidLight = basePalette(
+    bg = Color(0xFFEDF3FF),
+    card = Color(0xB3FFFFFF),
+    surface = Color(0xD9FFFFFF),
+    elevated = Color(0xF2FFFFFF),
+    chip = Color(0x8CDCE7FF),
+    border = Color(0xFFC9D8EE),
     primary = Color(0xFF2563EB),
-    accent = Color(0xFF3B82F6),
-    text = Color(0xFF0F172A),
-    muted = Color(0xFF64748B),
+    accent = Color(0xFF2563EB),
+    text = Color(0xFF0B1220),
+    muted = Color(0xFF55627A),
     success = Color(0xFF059669),
     warning = Color(0xFFD97706),
     danger = Color(0xFFDC2626),
-    isLight = true
+    info = Color(0xFF0369A1),
+    reminder = Color(0xFFEA580C),
+    star = Color(0xFFD97706),
+    isLight = true,
+    gradient = listOf(Color(0xFFBFDBFE), Color(0xFFF8FAFC), Color(0xFFFBCFE8)),
+    isGlass = true,
+    animatedGradient = true
 )
 
-/** Resolves the concrete palette for a theme, including follow-system and custom. */
-fun resolvePalette(
-    theme: AppTheme,
-    systemDark: Boolean = false,
-    customAccent: Color = SerieColors.Blue500,
-    customGradient: Boolean = false
-): SeriePalette = when (theme) {
-    AppTheme.FollowSystem -> if (systemDark) DarkPalette else LightPalette
-    AppTheme.Dark -> DarkPalette
-    AppTheme.Amoled -> AmoledPalette
-    AppTheme.Glass -> GlassPalette
-    AppTheme.LiquidGlass -> LiquidGlassPalette
-    AppTheme.Light -> LightPalette
-    AppTheme.Custom -> DarkPalette.copy(
-        primary = customAccent,
-        accent = customAccent,
-        accentSoft = customAccent.copy(alpha = 0.16f),
-        onAccent = if (customAccent.luminance() > 0.6f) Color(0xFF0F172A) else Color.White,
-        gradient = if (customGradient) {
-            listOf(customAccent.copy(alpha = 0.42f), DarkPalette.bg, Color(0xFF070B12))
-        } else null
+// ------------------------------------------------------------------ resolving
+
+/** True when a palette would use translucent surfaces. */
+private fun SeriePalette.isTranslucentStyle(): Boolean =
+    isGlass || card.alpha < 0.999f || surface.alpha < 0.999f || chip.alpha < 0.999f
+
+/** Accessibility: flatten every translucent surface onto [bg]. */
+fun SeriePalette.opaque(): SeriePalette {
+    if (!isTranslucentStyle()) return this
+    return copy(
+        card = card.compositeOver(bg),
+        surface = surface.compositeOver(bg),
+        elevated = elevated.compositeOver(bg),
+        chip = chip.compositeOver(bg),
+        border = border.copy(alpha = 1f).compositeOver(bg),
+        isGlass = false
     )
 }
 
+/** WCAG relative-contrast text colour for a filled surface. */
+fun contrastOn(background: Color): Color =
+    if (background.luminance() > 0.55f) Color(0xFF0F172A) else Color.White
+
+/** WCAG contrast ratio between two opaque colours (1..21). */
+fun contrastRatio(a: Color, b: Color): Float {
+    val la = a.luminance()
+    val lb = b.luminance()
+    val lighter = maxOf(la, lb)
+    val darker = minOf(la, lb)
+    return (lighter + 0.05f) / (darker + 0.05f)
+}
+
+/** Minimum 3:1 keeps accents readable as UI colours. */
+fun SeriePalette.hasReadableAccent(): Boolean =
+    contrastRatio(accent, bg) >= 3f
+
+/** Resolves the concrete palette for a mode/style pair. */
+fun resolvePalette(
+    mode: AppThemeMode,
+    style: AppThemeStyle,
+    systemDark: Boolean = false,
+    custom: CustomThemeColors = CustomThemeColors(),
+    dynamicScheme: ColorScheme? = null,
+    reduceTransparency: Boolean = false
+): SeriePalette {
+    val dark = when (mode) {
+        AppThemeMode.System -> systemDark
+        AppThemeMode.Light -> false
+        AppThemeMode.Dark -> true
+    }
+    val resolved = when (style) {
+        AppThemeStyle.Classic -> if (dark) ClassicDark else ClassicLight
+        AppThemeStyle.Amoled -> if (dark) AmoledDark else AmoledLight
+        AppThemeStyle.Frost -> if (dark) FrostDark else FrostLight
+        AppThemeStyle.Liquid -> if (dark) LiquidDark else LiquidLight
+        AppThemeStyle.MaterialYou ->
+            dynamicScheme?.let { paletteFromScheme(it) }
+                ?: (if (dark) ClassicDark else ClassicLight)
+        AppThemeStyle.Custom -> {
+            val base = if (dark) ClassicDark else ClassicLight
+            base.copy(
+                primary = custom.accent,
+                accent = custom.accent,
+                accentSoft = custom.accent.copy(alpha = 0.16f),
+                onAccent = contrastOn(custom.accent),
+                gradient = if (custom.gradient) {
+                    listOf(custom.backgroundStart, custom.backgroundEnd)
+                } else null
+            )
+        }
+    }
+    return if (reduceTransparency) resolved.opaque() else resolved
+}
+
 /** Preview palette for the theme picker swatches. */
-fun previewPalette(theme: AppTheme, systemDark: Boolean): SeriePalette =
-    resolvePalette(theme, systemDark = systemDark)
+fun previewPalette(
+    mode: AppThemeMode,
+    style: AppThemeStyle,
+    systemDark: Boolean,
+    custom: CustomThemeColors = CustomThemeColors(),
+    dynamicScheme: ColorScheme? = null
+): SeriePalette = resolvePalette(mode, style, systemDark, custom, dynamicScheme)
 
-@Deprecated("Use resolvePalette", ReplaceWith("resolvePalette(theme)"))
-fun paletteFor(theme: AppTheme): SeriePalette = resolvePalette(theme)
+// ------------------------------------------------------------- Material You
 
-val LocalPalette = staticCompositionLocalOf { DarkPalette }
+/** Builds Seriee tokens from a wallpaper-derived Material 3 scheme. */
+fun paletteFromScheme(scheme: ColorScheme): SeriePalette {
+    val dark = scheme.background.luminance() < 0.45f
+    return SeriePalette(
+        bg = scheme.background,
+        card = scheme.surfaceContainer,
+        surface = scheme.surface,
+        elevated = scheme.surfaceContainerHigh,
+        chip = scheme.surfaceContainerHighest,
+        border = scheme.outlineVariant,
+        primary = scheme.primary,
+        accent = scheme.primary,
+        accentSoft = scheme.primary.copy(alpha = 0.16f),
+        onAccent = contrastOn(scheme.primary),
+        text = scheme.onBackground,
+        muted = scheme.onSurfaceVariant,
+        success = if (dark) Color(0xFF34D399) else Color(0xFF059669),
+        warning = if (dark) Color(0xFFFBBF24) else Color(0xFFD97706),
+        danger = scheme.error,
+        info = scheme.primary,
+        reminder = if (dark) Color(0xFFFB923C) else Color(0xFFEA580C),
+        star = if (dark) Color(0xFFFBBF24) else Color(0xFFD97706),
+        isLight = !dark
+    )
+}
 
+/**
+ * Dynamic colour scheme for [AppThemeStyle.MaterialYou]. Returns null on
+ * Android 11 and below, where the picker falls back to Classic colours.
+ */
 @Composable
-fun SerieeTheme(
-    theme: AppTheme,
-    customAccent: Color = SerieColors.Blue500,
-    customGradient: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    val systemDark = isSystemInDarkTheme()
-    val p = resolvePalette(theme, systemDark, customAccent, customGradient)
+fun rememberMaterialYouScheme(enabled: Boolean, dark: Boolean): ColorScheme? {
+    if (!enabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+    val context = LocalContext.current
+    return remember(context, dark) {
+        if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    }
+}
 
-    val scheme = if (p.isLight) {
+// ------------------------------------------------------------- Material theme
+
+private fun Color.onto(base: Color, alpha: Float): Color =
+    copy(alpha = alpha).compositeOver(base)
+
+/** Complete Material 3 scheme so stock components never fall back to purple. */
+private fun schemeFor(p: SeriePalette): ColorScheme {
+    val onPrimary = contrastOn(p.primary)
+    val onDanger = contrastOn(p.danger)
+    val inverseSurface = if (p.isLight) Color(0xFF0F172A) else Color(0xFFF2F6FC)
+    val inverseOnSurface = contrastOn(inverseSurface)
+    return if (p.isLight) {
         lightColorScheme(
             primary = p.primary,
+            onPrimary = onPrimary,
+            primaryContainer = p.primary.onto(p.surface, 0.14f),
+            onPrimaryContainer = p.text,
+            inversePrimary = p.primary.onto(p.bg, 0.7f),
             secondary = p.accent,
+            onSecondary = p.onAccent,
+            secondaryContainer = p.accent.onto(p.surface, 0.14f),
+            onSecondaryContainer = p.text,
+            tertiary = p.info,
+            onTertiary = contrastOn(p.info),
+            tertiaryContainer = p.info.onto(p.surface, 0.14f),
+            onTertiaryContainer = p.text,
             background = p.bg,
-            surface = p.surface,
-            surfaceVariant = p.chip,
-            onSurface = p.text,
             onBackground = p.text,
+            surface = p.surface,
+            onSurface = p.text,
+            surfaceVariant = p.chip,
+            onSurfaceVariant = p.muted,
+            surfaceTint = p.primary,
+            inverseSurface = inverseSurface,
+            inverseOnSurface = inverseOnSurface,
+            error = p.danger,
+            onError = onDanger,
+            errorContainer = p.danger.onto(p.surface, 0.14f),
+            onErrorContainer = p.danger,
             outline = p.border,
-            surfaceContainer = p.surface,
-            surfaceContainerHigh = p.surface,
-            surfaceContainerHighest = p.surface
+            outlineVariant = p.border.copy(alpha = 0.6f).compositeOver(p.bg),
+            scrim = Color.Black,
+            surfaceBright = p.elevated,
+            surfaceDim = p.bg,
+            surfaceContainerLowest = p.bg,
+            surfaceContainerLow = p.surface,
+            surfaceContainer = p.card,
+            surfaceContainerHigh = p.elevated,
+            surfaceContainerHighest = p.chip
         )
     } else {
         darkColorScheme(
             primary = p.primary,
+            onPrimary = onPrimary,
+            primaryContainer = p.primary.onto(p.bg, 0.22f),
+            onPrimaryContainer = p.text,
+            inversePrimary = p.primary.onto(p.bg, 0.6f),
             secondary = p.accent,
+            onSecondary = p.onAccent,
+            secondaryContainer = p.accent.onto(p.bg, 0.22f),
+            onSecondaryContainer = p.text,
+            tertiary = p.info,
+            onTertiary = contrastOn(p.info),
+            tertiaryContainer = p.info.onto(p.bg, 0.22f),
+            onTertiaryContainer = p.text,
             background = p.bg,
-            surface = p.surface,
-            surfaceVariant = p.chip,
-            onSurface = p.text,
             onBackground = p.text,
+            surface = p.surface,
+            onSurface = p.text,
+            surfaceVariant = p.chip,
+            onSurfaceVariant = p.muted,
+            surfaceTint = p.primary,
+            inverseSurface = inverseSurface,
+            inverseOnSurface = inverseOnSurface,
+            error = p.danger,
+            onError = onDanger,
+            errorContainer = p.danger.onto(p.bg, 0.22f),
+            onErrorContainer = p.danger,
             outline = p.border,
-            surfaceContainer = p.surface,
-            surfaceContainerHigh = p.surface,
-            surfaceContainerHighest = p.surface
+            outlineVariant = p.border.copy(alpha = 0.6f).compositeOver(p.bg),
+            scrim = Color.Black,
+            surfaceBright = p.elevated,
+            surfaceDim = p.bg,
+            surfaceContainerLowest = p.bg,
+            surfaceContainerLow = p.surface,
+            surfaceContainer = p.card,
+            surfaceContainerHigh = p.elevated,
+            surfaceContainerHighest = p.chip
         )
     }
+}
+
+/** Cross-fades every colour token so switching themes never hard-cuts. */
+@Composable
+private fun SeriePalette.animatedColors(): SeriePalette {
+    val spec = tween<Color>(durationMillis = SerieeMotion.standard)
+
+    @Composable
+    fun anim(target: Color): Color =
+        animateColorAsState(targetValue = target, animationSpec = spec, label = "palette").value
+
+    val aBg = anim(bg)
+    val aCard = anim(card)
+    val aSurface = anim(surface)
+    val aElevated = anim(elevated)
+    val aChip = anim(chip)
+    val aBorder = anim(border)
+    val aPrimary = anim(primary)
+    val aAccent = anim(accent)
+    val aText = anim(text)
+    val aMuted = anim(muted)
+    val aSuccess = anim(success)
+    val aWarning = anim(warning)
+    val aDanger = anim(danger)
+    val aInfo = anim(info)
+    val aReminder = anim(reminder)
+    val aStar = anim(star)
+
+    val animatedGradient = gradient?.let { colors ->
+        val first = anim(colors[0])
+        val second = if (colors.size > 1) anim(colors[1]) else null
+        val third = if (colors.size > 2) anim(colors[2]) else null
+        listOfNotNull(first, second, third)
+    }
+
+    return copy(
+        bg = aBg,
+        card = aCard,
+        surface = aSurface,
+        elevated = aElevated,
+        chip = aChip,
+        border = aBorder,
+        primary = aPrimary,
+        accent = aAccent,
+        accentSoft = aAccent.copy(alpha = 0.16f),
+        onAccent = contrastOn(aAccent),
+        text = aText,
+        muted = aMuted,
+        success = aSuccess,
+        warning = aWarning,
+        danger = aDanger,
+        info = aInfo,
+        reminder = aReminder,
+        star = aStar,
+        gradient = animatedGradient
+    )
+}
+
+private val FallbackPalette = ClassicDark
+
+val LocalPalette = staticCompositionLocalOf { FallbackPalette }
+
+/** True while the system is in battery-saver mode; drives the smart theme. */
+@Composable
+fun rememberPowerSaveMode(): Boolean {
+    val context = LocalContext.current
+    val powerManager = remember(context) {
+        context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+    }
+    var saving by remember(powerManager) { mutableStateOf(powerManager?.isPowerSaveMode == true) }
+    DisposableEffect(context, powerManager) {
+        if (powerManager == null) return@DisposableEffect onDispose { }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(receiverContext: Context?, intent: Intent?) {
+                saving = powerManager.isPowerSaveMode
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+    return saving
+}
+
+@Composable
+fun SerieeTheme(
+    mode: AppThemeMode,
+    style: AppThemeStyle,
+    customAccent: Color = SerieColors.Blue500,
+    customBackgroundStart: Color = Color(0xFF1D4ED8),
+    customBackgroundEnd: Color = Color(0xFF7C2A64),
+    customGradient: Boolean = false,
+    reduceTransparency: Boolean = false,
+    batterySaverAmoled: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val systemDark = isSystemInDarkTheme()
+    val powerSave = rememberPowerSaveMode()
+    val isDark = when (mode) {
+        AppThemeMode.System -> systemDark
+        AppThemeMode.Light -> false
+        AppThemeMode.Dark -> true
+    }
+    val effectiveStyle = if (batterySaverAmoled && powerSave && isDark && style == AppThemeStyle.Classic) {
+        AppThemeStyle.Amoled
+    } else {
+        style
+    }
+    val dynamicScheme = rememberMaterialYouScheme(effectiveStyle == AppThemeStyle.MaterialYou, isDark)
+
+    val target = resolvePalette(
+        mode = mode,
+        style = effectiveStyle,
+        systemDark = systemDark,
+        custom = CustomThemeColors(
+            accent = customAccent,
+            backgroundStart = customBackgroundStart,
+            backgroundEnd = customBackgroundEnd,
+            gradient = customGradient
+        ),
+        dynamicScheme = dynamicScheme,
+        reduceTransparency = reduceTransparency
+    )
+    val p = target.animatedColors()
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -270,6 +669,6 @@ fun SerieeTheme(
     }
 
     CompositionLocalProvider(LocalPalette provides p) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = schemeFor(p), content = content)
     }
 }

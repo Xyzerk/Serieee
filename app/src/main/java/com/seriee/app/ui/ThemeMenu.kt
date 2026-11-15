@@ -31,39 +31,54 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
+import com.seriee.app.SerieeViewModel
 import com.seriee.app.data.AppLanguage
-import com.seriee.app.data.AppTheme
+import com.seriee.app.data.AppThemeMode
+import com.seriee.app.data.AppThemeStyle
+import kotlinx.coroutines.launch
 
 private enum class MenuPage { Root, Theme, Customize, Language }
 
@@ -79,6 +94,16 @@ private val accentPresets = listOf(
     Color(0xFFF8FAFC)
 )
 
+/** Two-stop background gradients for the custom theme. */
+private val gradientPresets = listOf(
+    Color(0xFF1D4ED8) to Color(0xFF7C2A64),
+    Color(0xFF0EA5E9) to Color(0xFF6366F1),
+    Color(0xFFF0559B) to Color(0xFF8B5CF6),
+    Color(0xFF10B981) to Color(0xFF06B6D4),
+    Color(0xFFF59E0B) to Color(0xFFEF4444),
+    Color(0xFF64748B) to Color(0xFF0F172A)
+)
+
 /**
  * Root overflow menu with the Theme → Customize page stack.
  *
@@ -86,27 +111,21 @@ private val accentPresets = listOf(
  */
 @Composable
 fun SerieeOverflowMenu(
+    vm: SerieeViewModel,
     expanded: Boolean,
     onDismiss: () -> Unit,
-    theme: AppTheme,
-    customAccent: Color,
-    customGradient: Boolean,
-    onTheme: (AppTheme) -> Unit,
-    onAccent: (Color) -> Unit,
-    onGradient: (Boolean) -> Unit,
-    language: AppLanguage,
-    onLanguage: (AppLanguage) -> Unit,
     onBackupRestore: () -> Unit,
     onImport: () -> Unit,
     onChangelog: () -> Unit,
-    onAbout: () -> Unit
+    onAbout: () -> Unit,
+    artworkPoster: String?
 ) {
     val p = LocalPalette.current
     val systemDark = isSystemInDarkTheme()
     var page by remember { mutableStateOf(MenuPage.Root) }
     val maxHeight = minOf(
         560.dp,
-        LocalConfiguration.current.screenHeightDp.dp * 0.7f
+        LocalConfiguration.current.screenHeightDp.dp * 0.72f
     )
 
     LaunchedEffect(expanded) {
@@ -120,7 +139,7 @@ fun SerieeOverflowMenu(
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
-        modifier = Modifier.width(304.dp)
+        modifier = Modifier.width(312.dp)
     ) {
         AnimatedContent(
             targetState = page,
@@ -140,13 +159,13 @@ fun SerieeOverflowMenu(
                     SettingRow(
                         icon = Icons.Filled.Palette,
                         title = stringResource(R.string.theme),
-                        value = stringResource(theme.labelRes),
+                        value = "${stringResource(vm.themeMode.labelRes)} · ${stringResource(vm.themeStyle.labelRes)}",
                         tint = p.accent
                     ) { page = MenuPage.Theme }
                     SettingRow(
                         icon = Icons.Filled.Translate,
                         title = stringResource(R.string.language),
-                        value = stringResource(language.labelRes)
+                        value = stringResource(vm.language.labelRes)
                     ) { page = MenuPage.Language }
                     HorizontalDivider(color = p.border)
                     SettingRow(
@@ -208,29 +227,25 @@ fun SerieeOverflowMenu(
                 }
 
                 MenuPage.Theme -> ThemePage(
-                    selected = theme,
+                    vm = vm,
                     systemDark = systemDark,
-                    customAccent = customAccent,
-                    customGradient = customGradient,
                     maxHeight = maxHeight,
                     onBack = { page = MenuPage.Root },
-                    onTheme = onTheme,
                     onCustomize = { page = MenuPage.Customize }
                 )
 
                 MenuPage.Customize -> CustomizePage(
-                    accent = customAccent,
-                    gradient = customGradient,
+                    vm = vm,
+                    systemDark = systemDark,
                     maxHeight = maxHeight,
-                    onBack = { page = MenuPage.Theme },
-                    onAccent = onAccent,
-                    onGradient = onGradient
+                    artworkPoster = artworkPoster,
+                    onBack = { page = MenuPage.Theme }
                 )
 
                 MenuPage.Language -> LanguagePage(
-                    selected = language,
+                    selected = vm.language,
                     onBack = { page = MenuPage.Root },
-                    onLanguage = onLanguage
+                    onLanguage = vm::setLanguage
                 )
             }
         }
@@ -268,17 +283,32 @@ private fun MenuHeader(title: String, onBack: () -> Unit) {
 }
 
 @Composable
+private fun SectionLabel(text: String) {
+    val p = LocalPalette.current
+    Text(
+        text = text,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        color = p.muted,
+        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 2.dp)
+    )
+}
+
+@Composable
 private fun ThemePage(
-    selected: AppTheme,
+    vm: SerieeViewModel,
     systemDark: Boolean,
-    customAccent: Color,
-    customGradient: Boolean,
     maxHeight: androidx.compose.ui.unit.Dp,
     onBack: () -> Unit,
-    onTheme: (AppTheme) -> Unit,
     onCustomize: () -> Unit
 ) {
     val p = LocalPalette.current
+    val custom = CustomThemeColors(
+        accent = vm.customAccent,
+        backgroundStart = vm.customBackgroundStart,
+        backgroundEnd = vm.customBackgroundEnd,
+        gradient = vm.customGradient
+    )
     Column(
         Modifier
             .fillMaxWidth()
@@ -286,31 +316,47 @@ private fun ThemePage(
             .verticalScroll(rememberScrollState())
     ) {
         MenuHeader(stringResource(R.string.theme), onBack)
-        AppTheme.entries.forEach { option ->
-            val isSelected = option == selected
+
+        SectionLabel(stringResource(R.string.theme_appearance))
+        Box(Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+            SegmentedTabs(
+                labels = AppThemeMode.entries.map { stringResource(it.labelRes) },
+                selected = vm.themeMode.ordinal,
+                onSelect = { index -> vm.setThemeMode(AppThemeMode.entries[index]) }
+            )
+        }
+
+        SectionLabel(stringResource(R.string.theme_style))
+        AppThemeStyle.entries.forEach { style ->
+            val isSelected = style == vm.themeStyle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 54.dp)
+                    .heightIn(min = 52.dp)
                     .background(if (isSelected) p.accentSoft else Color.Transparent)
                     .selectable(
                         selected = isSelected,
                         role = Role.RadioButton
-                    ) { onTheme(option) }
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                    ) { vm.setThemeStyle(style) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ThemeSwatch(option, systemDark, customAccent, customGradient)
+                ThemeSwatch(
+                    mode = vm.themeMode,
+                    style = style,
+                    systemDark = systemDark,
+                    custom = custom
+                )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        stringResource(option.labelRes),
+                        stringResource(style.labelRes),
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) p.accent else p.text
                     )
                     Text(
-                        stringResource(option.descriptionRes),
+                        stringResource(style.descriptionRes),
                         fontSize = 10.sp,
                         color = p.muted,
                         maxLines = 1,
@@ -318,10 +364,29 @@ private fun ThemePage(
                     )
                 }
                 if (isSelected) {
-                    Icon(Icons.Filled.Check, contentDescription = null, tint = p.accent, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = p.accent,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }
+
+        HorizontalDivider(color = p.border, modifier = Modifier.padding(top = 6.dp))
+        SwitchRow(
+            title = stringResource(R.string.theme_reduce_transparency),
+            subtitle = stringResource(R.string.theme_reduce_transparency_desc),
+            checked = vm.reduceTransparency,
+            onCheckedChange = vm::setReduceTransparency
+        )
+        SwitchRow(
+            title = stringResource(R.string.theme_battery_amoled),
+            subtitle = stringResource(R.string.theme_battery_amoled_desc),
+            checked = vm.batterySaverAmoled,
+            onCheckedChange = vm::setBatterySaverAmoled
+        )
         HorizontalDivider(color = p.border)
         Row(
             modifier = Modifier
@@ -344,27 +409,64 @@ private fun ThemePage(
 }
 
 @Composable
-private fun ThemeSwatch(
-    theme: AppTheme,
-    systemDark: Boolean,
-    customAccent: Color,
-    customGradient: Boolean
+private fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
 ) {
-    val palette = if (theme == AppTheme.Custom) {
-        resolvePalette(AppTheme.Custom, customAccent = customAccent, customGradient = customGradient)
-    } else {
-        previewPalette(theme, systemDark)
+    val p = LocalPalette.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = p.text)
+            Text(subtitle, fontSize = 10.sp, color = p.muted, lineHeight = 14.sp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = p.onAccent,
+                checkedTrackColor = p.accent,
+                uncheckedThumbColor = p.muted,
+                uncheckedTrackColor = p.chip,
+                uncheckedBorderColor = p.border
+            )
+        )
     }
-    val brush = if (theme == AppTheme.FollowSystem) {
-        Brush.linearGradient(listOf(Color(0xFFF7F9FC), Color(0xFF0A0F18)))
-    } else {
-        Brush.linearGradient(listOf(palette.bg, palette.card))
+}
+
+@Composable
+private fun ThemeSwatch(
+    mode: AppThemeMode,
+    style: AppThemeStyle,
+    systemDark: Boolean,
+    custom: CustomThemeColors
+) {
+    val dark = when (mode) {
+        AppThemeMode.System -> systemDark
+        AppThemeMode.Light -> false
+        AppThemeMode.Dark -> true
     }
-    val outline = if (theme == AppTheme.Amoled || theme == AppTheme.Light) {
-        palette.text.copy(alpha = 0.35f)
-    } else {
-        palette.border
+    val dynamicScheme = rememberMaterialYouScheme(style == AppThemeStyle.MaterialYou, dark)
+    val palette = previewPalette(mode, style, systemDark, custom, dynamicScheme)
+    val brush = when {
+        mode == AppThemeMode.System -> Brush.linearGradient(
+            listOf(
+                previewPalette(AppThemeMode.Light, style, false, custom, dynamicScheme).bg,
+                previewPalette(AppThemeMode.Dark, style, true, custom, dynamicScheme).bg
+            )
+        )
+        palette.gradient != null -> Brush.linearGradient(palette.gradient)
+        else -> Brush.linearGradient(listOf(palette.bg, palette.card))
     }
+    val outline = if (palette.isLight) palette.text.copy(alpha = 0.28f) else palette.border
     Box(
         modifier = Modifier
             .size(28.dp)
@@ -379,6 +481,7 @@ private fun ThemeSwatch(
                 .size(8.dp)
                 .clip(CircleShape)
                 .background(palette.accent)
+                .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)
         )
     }
 }
@@ -386,15 +489,31 @@ private fun ThemeSwatch(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CustomizePage(
-    accent: Color,
-    gradient: Boolean,
+    vm: SerieeViewModel,
+    systemDark: Boolean,
     maxHeight: androidx.compose.ui.unit.Dp,
-    onBack: () -> Unit,
-    onAccent: (Color) -> Unit,
-    onGradient: (Boolean) -> Unit
+    artworkPoster: String?,
+    onBack: () -> Unit
 ) {
     val p = LocalPalette.current
-    val live = resolvePalette(AppTheme.Custom, customAccent = accent, customGradient = gradient)
+    val custom = CustomThemeColors(
+        accent = vm.customAccent,
+        backgroundStart = vm.customBackgroundStart,
+        backgroundEnd = vm.customBackgroundEnd,
+        gradient = vm.customGradient
+    )
+    val live = resolvePalette(
+        mode = vm.themeMode,
+        style = AppThemeStyle.Custom,
+        systemDark = systemDark,
+        custom = custom,
+        reduceTransparency = vm.reduceTransparency
+    )
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+    var pickingArtwork by remember { mutableStateOf(false) }
+    var codeMessage by remember { mutableStateOf<Int?>(null) }
 
     Column(
         Modifier
@@ -419,7 +538,7 @@ private fun CustomizePage(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 accentPresets.forEach { preset ->
-                    val selected = preset.value == accent.value
+                    val selected = preset.value == vm.customAccent.value
                     Box(
                         modifier = Modifier
                             .size(30.dp)
@@ -433,7 +552,7 @@ private fun CustomizePage(
                             .selectable(
                                 selected = selected,
                                 role = Role.RadioButton
-                            ) { onAccent(preset) },
+                            ) { vm.setCustomAccent(preset) },
                         contentAlignment = Alignment.Center
                     ) {
                         if (selected) {
@@ -445,6 +564,59 @@ private fun CustomizePage(
                             )
                         }
                     }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (artworkPoster != null) p.chip else p.chip.copy(alpha = 0.4f))
+                    .clickable(enabled = artworkPoster != null && !pickingArtwork) {
+                        pickingArtwork = true
+                        scope.launch {
+                            val color = artworkPoster?.let { accentFromPoster(context, it) }
+                            if (color != null) vm.setCustomAccent(color)
+                            pickingArtwork = false
+                        }
+                    }
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (pickingArtwork) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = p.accent
+                    )
+                } else {
+                    Icon(
+                        Icons.Filled.AutoAwesome,
+                        contentDescription = null,
+                        tint = if (artworkPoster != null) p.accent else p.muted,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stringResource(R.string.theme_accent_from_artwork),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (artworkPoster != null) p.text else p.muted
+                )
+            }
+            if (!live.hasReadableAccent()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.WarningAmber,
+                        contentDescription = null,
+                        tint = p.warning,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.theme_accent_low_contrast),
+                        fontSize = 10.sp,
+                        color = p.warning
+                    )
                 }
             }
         }
@@ -464,10 +636,71 @@ private fun CustomizePage(
                     stringResource(R.string.background_solid),
                     stringResource(R.string.background_gradient)
                 ),
-                selected = if (gradient) 1 else 0,
-                onSelect = { onGradient(it == 1) }
+                selected = if (vm.customGradient) 1 else 0,
+                onSelect = { vm.setCustomGradient(it == 1) }
+            )
+            if (vm.customGradient) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    gradientPresets.forEach { (start, end) ->
+                        val selected = start.value == vm.customBackgroundStart.value &&
+                            end.value == vm.customBackgroundEnd.value
+                        Box(
+                            modifier = Modifier
+                                .size(width = 52.dp, height = 30.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(Brush.linearGradient(listOf(start, end)))
+                                .border(
+                                    width = if (selected) 2.dp else 1.dp,
+                                    color = if (selected) p.text else p.border,
+                                    shape = RoundedCornerShape(9.dp)
+                                )
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton
+                                ) { vm.setCustomBackground(start, end) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (selected) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider(color = p.border, modifier = Modifier.padding(top = 8.dp))
+        CodeRow(
+            icon = Icons.Filled.ContentCopy,
+            label = stringResource(R.string.theme_copy_code)
+        ) {
+            clipboard.setText(AnnotatedString(vm.themeCode()))
+            codeMessage = R.string.theme_code_copied
+        }
+        CodeRow(
+            icon = Icons.Filled.ContentPaste,
+            label = stringResource(R.string.theme_paste_code)
+        ) {
+            val applied = vm.applyThemeCode(clipboard.getText()?.text)
+            codeMessage = if (applied) R.string.theme_code_applied else R.string.theme_code_invalid
+        }
+        codeMessage?.let { message ->
+            Text(
+                text = stringResource(message),
+                fontSize = 10.sp,
+                color = p.muted,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
             )
         }
+        HorizontalDivider(color = p.border)
 
         Column(
             Modifier.padding(16.dp),
@@ -481,6 +714,27 @@ private fun CustomizePage(
             )
             ThemePreview(live)
         }
+    }
+}
+
+@Composable
+private fun CodeRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    val p = LocalPalette.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = p.muted, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = p.text)
     }
 }
 
@@ -504,7 +758,7 @@ private fun ThemePreview(palette: SeriePalette) {
                     Modifier
                         .size(22.dp)
                         .clip(RoundedCornerShape(7.dp))
-                        .background(Brush.linearGradient(listOf(palette.primary, palette.accent)))
+                        .background(palette.primary)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text("Seriee", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = palette.text)
@@ -550,7 +804,7 @@ private fun ThemePreview(palette: SeriePalette) {
                                 .fillMaxWidth(0.62f)
                                 .height(5.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(Brush.horizontalGradient(listOf(palette.primary, palette.accent)))
+                                .background(palette.primary)
                         )
                     }
                 }

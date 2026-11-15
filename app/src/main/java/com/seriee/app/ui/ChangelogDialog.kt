@@ -27,8 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,13 +45,13 @@ fun ChangelogDialog(
     // Only the current release is shown. When preparing a new version, add its
     // changelog_* strings and replace this list; older entries stay in CHANGELOG.md.
     val items = listOf(
-        stringResource(R.string.changelog_15),
-        stringResource(R.string.changelog_16),
-        stringResource(R.string.changelog_17),
-        stringResource(R.string.changelog_18),
-        stringResource(R.string.changelog_19),
-        stringResource(R.string.changelog_20),
-        stringResource(R.string.changelog_21)
+        stringResource(R.string.changelog_22),
+        stringResource(R.string.changelog_23),
+        stringResource(R.string.changelog_24),
+        stringResource(R.string.changelog_25),
+        stringResource(R.string.changelog_26),
+        stringResource(R.string.changelog_27),
+        stringResource(R.string.changelog_28)
     )
 
     Dialog(
@@ -86,14 +84,14 @@ fun ChangelogDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(100.dp))
-                                .background(Brush.linearGradient(listOf(SerieColors.Blue600, SerieColors.Indigo500)))
+                                .background(p.primary)
                                 .padding(horizontal = 10.dp, vertical = 3.dp)
                         ) {
                             Text(
                                 stringResource(R.string.changelog_version, versionName),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = p.onAccent
                             )
                         }
                     }
@@ -128,10 +126,10 @@ fun ChangelogDialog(
                             modifier = Modifier
                                 .size(22.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(SerieColors.Amber.copy(alpha = 0.15f)),
+                                .background(p.star.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Star, null, tint = SerieColors.Amber, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Filled.Star, null, tint = p.star, modifier = Modifier.size(14.dp))
                         }
                         Spacer(Modifier.width(10.dp))
                         Text(
@@ -148,7 +146,7 @@ fun ChangelogDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(SerieColors.Blue600)
+                        .background(p.primary)
                         .clickable(onClick = onDismiss)
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
@@ -157,7 +155,7 @@ fun ChangelogDialog(
                         stringResource(R.string.changelog_got_it),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = p.onAccent
                     )
                 }
             }
