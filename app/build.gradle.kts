@@ -24,6 +24,13 @@ android {
     namespace = "com.seriee.app"
     compileSdk = 36
 
+    lint {
+        // The Compose BOM is pinned to 2024.09.00 (see dependencies), which has no
+        // LocalResources. The Toast/getString calls flagged by this check run in
+        // click callbacks, so it is disabled until the BOM is upgraded.
+        disable += "LocalContextGetResourceValueCall"
+    }
+
     signingConfigs {
         create("debugConfig") {
             storeFile = file("${rootDir}/debug.keystore")
