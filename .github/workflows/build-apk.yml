@@ -306,13 +306,21 @@ jobs:
           set -euo pipefail
           cd dist
           APK="Seriee-${GITHUB_REF_NAME}.apk"
+
+          # Alpha, beta, and rc tags are published as pre-releases so GitHub
+          # never marks them "Latest" and nobody gets them by default.
+          PRE_FLAG=""
+          if [[ "$GITHUB_REF_NAME" =~ -(alpha|beta|rc)([.-]?[0-9]+)?$ ]]; then
+            PRE_FLAG="--prerelease"
+          fi
+
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-              --title "Seriee $GITHUB_REF_NAME" --notes-file release-notes.md
+              --title "Seriee $GITHUB_REF_NAME" --notes-file release-notes.md $PRE_FLAG
             gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
               "$APK" SHA256SUMS.txt signing-certificate.txt --clobber
           else
             gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
               "$APK" SHA256SUMS.txt signing-certificate.txt \
-              --title "Seriee $GITHUB_REF_NAME" --notes-file release-notes.md
+              --title "Seriee $GITHUB_REF_NAME" --notes-file release-notes.md $PRE_FLAG
           fi
