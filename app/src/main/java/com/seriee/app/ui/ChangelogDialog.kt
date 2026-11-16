@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,14 +44,10 @@ fun ChangelogDialog(
     val p = LocalPalette.current
 
     // Only the current release is shown. When preparing a new version, add its
-    // changelog_* strings and replace this list; older entries stay in CHANGELOG.md.
-    val items = listOf(
-        stringResource(R.string.changelog_29),
-        stringResource(R.string.changelog_30),
-        stringResource(R.string.changelog_31),
-        stringResource(R.string.changelog_32),
-        stringResource(R.string.changelog_33)
-    )
+    // changelog_* strings and list them in the changelog_current array; older
+    // entries stay in CHANGELOG.md. The release-notes workflow reads the same
+    // array, so the dialog and the GitHub release can never drift apart.
+    val items = stringArrayResource(R.array.changelog_current).toList()
 
     Dialog(
         onDismissRequest = onDismiss,

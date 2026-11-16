@@ -24,6 +24,10 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history and tags: the release notes need the previous tag for
+          # the Full Changelog link and for contributor attribution.
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
@@ -66,6 +70,8 @@ jobs:
       # Build the release body from the in-app changelog so it never goes stale.
       - name: Collect release artifacts
         if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           APK="Seriee-${GITHUB_REF_NAME}-unsigned.apk"
@@ -74,34 +80,71 @@ jobs:
           VERSION=$(jq -r '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)
           export VERSION
 
+          # Previous release tag: used for the Full Changelog link and to credit
+          # everyone who contributed since it. Empty on the first release.
+          PREVIOUS_TAG=$(git tag --list 'v*' --sort=-creatordate | grep -vx "$GITHUB_REF_NAME" | head -n1 || true)
+          export PREVIOUS_TAG
+          CONTRIBUTORS=""
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CONTRIBUTORS=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${PREVIOUS_TAG}...${GITHUB_REF_NAME}" \
+              --jq '[.commits[]
+                     | (if .author.login != null then "@" + .author.login else .commit.author.name end)
+                     | select(endswith("[bot]") | not)]
+                   | unique | join("|")')
+          fi
+          export CONTRIBUTORS
+
           python3 - <<'PY'
           import os
           import xml.etree.ElementTree as ET
 
           version = os.environ["VERSION"]
           short_sha = os.environ["GITHUB_SHA"][:7]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          ref_name = os.environ["GITHUB_REF_NAME"]
+          previous_tag = os.environ.get("PREVIOUS_TAG", "")
+          contributors = [c for c in os.environ.get("CONTRIBUTORS", "").split("|") if c]
           root = ET.parse("app/src/main/res/values/strings.xml").getroot()
 
+          def read_string(node):
+              return "".join(node.itertext()).replace("\\'", "'").strip()
+
+          # changelog_current is the single source of truth for this release: the
+          # What's New dialog and this script read the same list. Entries are
+          # either @string/ references or literal text.
+          current = root.find("string-array[@name='changelog_current']")
+          if current is None:
+              raise SystemExit(
+                  "::error::strings.xml has no changelog_current string-array; "
+                  "refusing to publish notes without a What's new section."
+              )
+
           items = []
-          index = 1
-          while True:
-              node = root.find(f"string[@name='changelog_{index}']")
+          for entry in current.findall("item"):
+              reference = (entry.text or "").strip()
+              if not reference.startswith("@string/"):
+                  items.append(read_string(entry))
+                  continue
+              name = reference[len("@string/"):]
+              node = root.find(f"string[@name='{name}']")
               if node is None:
-                  break
-              items.append("".join(node.itertext()).replace("\\'", "'").strip())
-              index += 1
+                  raise SystemExit(f"::error::changelog_current references missing string {name}")
+              items.append(read_string(node))
+
+          if not items:
+              raise SystemExit("::error::changelog_current is empty; refusing to publish empty release notes.")
 
           lines = [
               f"### Seriee {version}",
               "",
               f"Signed release built from commit `{short_sha}`.",
               "",
+              "**What's new**",
+              "",
           ]
-          if items:
-              lines += ["**What's new**", ""]
-              lines += [f"- {item}" for item in items]
-              lines += [""]
+          lines += [f"- {item}" for item in items]
           lines += [
+              "",
               "### Verify the download",
               "",
               "```bash",
@@ -117,6 +160,15 @@ jobs:
               "Download the `.apk` asset below and open it on the device. Android may ask you to allow installs from your browser or file manager.",
               "",
           ]
+          if contributors:
+              lines += ["### Contributors", ""]
+              lines += [f"- {contributor}" for contributor in contributors]
+              lines += [""]
+          if previous_tag:
+              lines += [
+                  f"**Full Changelog**: https://github.com/{repository}/compare/{previous_tag}...{ref_name}",
+                  "",
+              ]
           with open("release-notes.md", "w", encoding="utf-8") as fh:
               fh.write("\n".join(lines))
           PY
@@ -243,7 +295,7 @@ jobs:
             echo "### Signing certificate"
             echo ""
             echo '```'
-            grep -E 'Signer #1 certificate (DN|SHA-256 digest)' dist/signing-certificate.txt || true
+            grep -E 'certificate (DN|SHA-256 digest):' dist/signing-certificate.txt || true
             echo '```'
           } >> dist/release-notes.md
 
@@ -264,35 +316,3 @@ jobs:
               "$APK" SHA256SUMS.txt signing-certificate.txt \
               --title "Seriee $GITHUB_REF_NAME" --notes-file release-notes.md
           fi
-
-      # Rolling "Stable" channel: always points at the newest signed tag.
-      # The tag is moved with PATCH so the release stays published.
-      - name: Publish stable channel
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cd dist
-          APK="Seriee-${GITHUB_REF_NAME}.apk"
-          gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/stable-latest" \
-            -f sha="$GITHUB_SHA" -F force=true \
-            || gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-              -f ref="refs/tags/stable-latest" -f sha="$GITHUB_SHA"
-
-          if gh release view stable-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit stable-latest --repo "$GITHUB_REPOSITORY" \
-              --title "Seriee Stable (latest)" --notes-file release-notes.md
-            gh release upload stable-latest --repo "$GITHUB_REPOSITORY" \
-              "$APK" SHA256SUMS.txt signing-certificate.txt --clobber
-            for asset in $(gh release view stable-latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'); do
-              if [ "$asset" = "$APK" ] || [ "$asset" = "SHA256SUMS.txt" ] || [ "$asset" = "signing-certificate.txt" ]; then
-                continue
-              fi
-              gh release delete-asset stable-latest "$asset" --repo "$GITHUB_REPOSITORY" -y
-            done
-          else
-            gh release create stable-latest --repo "$GITHUB_REPOSITORY" \
-              "$APK" SHA256SUMS.txt signing-certificate.txt \
-              --title "Seriee Stable (latest)" --notes-file release-notes.md
-          fi
-          echo "stable-latest now points at $GITHUB_REF_NAME."

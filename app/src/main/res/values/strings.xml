@@ -279,6 +279,19 @@
     <string name="changelog_32">Watch history is logged automatically when you advance or jump episodes, and backups now use format version 4 with history included</string>
     <string name="changelog_33">Clear watch history from Insights without touching your library, progress, or streak</string>
 
+    <!-- Current release, in display order. The What's New dialog and the
+         release-notes generator in .github/workflows/build-apk.yml both read
+         this list, so shipping a version only means adding its changelog_*
+         strings and listing them here. Never renumber existing changelog_N
+         entries: the numbering is monotonic across releases. -->
+    <string-array name="changelog_current">
+        <item>@string/changelog_29</item>
+        <item>@string/changelog_30</item>
+        <item>@string/changelog_31</item>
+        <item>@string/changelog_32</item>
+        <item>@string/changelog_33</item>
+    </string-array>
+
     <!-- ViewModel messages -->
     <string name="reminder_test_message">Reminder active for %1$s \"%2$s\"!</string>
     <string name="error_open_output">Could not open output stream</string>
