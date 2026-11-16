@@ -2,6 +2,7 @@ package com.seriee.app.data
 
 import android.content.Context
 import android.net.Uri
+import com.seriee.app.debug.AppLogger
 import java.io.File
 
 object PosterStore {
@@ -43,4 +44,23 @@ object PosterStore {
 
     fun isLocalPath(poster: String): Boolean = poster.startsWith("posters/")
     fun isRemoteUrl(poster: String): Boolean = poster.startsWith("http://") || poster.startsWith("https://")
+
+    /**
+     * Deletes cached poster files that no longer belong to a library item.
+     * [activePosters] holds relative paths such as "posters/&lt;id&gt;_&lt;ts&gt;.jpg".
+     */
+    fun pruneUnused(context: Context, activePosters: Set<String>) {
+        runCatching {
+            val dir = File(context.filesDir, "posters")
+            if (!dir.exists() || !dir.isDirectory) return
+            val files = dir.listFiles() ?: return
+            for (f in files) {
+                if (f.isFile && "posters/${f.name}" !in activePosters) {
+                    f.delete()
+                }
+            }
+        }.onFailure { err ->
+            AppLogger.w("PosterStore", "Failed to prune unused posters", err)
+        }
+    }
 }

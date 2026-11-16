@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,31 +18,42 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -51,17 +64,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.seriee.app.R
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
+import com.seriee.app.data.Season
 import com.seriee.app.data.WatchStatus
 import com.seriee.app.reminder.ReminderScheduler
 
@@ -82,6 +102,33 @@ fun DetailDialog(
     val context = LocalContext.current
     var confirmDelete by remember { mutableStateOf(false) }
     var selectedSeasonIdx by remember { mutableIntStateOf(0) }
+    var jumpPickerSeason by remember { mutableStateOf<Season?>(null) }
+
+    var pendingWatchedEpisode by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var launchedExternalPlayer by remember { mutableStateOf(false) }
+    var showWatchedPrompt by remember { mutableStateOf(false) }
+    var resumeTick by remember { mutableIntStateOf(0) }
+
+    val lifecycleOwner = context as? LifecycleOwner
+    DisposableEffect(lifecycleOwner) {
+        val lifecycle = lifecycleOwner?.lifecycle
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                resumeTick++
+                if (launchedExternalPlayer && pendingWatchedEpisode != null) {
+                    launchedExternalPlayer = false
+                    showWatchedPrompt = true
+                }
+            }
+        }
+        lifecycle?.addObserver(observer)
+        onDispose { lifecycle?.removeObserver(observer) }
+    }
+
+    val hasExactAlarmPermission = remember(item.reminderEnabled, resumeTick) {
+        ReminderScheduler.canScheduleExactAlarms(context)
+    }
+
     val seasons = item.effectiveSeasons
     LaunchedEffect(seasons.size) {
         if (selectedSeasonIdx >= seasons.size) selectedSeasonIdx = 0
@@ -237,6 +284,69 @@ fun DetailDialog(
                         item.description,
                         fontSize = 12.sp, color = p.text, lineHeight = 17.sp
                     )
+                }
+
+                val pending = pendingWatchedEpisode
+                if (showWatchedPrompt && pending != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(p.accent.copy(alpha = 0.14f))
+                            .padding(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = p.accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.watched_prompt_title, pending.first, pending.second),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = p.text,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            onClick = {
+                                onSelectEpisode?.invoke(pending.first, pending.second)
+                                showWatchedPrompt = false
+                                pendingWatchedEpisode = null
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = p.accent,
+                                contentColor = p.onAccent
+                            )
+                        ) {
+                            Text(
+                                stringResource(R.string.watched_prompt_action),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    showWatchedPrompt = false
+                                    pendingWatchedEpisode = null
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.close),
+                                tint = p.muted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
 
                 if (item.status == WatchStatus.ComingSoon || item.releaseDate != null) {
@@ -515,6 +625,52 @@ fun DetailDialog(
                                 }
                             }
                         }
+
+                        if (item.reminderEnabled && !hasExactAlarmPermission) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(p.warning.copy(alpha = 0.16f))
+                                    .padding(10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.WarningAmber,
+                                        contentDescription = null,
+                                        tint = p.warning,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.exact_alarm_disabled_hint),
+                                        fontSize = 12.sp,
+                                        color = p.text,
+                                        fontWeight = FontWeight.SemiBold,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(p.chip)
+                                        .clickable { ReminderScheduler.openExactAlarmSettings(context) }
+                                        .padding(vertical = 9.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        stringResource(R.string.enable_exact_alarm),
+                                        color = p.text,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -581,6 +737,63 @@ fun DetailDialog(
                                 modifier = Modifier.weight(1f)
                             )
                             Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = p.primary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+
+                if (item.type == MediaType.Series && seasons.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp))
+                    SectionTitle(stringResource(R.string.seasons))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        seasons.forEach { sec ->
+                            val total = sec.totalEp.coerceAtLeast(1)
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(p.chip.copy(alpha = 0.35f))
+                                    .padding(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        stringResource(R.string.season_format, sec.number),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = p.text,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        "${sec.currentEp}/$total",
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = p.muted
+                                    )
+                                }
+                                GradientProgressBar(
+                                    fraction = sec.currentEp.toFloat() / total,
+                                    height = 6.dp
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    SeasonActionButton(
+                                        label = stringResource(R.string.jump_to_episode),
+                                        icon = Icons.Filled.FastForward,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { jumpPickerSeason = sec }
+                                    )
+                                    SeasonActionButton(
+                                        label = stringResource(R.string.mark_season_complete),
+                                        icon = Icons.Filled.DoneAll,
+                                        enabled = sec.currentEp < sec.totalEp,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { onSelectEpisode?.invoke(sec.number, sec.totalEp) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -766,16 +979,34 @@ fun DetailDialog(
                         val season = seasons.getOrNull(safeSeasonIdx) ?: seasons.firstOrNull()
                         season?.episodes?.find { it.number == season.currentEp }?.uri ?: item.videoUri
                     } else item.videoUri
+                    // After an external player closes, offer to mark the next episode.
+                    val markNextOnReturn: () -> Unit = {
+                        val target = if (item.type == MediaType.Movie) {
+                            1 to 1
+                        } else {
+                            val season = seasons.getOrNull(safeSeasonIdx) ?: seasons.firstOrNull()
+                            season?.let {
+                                it.number to (it.currentEp + 1).coerceAtMost(it.totalEp.coerceAtLeast(1))
+                            }
+                        }
+                        if (target != null && onSelectEpisode != null) {
+                            pendingWatchedEpisode = target
+                            launchedExternalPlayer = true
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PlayerButton("VLC Player", if (p.isNeoBrutalist) NeoBrutalistColors.Yellow else p.reminder, Modifier.weight(1f)) {
+                            markNextOnReturn()
                             openVideoUri(context, playUri, VLC_PACKAGE)
                         }
                         PlayerButton("MX Player", if (p.isNeoBrutalist) NeoBrutalistColors.SkyBlue else p.info, Modifier.weight(1f)) {
+                            markNextOnReturn()
                             openVideoUri(context, playUri, MX_PACKAGE)
                         }
                     }
                     Spacer(Modifier.height(8.dp))
                     PlayerButton(stringResource(R.string.open_with_other_player), if (p.isNeoBrutalist) NeoBrutalistColors.OffWhite else p.muted, Modifier.fillMaxWidth()) {
+                        markNextOnReturn()
                         openVideoUri(context, playUri, null)
                     }
                 }
@@ -860,6 +1091,17 @@ fun DetailDialog(
                 }
             }
         }
+    }
+
+    jumpPickerSeason?.let { sec ->
+        JumpToEpisodeDialog(
+            season = sec,
+            onDismiss = { jumpPickerSeason = null },
+            onSelectEpisode = { targetEp ->
+                onSelectEpisode?.invoke(sec.number, targetEp)
+                jumpPickerSeason = null
+            }
+        )
     }
 
     if (confirmDelete) {
@@ -953,6 +1195,180 @@ private fun PlayerButton(label: String, color: Color, modifier: Modifier, onClic
             contentAlignment = Alignment.Center
         ) {
             Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
+        }
+    }
+}
+
+@Composable
+private fun SeasonActionButton(
+    label: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val p = LocalPalette.current
+    val shape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(if (enabled) p.surface else p.chip)
+            .border(1.2.dp, p.border.copy(alpha = if (enabled) 1f else 0.4f), shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (enabled) p.accent else p.muted,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (enabled) p.text else p.muted,
+            maxLines = 1
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun JumpToEpisodeDialog(
+    season: Season,
+    onDismiss: () -> Unit,
+    onSelectEpisode: (Int) -> Unit
+) {
+    val p = LocalPalette.current
+    var inputText by remember(season.number, season.currentEp) {
+        mutableStateOf(season.currentEp.toString())
+    }
+    val total = season.totalEp.coerceAtLeast(1)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(p.surface)
+                .border(if (p.isNeoBrutalist) 2.dp else 1.dp, p.border, RoundedCornerShape(14.dp))
+                .padding(18.dp)
+        ) {
+            Text(
+                text = "${stringResource(R.string.jump_to_episode)} · ${stringResource(R.string.season_format, season.number)}",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = p.text
+            )
+
+            if (total <= 40) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    for (ep in 0..total) {
+                        val selected = ep == season.currentEp
+                        val watched = ep in 1..season.currentEp
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(width = 44.dp, height = 36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    when {
+                                        selected -> p.accent
+                                        watched -> p.accent.copy(alpha = 0.2f)
+                                        else -> p.chip
+                                    }
+                                )
+                                .border(
+                                    1.2.dp,
+                                    if (selected) p.border else p.border.copy(alpha = 0.4f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { onSelectEpisode(ep) }
+                        ) {
+                            Text(
+                                text = "$ep",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (selected) p.onAccent else p.text
+                            )
+                        }
+                    }
+                }
+            } else {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { v -> inputText = v.filter { it.isDigit() }.take(4) },
+                    label = { Text("0 – $total", fontSize = 12.sp, color = p.muted) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = p.accent,
+                        unfocusedBorderColor = p.border,
+                        focusedTextColor = p.text,
+                        unfocusedTextColor = p.text
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(0, total / 4, total / 2, (total * 3) / 4, total).distinct().forEach { milestone ->
+                        FilterChip(
+                            label = "E$milestone",
+                            selected = season.currentEp == milestone,
+                            onClick = { onSelectEpisode(milestone) }
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(p.chip)
+                        .clickable(onClick = onDismiss)
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = p.text,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (total > 40) {
+                    Button(
+                        onClick = {
+                            val parsed = (inputText.toIntOrNull() ?: season.currentEp).coerceIn(0, total)
+                            onSelectEpisode(parsed)
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = p.accent,
+                            contentColor = p.onAccent
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.save), fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
         }
     }
 }

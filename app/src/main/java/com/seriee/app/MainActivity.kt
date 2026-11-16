@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.seriee.app.data.SerieeRepository
 import com.seriee.app.ui.CustomThemeColors
@@ -65,6 +66,12 @@ class MainActivity : AppCompatActivity() {
                 SerieeApp(vm)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // The widget writes straight to storage, so re-read it on return.
+        runCatching { ViewModelProvider(this)[SerieeViewModel::class.java].refreshFromStorage() }
     }
 
     /**

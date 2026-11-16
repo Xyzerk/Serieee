@@ -1,5 +1,8 @@
 package com.seriee.app.ui
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -44,16 +47,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -74,6 +83,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -89,6 +99,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
 import com.seriee.app.SerieeViewModel
+import com.seriee.app.debug.AppLogger
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -111,7 +122,24 @@ fun SerieeApp(vm: SerieeViewModel) {
     var showBackupRestore by rememberSaveable { mutableStateOf(false) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var showImport by rememberSaveable { mutableStateOf(false) }
+    var showDebugOverlay by rememberSaveable { mutableStateOf(false) }
     var fabVisible by remember { mutableStateOf(true) }
+
+    val context = LocalContext.current
+    val pendingCrash by AppLogger.pendingCrash.collectAsState()
+    val crashBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val msg = vm.exportBackup(context, uri).fold(
+                onSuccess = { count -> context.getString(R.string.backup_success, count) },
+                onFailure = { err ->
+                    context.getString(R.string.backup_failed, err.localizedMessage ?: "error")
+                }
+            )
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+        }
+    }
 
     // Quick-action triggers handed down to the active screen.
     var searchTick by remember { mutableIntStateOf(0) }
@@ -119,6 +147,7 @@ fun SerieeApp(vm: SerieeViewModel) {
 
     val pagerState = rememberPagerState(initialPage = tab) { 3 }
     val scope = rememberCoroutineScope()
+    val uiExceptionHandler = remember { AppLogger.coroutineExceptionHandler("UI") }
 
     LaunchedEffect(pagerState.currentPage) {
         tab = pagerState.currentPage
@@ -135,7 +164,7 @@ fun SerieeApp(vm: SerieeViewModel) {
     val goToTab: (Int) -> Unit = { index ->
         tab = index
         fabVisible = true
-        scope.launch {
+        scope.launch(uiExceptionHandler) {
             pagerState.animateScrollToPage(
                 page = index,
                 animationSpec = spring(
@@ -285,8 +314,77 @@ fun SerieeApp(vm: SerieeViewModel) {
                 onSchedule = {
                     goToTab(0)
                     comingSoonTick++
-                }
+                },
+                onOpenDebugOverlay = { showDebugOverlay = !showDebugOverlay }
             )
+
+            if (vm.showBackupReminder) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = statusBarTop + 76.dp, start = 16.dp, end = 16.dp)
+                        .clip(RoundedCornerShape(if (p.isNeoBrutalist) 8.dp else 16.dp))
+                        .background(p.card)
+                        .then(
+                            if (p.isNeoBrutalist) {
+                                Modifier.border(2.dp, p.border, RoundedCornerShape(8.dp))
+                            } else Modifier
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Backup,
+                        contentDescription = null,
+                        tint = p.accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.backup_reminder_title),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = p.text
+                        )
+                        Text(
+                            stringResource(R.string.backup_reminder_desc),
+                            fontSize = 11.sp,
+                            color = p.muted,
+                            lineHeight = 14.sp
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            vm.dismissBackupReminder()
+                            showBackupRestore = true
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = p.accent,
+                            contentColor = p.onAccent
+                        )
+                    ) {
+                        Text(
+                            stringResource(R.string.backup_now),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                    IconButton(
+                        onClick = { vm.dismissBackupReminder() },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.close),
+                            tint = p.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
         }
 
         val navBarEndReserve by animateDpAsState(
@@ -353,6 +451,21 @@ fun SerieeApp(vm: SerieeViewModel) {
                     }
                 )
             }
+        }
+
+        AnimatedVisibility(
+            visible = showDebugOverlay,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 58.dp),
+            enter = fadeIn(tween(160)) + scaleIn(
+                initialScale = 0.94f,
+                animationSpec = tween(180, easing = SerieeMotion.EaseOutExpo)
+            ),
+            exit = fadeOut(tween(120))
+        ) {
+            DebugOverlay(onDismiss = { showDebugOverlay = false })
         }
     }
 
@@ -427,6 +540,23 @@ fun SerieeApp(vm: SerieeViewModel) {
         AboutDialog(
             versionName = vm.currentVersionName,
             onDismiss = { showAbout = false }
+        )
+    }
+
+    pendingCrash?.let { report ->
+        CrashErrorDialog(
+            report = report,
+            onDismiss = { AppLogger.dismissPendingCrash() },
+            onOpenOverlay = {
+                AppLogger.dismissPendingCrash()
+                showDebugOverlay = true
+            },
+            onResetTheme = { vm.resetThemeToDefault() },
+            onExportBackup = {
+                crashBackupLauncher.launch(
+                    "seriee-safe-backup-${System.currentTimeMillis() / 1000}.json"
+                )
+            }
         )
     }
 }
@@ -522,7 +652,8 @@ private fun SerieeTopBar(
     onOpenChangelog: () -> Unit,
     onOpenAbout: () -> Unit,
     onSearch: () -> Unit,
-    onSchedule: () -> Unit
+    onSchedule: () -> Unit,
+    onOpenDebugOverlay: () -> Unit
 ) {
     val p = LocalPalette.current
     var optionsMenu by remember { mutableStateOf(false) }
@@ -614,6 +745,7 @@ private fun SerieeTopBar(
                     onImport = onOpenImport,
                     onChangelog = onOpenChangelog,
                     onAbout = onOpenAbout,
+                    onOpenDebugOverlay = onOpenDebugOverlay,
                     artworkPoster = vm.items.firstOrNull { !it.poster.isNullOrBlank() }?.poster
                 )
             }

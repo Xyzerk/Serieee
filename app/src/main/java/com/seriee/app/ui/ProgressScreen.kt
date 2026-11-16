@@ -145,7 +145,9 @@ fun ProgressScreen(
     // bar. The bottom content padding reserves that chrome so the last element
     // can always be scrolled above it.
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("progress_list"),
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,

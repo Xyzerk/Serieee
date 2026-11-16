@@ -37,6 +37,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
@@ -124,6 +125,7 @@ fun SerieeOverflowMenu(
     onImport: () -> Unit,
     onChangelog: () -> Unit,
     onAbout: () -> Unit,
+    onOpenDebugOverlay: () -> Unit,
     artworkPoster: String?
 ) {
     val p = LocalPalette.current
@@ -245,6 +247,13 @@ fun SerieeOverflowMenu(
                                 color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else p.onAccent
                             )
                         }
+                    }
+                    SettingRow(
+                        icon = Icons.Filled.BugReport,
+                        title = stringResource(R.string.debug_overlay)
+                    ) {
+                        onDismiss()
+                        onOpenDebugOverlay()
                     }
                     SettingRow(
                         icon = Icons.Filled.Info,

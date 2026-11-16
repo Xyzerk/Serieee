@@ -6,18 +6,42 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.seriee.app.MainActivity
 import com.seriee.app.R
 import com.seriee.app.data.MediaItem
+import com.seriee.app.debug.AppLogger
 import com.seriee.app.ui.findActivity
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 object ReminderScheduler {
     const val CHANNEL_ID = "seriee_reminders"
+
+    /** True when the OS allows exact alarms (always true before Android 12). */
+    fun canScheduleExactAlarms(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return true
+        return am.canScheduleExactAlarms()
+    }
+
+    /** Opens the system screen where the user can allow exact alarms. */
+    fun openExactAlarmSettings(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        runCatching {
+            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }.onFailure { err ->
+            AppLogger.w("Reminder", "Could not open exact alarm settings", err)
+        }
+    }
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

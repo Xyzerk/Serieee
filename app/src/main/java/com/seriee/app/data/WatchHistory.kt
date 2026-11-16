@@ -31,4 +31,11 @@ object WatchHistoryRules {
             .distinctBy { it.itemId to (it.season to (it.episode to it.watchedAt)) }
             .take(MAX_EVENTS)
     }
+
+    /** Appends an event and applies the usual trim/retention rules. */
+    fun append(
+        events: List<WatchEvent>,
+        event: WatchEvent,
+        now: Long = System.currentTimeMillis(),
+    ): List<WatchEvent> = trim(events + event, now)
 }

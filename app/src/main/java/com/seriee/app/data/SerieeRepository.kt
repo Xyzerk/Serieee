@@ -192,6 +192,35 @@ class SerieeRepository(context: Context) {
             .apply()
     }
 
+    /**
+     * Records one watch action for the daily streak. Used by the widget, which
+     * runs outside the ViewModel and therefore cannot update its in-memory state.
+     */
+    fun recordWatchToday(now: java.time.LocalDate = java.time.LocalDate.now()) {
+        val todayStr = now.toString()
+        val last = runCatching { java.time.LocalDate.parse(loadLastWatchDay()) }.getOrNull()
+        val current = loadStreakDays()
+        val newStreak = when (last) {
+            null -> 1
+            now -> current
+            now.minusDays(1) -> current + 1
+            else -> 1
+        }
+        val newBest = maxOf(loadBestStreak(), newStreak)
+        val cutoff = now.minusDays(6)
+        val newDays = (loadWatchDays() + todayStr)
+            .filter { runCatching { java.time.LocalDate.parse(it) >= cutoff }.getOrDefault(false) }
+            .toSet()
+        saveStreak(newStreak, newBest, todayStr, newDays)
+    }
+
+    // Backup reminders: the last successful export and any pending prompt.
+    fun loadLastBackupAt(): Long = prefs.getLong(KEY_LAST_BACKUP_AT, 0L)
+    fun saveLastBackupAt(ms: Long) = prefs.edit().putLong(KEY_LAST_BACKUP_AT, ms).apply()
+    fun loadPendingBackupPrompt(): Boolean = prefs.getBoolean(KEY_PENDING_BACKUP_PROMPT, false)
+    fun savePendingBackupPrompt(v: Boolean) =
+        prefs.edit().putBoolean(KEY_PENDING_BACKUP_PROMPT, v).apply()
+
     private fun toJson(m: MediaItem): JSONObject = JSONObject().apply {
         put("id", m.id)
         put("title", m.title)
@@ -414,6 +443,8 @@ class SerieeRepository(context: Context) {
         const val KEY_TMDB = "tmdb_api_key"
         const val KEY_OMDB = "omdb_api_key"
         const val KEY_LAST_SEEN_VERSION = "last_seen_version_code"
+        const val KEY_LAST_BACKUP_AT = "last_backup_at"
+        const val KEY_PENDING_BACKUP_PROMPT = "pending_backup_prompt"
         const val KEY_STREAK_DAYS = "streak_days"
         const val KEY_BEST_STREAK = "best_streak"
         const val KEY_LAST_WATCH_DAY = "last_watch_day"
