@@ -77,6 +77,28 @@ class InsightsCalculatorTest {
     }
 
     @Test
+    fun notStartedTitlesDoNotCountWatchedEpisodes() {
+        val items = listOf(
+            item("soon", status = WatchStatus.ComingSoon, currentEp = 1, totalEp = 24),
+            item("planned", status = WatchStatus.PlanToWatch, currentEp = 1, totalEp = 12),
+            item("watching", status = WatchStatus.Watching, currentEp = 3, totalEp = 10),
+            item(
+                "movie",
+                type = MediaType.Movie,
+                status = WatchStatus.ComingSoon,
+                currentEp = 1,
+                totalEp = 1
+            )
+        )
+
+        val result = InsightsCalculator.calculate(items, emptyList(), now = now, zone = zone)
+
+        assertEquals(3, result.watchedEpisodes)
+        assertEquals(0, result.moviesWatched)
+        assertEquals(3 * 24, result.estimatedMinutes)
+    }
+
+    @Test
     fun completionRateRoundsDownToWholePercent() {
         val items = listOf(
             item("a", status = WatchStatus.Completed),

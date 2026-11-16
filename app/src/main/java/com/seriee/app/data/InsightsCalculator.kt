@@ -45,10 +45,15 @@ object InsightsCalculator {
     ): Insights {
         val series = items.count { it.type == MediaType.Series }
         val movies = items.count { it.type == MediaType.Movie }
+        // Titles that have not started yet keep their default episode 1 (a
+        // freshly fetched multi-season show often lands in Coming Soon while a
+        // new season airs), so they must not look watched in the hero stats.
         val watchedEpisodes = items
-            .filter { it.type == MediaType.Series }
+            .filter { it.type == MediaType.Series && it.status.countsProgress() }
             .sumOf { it.watchedEpisodes }
-        val moviesWatched = items.count { it.type == MediaType.Movie && it.watchedEpisodes > 0 }
+        val moviesWatched = items.count {
+            it.type == MediaType.Movie && it.status.countsProgress() && it.watchedEpisodes > 0
+        }
         val completed = items.count { it.status == WatchStatus.Completed }
         val ratings = items.map { it.rating }.filter { it in 1..5 }
 
@@ -76,6 +81,13 @@ object InsightsCalculator {
             recent = history.sortedByDescending { it.watchedAt }.take(RECENT_LIMIT)
         )
     }
+
+    /**
+     * Plan to Watch and Coming Soon have no viewing progress even when a
+     * season counter was pre-filled by an import.
+     */
+    private fun WatchStatus.countsProgress(): Boolean =
+        this != WatchStatus.PlanToWatch && this != WatchStatus.ComingSoon
 
     private fun topTags(items: List<MediaItem>): List<Pair<String, Int>> {
         // Key by lowercase tag, keep the first casing the user typed.
