@@ -89,7 +89,7 @@ class SerieeRepository(context: Context) {
     fun loadThemeMode(): AppThemeMode {
         val stored = prefs.getString(KEY_THEME_MODE, null)
         if (stored != null) return AppThemeMode.fromName(stored)
-        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeMode.Light
+        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeMode.System
         return LegacyThemeMap.migrate(legacy).first
     }
 
@@ -97,7 +97,7 @@ class SerieeRepository(context: Context) {
     fun loadThemeStyle(): AppThemeStyle {
         val stored = prefs.getString(KEY_THEME_STYLE, null)
         if (stored != null) return AppThemeStyle.fromName(stored)
-        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeStyle.NeoBrutalism
+        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeStyle.Classic
         return LegacyThemeMap.migrate(legacy).second
     }
 
