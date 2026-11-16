@@ -321,6 +321,20 @@ fun SerieeApp(vm: SerieeViewModel) {
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
             ) {
+                // Pages scroll under the floating chrome, so fade them out before
+                // they reach the clock instead of showing card rows in the status bar.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(statusBarTop + 24.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                0f to p.bg.copy(alpha = 0.94f),
+                                0.55f to p.bg.copy(alpha = 0.72f),
+                                1f to Color.Transparent
+                            )
+                        )
+                )
                 SerieeTopBar(
                     vm = vm,
                     chromeBackdrop = chromeBackdrop,
