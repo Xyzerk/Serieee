@@ -240,7 +240,9 @@ fun SerieeApp(vm: SerieeViewModel) {
                                             showForm = true
                                         },
                                         searchFocusTick = searchTick,
-                                        comingSoonTick = comingSoonTick
+                                        comingSoonTick = comingSoonTick,
+                                        onSearchHandled = { searchTick = 0 },
+                                        onComingSoonHandled = { comingSoonTick = 0 }
                                     )
                                     1 -> LibraryScreen(
                                         list = vm.items,

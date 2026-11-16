@@ -73,18 +73,28 @@ fun ProgressScreen(
     watchDays: Set<String> = emptySet(),
     onAdd: () -> Unit = {},
     searchFocusTick: Int = 0,
-    comingSoonTick: Int = 0
+    comingSoonTick: Int = 0,
+    onSearchHandled: () -> Unit = {},
+    onComingSoonHandled: () -> Unit = {}
 ) {
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableIntStateOf(0) }
     val focusRequester = remember { FocusRequester() }
 
+    // The ticks are one-shot requests from the top bar. Consume them so that
+    // returning to Progress later keeps whatever filter/search the user left.
     LaunchedEffect(searchFocusTick) {
-        if (searchFocusTick > 0) runCatching { focusRequester.requestFocus() }
+        if (searchFocusTick > 0) {
+            runCatching { focusRequester.requestFocus() }
+            onSearchHandled()
+        }
     }
     LaunchedEffect(comingSoonTick) {
-        if (comingSoonTick > 0) filter = 4
+        if (comingSoonTick > 0) {
+            filter = 4
+            onComingSoonHandled()
+        }
     }
 
     val filters = listOf(
