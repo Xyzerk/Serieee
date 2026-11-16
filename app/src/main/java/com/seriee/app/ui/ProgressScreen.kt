@@ -119,77 +119,87 @@ fun ProgressScreen(
     val topInset = padding.calculateTopPadding()
     val bottomInset = padding.calculateBottomPadding()
 
-    Column(
-        Modifier.fillMaxSize()
+    // One scroll container for the whole screen. On short/narrow devices the
+    // header alone can be taller than the viewport; keeping it fixed would push
+    // the empty state (and its CTA) off-screen and underneath the floating nav
+    // bar. The bottom content padding reserves that chrome so the last element
+    // can always be scrolled above it.
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = topInset + 4.dp,
+            bottom = bottomInset + 24.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            Modifier.padding(start = 16.dp, end = 16.dp, top = topInset + 4.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                stringResource(R.string.active_progress),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = p.text
-            )
-            Text(
-                stringResource(R.string.active_progress_subtitle),
-                fontSize = 12.sp,
-                color = p.muted
-            )
+        item(key = "progress-header") {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    stringResource(R.string.active_progress),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = p.text
+                )
+                Text(
+                    stringResource(R.string.active_progress_subtitle),
+                    fontSize = 12.sp,
+                    color = p.muted
+                )
 
-            StreakCard(streakDays = streakDays, bestStreak = bestStreak, watchDays = watchDays)
+                StreakCard(streakDays = streakDays, bestStreak = bestStreak, watchDays = watchDays)
 
-            SField(
-                value = query,
-                onChange = { query = it },
-                modifier = Modifier.focusRequester(focusRequester),
-                placeholder = stringResource(R.string.search_progress_placeholder),
-                filled = true,
-                leading = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                trailing = if (query.isNotBlank()) {
-                    {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.clear_search),
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clickable { query = "" },
-                            tint = p.muted
+                SField(
+                    value = query,
+                    onChange = { query = it },
+                    modifier = Modifier.focusRequester(focusRequester),
+                    placeholder = stringResource(R.string.search_progress_placeholder),
+                    filled = true,
+                    leading = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    trailing = if (query.isNotBlank()) {
+                        {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.clear_search),
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { query = "" },
+                                tint = p.muted
+                            )
+                        }
+                    } else null
+                )
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    filters.forEachIndexed { index, (label, _) ->
+                        FilterChip(
+                            label = "$label (${filterCounts[index]})",
+                            selected = filter == index,
+                            onClick = { filter = index }
                         )
                     }
-                } else null
-            )
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                filters.forEachIndexed { index, (label, _) ->
-                    FilterChip(
-                        label = "$label (${filterCounts[index]})",
-                        selected = filter == index,
-                        onClick = { filter = index }
-                    )
                 }
             }
         }
 
         if (filtered.isEmpty()) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = 40.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
+            item(key = "progress-empty") {
                 if (query.isBlank() && list.isEmpty()) {
                     EmptyState(
                         icon = Icons.Filled.LiveTv,
                         title = stringResource(R.string.empty_progress_title),
                         hint = stringResource(R.string.empty_progress_hint),
                         ctaLabel = stringResource(R.string.add_first_title),
-                        onCta = onAdd
+                        onCta = onAdd,
+                        modifier = Modifier.padding(top = 20.dp)
                     )
                 } else {
                     EmptyState(
@@ -199,24 +209,19 @@ fun ProgressScreen(
                         } else {
                             stringResource(R.string.no_shows)
                         },
-                        hint = stringResource(R.string.empty_progress_hint)
+                        hint = stringResource(R.string.empty_progress_hint),
+                        modifier = Modifier.padding(top = 20.dp)
                     )
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottomInset + 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filtered, key = { it.id }, contentType = { it.type }) { item ->
-                    ProgressCard(
-                        item = item,
-                        onClick = { onOpen(item) },
-                        onIncrement = { onIncrement(item.id) },
-                        modifier = Modifier.animateItem()
-                    )
-                }
+            items(filtered, key = { it.id }, contentType = { it.type }) { item ->
+                ProgressCard(
+                    item = item,
+                    onClick = { onOpen(item) },
+                    onIncrement = { onIncrement(item.id) },
+                    modifier = Modifier.animateItem()
+                )
             }
         }
     }
@@ -459,19 +464,45 @@ private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>)
     val p = LocalPalette.current
     val configuration = LocalConfiguration.current
     val shape = remember { RoundedCornerShape(22.dp) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .liquidGlass(
-                shape = shape,
-                tint = p.card,
-                blurRadius = 16.dp,
-                refractionHeight = 10.dp,
-                refractionAmount = 18.dp
+    // The seven day circles take ~192dp of fixed width; below ~400dp (or with
+    // enlarged fonts) the text column is squeezed to ~60dp and wraps mid-word.
+    val stacked = configuration.screenWidthDp < 400 || configuration.fontScale > 1.15f
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .liquidGlass(
+            shape = shape,
+            tint = p.card,
+            blurRadius = 16.dp,
+            refractionHeight = 10.dp,
+            refractionAmount = 18.dp
+        )
+        .padding(horizontal = 14.dp, vertical = 11.dp)
+
+    if (stacked) {
+        Column(cardModifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            StreakSummary(
+                streakDays = streakDays,
+                bestStreak = bestStreak,
+                modifier = Modifier.fillMaxWidth()
             )
-            .padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+            StreakDays(watchDays = watchDays)
+        }
+    } else {
+        Row(cardModifier, verticalAlignment = Alignment.CenterVertically) {
+            StreakSummary(
+                streakDays = streakDays,
+                bestStreak = bestStreak,
+                modifier = Modifier.weight(1f)
+            )
+            StreakDays(watchDays = watchDays)
+        }
+    }
+}
+
+@Composable
+private fun StreakSummary(streakDays: Int, bestStreak: Int, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(36.dp)
@@ -487,45 +518,63 @@ private fun StreakCard(streakDays: Int, bestStreak: Int, watchDays: Set<String>)
             )
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.streak_label), fontSize = 11.sp, color = p.muted)
+        Column {
+            Text(
+                stringResource(R.string.streak_label),
+                fontSize = 11.sp,
+                color = p.muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             Text(
                 if (streakDays > 0) stringResource(R.string.streak_days, streakDays) else "—",
-                fontSize = 15.sp, fontWeight = FontWeight.Bold, color = p.text
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = p.text,
+                maxLines = 1
             )
             Text(
                 stringResource(R.string.best_streak, bestStreak),
-                fontSize = 11.sp, color = p.muted
+                fontSize = 11.sp,
+                color = p.muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            val today = remember { java.time.LocalDate.now() }
-            for (offset in 6 downTo 0) {
-                val date = today.minusDays(offset.toLong())
-                val active = watchDays.contains(date.toString())
-                val letter = date.dayOfWeek.getDisplayName(
-                    java.time.format.TextStyle.NARROW,
-                    configuration.locales[0]
-                ).uppercase().take(1)
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (active) p.reminder else p.chip)
-                        .border(
-                            1.dp,
-                            if (date == today) p.reminder else Color.Transparent,
-                            RoundedCornerShape(50)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        letter,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (active) contrastOn(p.reminder) else p.muted
-                    )
-                }
+    }
+}
+
+@Composable
+private fun StreakDays(watchDays: Set<String>) {
+    val p = LocalPalette.current
+    val configuration = LocalConfiguration.current
+    val today = remember { java.time.LocalDate.now() }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        for (offset in 6 downTo 0) {
+            val date = today.minusDays(offset.toLong())
+            val active = watchDays.contains(date.toString())
+            val letter = date.dayOfWeek.getDisplayName(
+                java.time.format.TextStyle.NARROW,
+                configuration.locales[0]
+            ).uppercase().take(1)
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (active) p.reminder else p.chip)
+                    .border(
+                        1.dp,
+                        if (date == today) p.reminder else Color.Transparent,
+                        RoundedCornerShape(50)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    letter,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (active) contrastOn(p.reminder) else p.muted
+                )
             }
         }
     }
