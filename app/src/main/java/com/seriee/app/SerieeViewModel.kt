@@ -3,6 +3,7 @@ package com.seriee.app
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,11 +27,13 @@ import com.seriee.app.data.ImportSource
 import com.seriee.app.data.ImportUiState
 import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
+import com.seriee.app.data.PosterStore
 import com.seriee.app.data.SerieeRepository
 import com.seriee.app.data.ThemePresetCodec
 import com.seriee.app.data.WatchEvent
 import com.seriee.app.data.WatchHistoryRules
 import com.seriee.app.data.WatchStatus
+import com.seriee.app.widget.SerieeWidgetProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -81,6 +84,9 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     private val _showChangelog = mutableStateOf(false)
     val showChangelog: Boolean get() = _showChangelog.value
 
+    var showBackupReminder by mutableStateOf(repo.loadPendingBackupPrompt())
+        private set
+
     private val aniListClient = AniListListClient()
     private var importJob: Job? = null
     private val _importState = mutableStateOf(ImportUiState())
@@ -92,8 +98,44 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     val currentVersionName: String = BuildConfig.VERSION_NAME
 
     private fun commit(newItems: List<MediaItem>) {
-        items = newItems
-        repo.saveItems(newItems)
+        val uniqueItems = newItems.distinctBy { it.id }
+        items = uniqueItems
+        repo.saveItems(uniqueItems)
+        val ctx = getApplication<Application>()
+        val activePosters = uniqueItems
+            .mapNotNull { it.poster.takeIf { p -> p.isNotBlank() } }
+            .toSet()
+        PosterStore.pruneUnused(ctx, activePosters)
+        SerieeWidgetProvider.notifyChanged(ctx)
+    }
+
+    fun dismissBackupReminder() {
+        repo.savePendingBackupPrompt(false)
+        showBackupReminder = false
+    }
+
+    /** Re-reads storage after the widget or another process changed it. */
+    fun refreshFromStorage() {
+        val storedItems = repo.loadItems()
+        val storedHistory = repo.loadHistory()
+        val storedStreakDays = repo.loadStreakDays()
+        val storedBestStreak = repo.loadBestStreak()
+        val storedWatchDays = repo.loadWatchDays()
+        if (storedItems != items) items = storedItems
+        if (storedHistory != history) history = storedHistory
+        if (storedStreakDays != _streakDays.value) _streakDays.value = storedStreakDays
+        if (storedBestStreak != _bestStreak.value) _bestStreak.value = storedBestStreak
+        if (storedWatchDays != _watchDays.value) _watchDays.value = storedWatchDays
+    }
+
+    private fun maybeTriggerBackupReminder(itemCount: Int, importedDelta: Int = 0) {
+        val sevenDaysMs = 7L * 86_400_000L
+        val lastBackup = repo.loadLastBackupAt()
+        val backupIsStale = lastBackup == 0L || (System.currentTimeMillis() - lastBackup) > sevenDaysMs
+        if (backupIsStale && (importedDelta >= 3 || (itemCount >= 10 && itemCount % 10 == 0))) {
+            repo.savePendingBackupPrompt(true)
+            showBackupReminder = true
+        }
     }
 
     init {
@@ -186,6 +228,13 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             logWatch(target, seasonNo, loggedEpisode, delta)
             recordWatch()
         }
+    }
+
+    /** Marks every episode of [seasonNum] as watched in one step. */
+    fun markSeasonComplete(id: String, seasonNum: Int) {
+        val target = items.firstOrNull { it.id == id } ?: return
+        val sec = target.effectiveSeasons.firstOrNull { it.number == seasonNum } ?: return
+        setCurrentEpisode(id, seasonNum, sec.totalEp)
     }
 
     /** Season/episode that a + will watch, or null when the item is already complete. */
@@ -294,6 +343,10 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         val exists = items.any { it.id == synced.id }
         commit(if (exists) items.map { if (it.id == synced.id) synced else it } else listOf(synced) + items)
 
+        if (!exists) {
+            maybeTriggerBackupReminder(items.size)
+        }
+
         if (synced.reminderEnabled && synced.releaseDate != null && synced.releaseDate > System.currentTimeMillis()) {
             com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), synced)
         } else {
@@ -332,6 +385,15 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (_themeMode.value == value) return
         _themeMode.value = value
         repo.saveTheme(_themeMode.value, _themeStyle.value)
+    }
+
+    /** Falls back to the app defaults after repeated crashes. */
+    fun resetThemeToDefault() {
+        setThemeMode(AppThemeMode.Light)
+        setThemeStyle(AppThemeStyle.NeoBrutalism)
+        setReduceTransparency(false)
+        val ctx = getApplication<Application>()
+        Toast.makeText(ctx, ctx.getString(R.string.crash_theme_reset_done), Toast.LENGTH_SHORT).show()
     }
 
     fun setThemeStyle(value: AppThemeStyle) {
@@ -529,6 +591,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             preview = null,
             result = result
         )
+        maybeTriggerBackupReminder(items.size, importedDelta = result.added + result.updated)
     }
 
     fun dismissImport() {
@@ -544,6 +607,10 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
                 out.flush()
             } ?: error(getApplication<Application>().getString(R.string.error_open_output))
             items.size
+        }.onSuccess {
+            repo.saveLastBackupAt(System.currentTimeMillis())
+            repo.savePendingBackupPrompt(false)
+            showBackupReminder = false
         }
     }
 
@@ -582,6 +649,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
                     com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), item)
                 }
             }
+            maybeTriggerBackupReminder(finalItems.size, importedDelta = imported.size)
             imported.size
         }
     }

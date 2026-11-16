@@ -61,7 +61,11 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debugConfig")
+            // Use the shared debug.keystore when it is committed; otherwise fall
+            // back to the default Android debug keystore (e.g. on CI).
+            if (rootProject.file("debug.keystore").exists()) {
+                signingConfig = signingConfigs.getByName("debugConfig")
+            }
         }
         release {
             if (hasReleaseSigning) {
@@ -86,6 +90,10 @@ android {
         // Single source of truth: defaultConfig below — never hardcode
         // version fallbacks in Kotlin code.
         buildConfig = true
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -113,7 +121,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("io.github.kyant0:backdrop:1.0.6")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
 }

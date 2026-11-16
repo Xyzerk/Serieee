@@ -3,6 +3,7 @@ package com.seriee.app.data
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
 
 /** Parsed contents of an export file. [history] is null when the file has no history field. */
 data class BackupPayload(
@@ -44,7 +45,9 @@ class SerieeRepository(context: Context) {
         }
         return try {
             val arr = JSONArray(raw)
-            (0 until arr.length()).map { fromJson(arr.getJSONObject(it)) }
+            (0 until arr.length())
+                .map { fromJson(arr.getJSONObject(it)) }
+                .distinctBy { it.id }
         } catch (e: Exception) {
             emptyList()
         }
@@ -86,7 +89,7 @@ class SerieeRepository(context: Context) {
     fun loadThemeMode(): AppThemeMode {
         val stored = prefs.getString(KEY_THEME_MODE, null)
         if (stored != null) return AppThemeMode.fromName(stored)
-        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeMode.System
+        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeMode.Light
         return LegacyThemeMap.migrate(legacy).first
     }
 
@@ -94,7 +97,7 @@ class SerieeRepository(context: Context) {
     fun loadThemeStyle(): AppThemeStyle {
         val stored = prefs.getString(KEY_THEME_STYLE, null)
         if (stored != null) return AppThemeStyle.fromName(stored)
-        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeStyle.Classic
+        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeStyle.NeoBrutalism
         return LegacyThemeMap.migrate(legacy).second
     }
 
@@ -189,6 +192,35 @@ class SerieeRepository(context: Context) {
             .apply()
     }
 
+    /**
+     * Records one watch action for the daily streak. Used by the widget, which
+     * runs outside the ViewModel and therefore cannot update its in-memory state.
+     */
+    fun recordWatchToday(now: java.time.LocalDate = java.time.LocalDate.now()) {
+        val todayStr = now.toString()
+        val last = runCatching { java.time.LocalDate.parse(loadLastWatchDay()) }.getOrNull()
+        val current = loadStreakDays()
+        val newStreak = when (last) {
+            null -> 1
+            now -> current
+            now.minusDays(1) -> current + 1
+            else -> 1
+        }
+        val newBest = maxOf(loadBestStreak(), newStreak)
+        val cutoff = now.minusDays(6)
+        val newDays = (loadWatchDays() + todayStr)
+            .filter { runCatching { java.time.LocalDate.parse(it) >= cutoff }.getOrDefault(false) }
+            .toSet()
+        saveStreak(newStreak, newBest, todayStr, newDays)
+    }
+
+    // Backup reminders: the last successful export and any pending prompt.
+    fun loadLastBackupAt(): Long = prefs.getLong(KEY_LAST_BACKUP_AT, 0L)
+    fun saveLastBackupAt(ms: Long) = prefs.edit().putLong(KEY_LAST_BACKUP_AT, ms).apply()
+    fun loadPendingBackupPrompt(): Boolean = prefs.getBoolean(KEY_PENDING_BACKUP_PROMPT, false)
+    fun savePendingBackupPrompt(v: Boolean) =
+        prefs.edit().putBoolean(KEY_PENDING_BACKUP_PROMPT, v).apply()
+
     private fun toJson(m: MediaItem): JSONObject = JSONObject().apply {
         put("id", m.id)
         put("title", m.title)
@@ -269,15 +301,20 @@ class SerieeRepository(context: Context) {
             }
         }.getOrDefault(emptyList())
 
+        val rawId = o.optString("id").trim()
+        val safeId = rawId.ifEmpty { UUID.randomUUID().toString() }
+        val safeTotalEp = o.optInt("totalEp", 1).coerceAtLeast(1)
+        val safeCurrentEp = o.optInt("currentEp", 1).coerceAtLeast(0)
+
         return MediaItem(
-            id = o.optString("id"),
+            id = safeId,
             title = o.optString("title"),
             type = runCatching { MediaType.valueOf(o.optString("type")) }.getOrDefault(MediaType.Series),
             status = runCatching { WatchStatus.valueOf(o.optString("status")) }.getOrDefault(WatchStatus.Watching),
             poster = o.optString("poster"),
-            season = o.optInt("season", 1),
-            currentEp = o.optInt("currentEp", 1),
-            totalEp = o.optInt("totalEp", 1),
+            season = o.optInt("season", 1).coerceAtLeast(1),
+            currentEp = safeCurrentEp,
+            totalEp = safeTotalEp,
             pinned = o.optBoolean("pinned", false),
             streamUrl = o.optString("streamUrl"),
             videoPath = o.optString("videoPath"),
@@ -352,7 +389,9 @@ class SerieeRepository(context: Context) {
         if (!json.startsWith("{")) {
             val arr = JSONArray(json)
             return BackupPayload(
-                items = (0 until arr.length()).map { fromJson(arr.getJSONObject(it)) },
+                items = (0 until arr.length())
+                    .map { fromJson(arr.getJSONObject(it)) }
+                    .distinctBy { it.id },
                 history = null
             )
         }
@@ -382,7 +421,9 @@ class SerieeRepository(context: Context) {
             null
         }
         val itemsArray = root.optJSONArray("items") ?: JSONArray()
-        val items = (0 until itemsArray.length()).map { fromJson(itemsArray.getJSONObject(it)) }
+        val items = (0 until itemsArray.length())
+            .map { fromJson(itemsArray.getJSONObject(it)) }
+            .distinctBy { it.id }
         return BackupPayload(items = items, history = history)
     }
 
@@ -402,6 +443,8 @@ class SerieeRepository(context: Context) {
         const val KEY_TMDB = "tmdb_api_key"
         const val KEY_OMDB = "omdb_api_key"
         const val KEY_LAST_SEEN_VERSION = "last_seen_version_code"
+        const val KEY_LAST_BACKUP_AT = "last_backup_at"
+        const val KEY_PENDING_BACKUP_PROMPT = "pending_backup_prompt"
         const val KEY_STREAK_DAYS = "streak_days"
         const val KEY_BEST_STREAK = "best_streak"
         const val KEY_LAST_WATCH_DAY = "last_watch_day"
