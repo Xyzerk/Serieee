@@ -40,11 +40,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -212,10 +214,28 @@ fun Modifier.liquidGlass(
                 if (withBorder) Modifier.themedBorder(p, shape, width = 0.75.dp) else Modifier
             )
     } else {
+        // No live backdrop (API < 31) or an opaque / reduced-transparency style:
+        // composite the tint over the page background so the fallback keeps a
+        // readable contrast instead of washing out over the gradient, and
+        // restore the elevation that the blur effect would have provided.
+        val fallbackTint = tint ?: p.card
+        val surface = if (p.isGlass) fallbackTint.compositeOver(p.bg) else fallbackTint
         this
+            .then(
+                if (elevated && p.isGlass) Modifier.shadow(6.dp, shape, clip = false) else Modifier
+            )
             .clip(shape)
-            .background(tint ?: p.card)
-            .then(if (withBorder) Modifier.themedBorder(p, shape) else Modifier)
+            .background(surface)
+            .then(
+                if (withBorder) {
+                    // The white specular edge is invisible on pale backgrounds;
+                    // use the palette border when the glass is unavailable.
+                    if (p.isGlass) Modifier.border(1.dp, p.border, shape)
+                    else Modifier.themedBorder(p, shape)
+                } else {
+                    Modifier
+                }
+            )
     }
 }
 
