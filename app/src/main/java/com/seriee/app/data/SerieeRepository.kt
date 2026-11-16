@@ -94,7 +94,7 @@ class SerieeRepository(context: Context) {
     fun loadThemeStyle(): AppThemeStyle {
         val stored = prefs.getString(KEY_THEME_STYLE, null)
         if (stored != null) return AppThemeStyle.fromName(stored)
-        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeStyle.Liquid
+        val legacy = prefs.getString(KEY_THEME, null) ?: return AppThemeStyle.Classic
         return LegacyThemeMap.migrate(legacy).second
     }
 
