@@ -132,7 +132,7 @@ fun SerieeApp(vm: SerieeViewModel) {
             pagerState.animateScrollToPage(
                 page = index,
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    dampingRatio = Spring.DampingRatioNoBouncy,
                     stiffness = Spring.StiffnessMediumLow
                 )
             )
@@ -194,19 +194,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                                     )
                                 }
                         ) { page ->
-                            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                            val absPageOffset = abs(pageOffset).coerceIn(0f, 1f)
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        translationX = -pageOffset * 0.12f * size.width
-                                        val scale = 1f - absPageOffset * 0.03f
-                                        scaleX = scale
-                                        scaleY = scale
-                                        alpha = 1f - absPageOffset * 0.06f
-                                    }
-                            ) {
+                            Box(Modifier.fillMaxSize()) {
                                 when (page) {
                                     0 -> ProgressScreen(
                                         list = vm.items,
@@ -311,7 +299,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                     .padding(horizontal = 16.dp, vertical = 10.dp)
                     .animateContentSize(
                         spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            dampingRatio = Spring.DampingRatioNoBouncy,
                             stiffness = Spring.StiffnessMediumLow
                         )
                     ),
@@ -330,13 +318,13 @@ fun SerieeApp(vm: SerieeViewModel) {
                     visible = fabVisible && tab != 2,
                     enter = scaleIn(
                         spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            dampingRatio = Spring.DampingRatioNoBouncy,
                             stiffness = Spring.StiffnessMediumLow
                         )
                     ) + fadeIn(),
                     exit = scaleOut(
                         spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            dampingRatio = Spring.DampingRatioNoBouncy,
                             stiffness = Spring.StiffnessMedium
                         )
                     ) + fadeOut()
