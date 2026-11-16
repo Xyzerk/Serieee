@@ -45,13 +45,11 @@ fun ChangelogDialog(
     // Only the current release is shown. When preparing a new version, add its
     // changelog_* strings and replace this list; older entries stay in CHANGELOG.md.
     val items = listOf(
-        stringResource(R.string.changelog_22),
-        stringResource(R.string.changelog_23),
-        stringResource(R.string.changelog_24),
-        stringResource(R.string.changelog_25),
-        stringResource(R.string.changelog_26),
-        stringResource(R.string.changelog_27),
-        stringResource(R.string.changelog_28)
+        stringResource(R.string.changelog_29),
+        stringResource(R.string.changelog_30),
+        stringResource(R.string.changelog_31),
+        stringResource(R.string.changelog_32),
+        stringResource(R.string.changelog_33)
     )
 
     Dialog(

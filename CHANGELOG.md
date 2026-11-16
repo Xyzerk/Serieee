@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The in-app "What's New"
 dialog is generated from the `changelog_*` strings in
 `app/src/main/res/values/strings.xml`.
 
+## [0.5.0] — 2026-11-16
+
+### Added
+
+- **Insights**, a third pager tab (Progress → Library → Insights) with a
+  dedicated nav item, swipe support, and TalkBack next/previous clamping.
+- Hero summary: episodes watched, estimated watch time (24 minutes per
+  episode), completion rate, and completed-title progress.
+- Series/movie/rating quick tiles, a stacked status breakdown with legend,
+  5-star distribution bars, and a top-genres chip cloud.
+- Accessible 12-week activity heatmap (date + count per cell, today outline)
+  and a recent watch timeline with posters, relative time, and detail-sheet
+  navigation.
+- `WatchEvent` history model with a 500-event cap, 365-day retention, exact
+  de-duplication, and a clear-history action that leaves library, progress,
+  and streak untouched.
+- Backup format **version 4** with watch history: replace restores the file's
+  history (or clears it), merge unions and de-duplicates, and v1–v3 backups
+  still import.
+- Pure-JVM tests for history trimming and every Insights metric.
+
+### Changed
+
+- Episode `+` and manual episode jumps now log the watched season/episode;
+  manual edits, collection imports, and backup-merge backfills do not.
+- `versionCode` is **15** (14 was already used by 0.4.2).
+
+### Fixed
+
+- History survives renaming or deleting a title through a stored title/type
+  snapshot, so the timeline never develops holes.
+
 ## [0.4.2] — 2026-11-15
 
 ### Added

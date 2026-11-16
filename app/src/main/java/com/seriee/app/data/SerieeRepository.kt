@@ -4,6 +4,12 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Parsed contents of an export file. [history] is null when the file has no history field. */
+data class BackupPayload(
+    val items: List<MediaItem>,
+    val history: List<WatchEvent>?
+)
+
 class SerieeRepository(context: Context) {
 
     private val prefs = context.applicationContext
@@ -48,6 +54,29 @@ class SerieeRepository(context: Context) {
         val arr = JSONArray()
         items.forEach { arr.put(toJson(it)) }
         prefs.edit().putString(KEY_DATA, arr.toString()).apply()
+    }
+
+    /** Watch events, newest first. Malformed entries are skipped. */
+    fun loadHistory(): List<WatchEvent> {
+        val raw = prefs.getString(KEY_HISTORY, null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).mapNotNull { i ->
+                runCatching { historyFromJson(arr.getJSONObject(i)) }.getOrNull()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveHistory(events: List<WatchEvent>) {
+        val arr = JSONArray()
+        events.forEach { arr.put(historyToJson(it)) }
+        prefs.edit().putString(KEY_HISTORY, arr.toString()).apply()
+    }
+
+    fun clearHistory() {
+        prefs.edit().remove(KEY_HISTORY).apply()
     }
 
     /**
@@ -265,9 +294,38 @@ class SerieeRepository(context: Context) {
         )
     }
 
-    fun exportBackupJson(items: List<MediaItem>): String {
+    private fun historyToJson(event: WatchEvent): JSONObject = JSONObject().apply {
+        put("itemId", event.itemId)
+        put("title", event.title)
+        put("type", event.type.name)
+        put("season", event.season)
+        put("episode", event.episode)
+        put("count", event.count)
+        put("watchedAt", event.watchedAt)
+    }
+
+    private fun historyFromJson(o: JSONObject): WatchEvent? {
+        val itemId = o.optString("itemId").trim()
+        val watchedAt = o.optLong("watchedAt", 0L)
+        if (itemId.isEmpty() || watchedAt <= 0L) return null
+        return WatchEvent(
+            itemId = itemId,
+            title = o.optString("title"),
+            type = runCatching { MediaType.valueOf(o.optString("type")) }
+                .getOrDefault(MediaType.Series),
+            season = o.optInt("season", 1).coerceAtLeast(0),
+            episode = o.optInt("episode", 1).coerceAtLeast(0),
+            count = o.optInt("count", 1).coerceAtLeast(1),
+            watchedAt = watchedAt
+        )
+    }
+
+    fun exportBackupJson(
+        items: List<MediaItem>,
+        history: List<WatchEvent> = loadHistory()
+    ): String {
         val root = JSONObject()
-        root.put("version", 3)
+        root.put("version", 4)
         root.put("appName", "Seriee")
         root.put("timestamp", System.currentTimeMillis())
         root.put("streakDays", loadStreakDays())
@@ -276,33 +334,56 @@ class SerieeRepository(context: Context) {
         val daysArr = JSONArray()
         loadWatchDays().forEach { daysArr.put(it) }
         root.put("watchDays", daysArr)
+        val historyArr = JSONArray()
+        history.forEach { historyArr.put(historyToJson(it)) }
+        root.put("history", historyArr)
         val arr = JSONArray()
         items.forEach { arr.put(toJson(it)) }
         root.put("items", arr)
         return root.toString(2)
     }
 
-    fun importBackupJson(rawJson: String): List<MediaItem> {
+    /**
+     * Reads a backup without touching items or history storage. The streak side
+     * effect stays here so callers keep the existing restore behaviour.
+     */
+    fun importBackupJson(rawJson: String): BackupPayload {
         val json = rawJson.trim()
-        val itemsArray = if (json.startsWith("{")) {
-            val root = JSONObject(json)
-            // Restore streak when the backup carries it (v3+); older backups keep current streak.
-            if (root.has("streakDays")) {
-                val daysArr = root.optJSONArray("watchDays")
-                val days = mutableSetOf<String>()
-                if (daysArr != null) for (i in 0 until daysArr.length()) days.add(daysArr.optString(i))
-                saveStreak(
-                    root.optInt("streakDays", 0),
-                    root.optInt("bestStreak", 0),
-                    root.optString("lastWatchDay"),
-                    days
-                )
-            }
-            root.optJSONArray("items") ?: JSONArray()
-        } else {
-            JSONArray(json)
+        if (!json.startsWith("{")) {
+            val arr = JSONArray(json)
+            return BackupPayload(
+                items = (0 until arr.length()).map { fromJson(arr.getJSONObject(it)) },
+                history = null
+            )
         }
-        return (0 until itemsArray.length()).map { fromJson(itemsArray.getJSONObject(it)) }
+        val root = JSONObject(json)
+        // Restore streak when the backup carries it (v3+); older backups keep current streak.
+        if (root.has("streakDays")) {
+            val daysArr = root.optJSONArray("watchDays")
+            val days = mutableSetOf<String>()
+            if (daysArr != null) for (i in 0 until daysArr.length()) days.add(daysArr.optString(i))
+            saveStreak(
+                root.optInt("streakDays", 0),
+                root.optInt("bestStreak", 0),
+                root.optString("lastWatchDay"),
+                days
+            )
+        }
+        val history = if (root.has("history")) {
+            val historyArr = root.optJSONArray("history")
+            if (historyArr == null) {
+                emptyList()
+            } else {
+                (0 until historyArr.length()).mapNotNull { i ->
+                    runCatching { historyFromJson(historyArr.getJSONObject(i)) }.getOrNull()
+                }
+            }
+        } else {
+            null
+        }
+        val itemsArray = root.optJSONArray("items") ?: JSONArray()
+        val items = (0 until itemsArray.length()).map { fromJson(itemsArray.getJSONObject(it)) }
+        return BackupPayload(items = items, history = history)
     }
 
     private companion object {
@@ -325,5 +406,6 @@ class SerieeRepository(context: Context) {
         const val KEY_BEST_STREAK = "best_streak"
         const val KEY_LAST_WATCH_DAY = "last_watch_day"
         const val KEY_WATCH_DAYS = "watch_days"
+        const val KEY_HISTORY = "watch_history_v1"
     }
 }
