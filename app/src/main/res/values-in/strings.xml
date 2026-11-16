@@ -4,6 +4,7 @@
     <!-- Navigation -->
     <string name="nav_progress">Progres</string>
     <string name="nav_library">Pustaka</string>
+    <string name="nav_insights">Wawasan</string>
     <string name="add">Tambah</string>
 
     <!-- Top bar -->
@@ -272,6 +273,11 @@
     <string name="changelog_26">Sakelar Kurangi transparansi baru, plus mode AMOLED opsional yang aktif saat penghemat baterai menyala</string>
     <string name="changelog_27">Dialog, kolom teks, sakelar, dan gradien kini mengikuti palet aktif, dengan skema warna Material 3 yang lengkap</string>
     <string name="changelog_28">Perbaikan: tema terang tidak lagi berkedip gelap saat aplikasi dibuka</string>
+    <string name="changelog_29">Tab Wawasan baru menampilkan episode ditonton, perkiraan waktu menonton, tingkat penyelesaian, dan rata-rata rating secara sekilas</string>
+    <string name="changelog_30">Rincian status, rating bintang, dan genre teratas hadir sebagai grafik yang aksesibel dan mengikuti tema</string>
+    <string name="changelog_31">Peta aktivitas 12 minggu dan linimasa tontonan terbaru, termasuk judul yang sudah kamu hapus</string>
+    <string name="changelog_32">Riwayat tontonan tercatat otomatis saat kamu menambah atau melompati episode, dan cadangan kini memakai format versi 4 dengan riwayat</string>
+    <string name="changelog_33">Hapus riwayat tontonan dari Wawasan tanpa mengubah pustaka, progres, atau streak</string>
 
     <!-- ViewModel messages -->
     <string name="reminder_test_message">Pengingat aktif untuk %1$s "%2$s"!</string>
@@ -334,6 +340,50 @@
     <string name="schedule">Jadwal</string>
     <string name="nav_next_tab">Tab berikutnya</string>
     <string name="nav_previous_tab">Tab sebelumnya</string>
+
+    <!-- Insights -->
+    <string name="insights_title">Wawasan</string>
+    <string name="insights_subtitle">Ringkasan aktivitas menontonmu</string>
+    <string name="insights_stat_episodes">Episode ditonton</string>
+    <string name="insights_stat_hours">Perkiraan jam</string>
+    <string name="insights_stat_completion">Selesai</string>
+    <string name="insights_stat_series">Serial</string>
+    <string name="insights_stat_movies">Film</string>
+    <string name="insights_stat_avg_rating">Rata-rata rating</string>
+    <string name="insights_hours_value">%1$s jam</string>
+    <string name="insights_status_title">Rincian status</string>
+    <string name="insights_ratings_title">Rating</string>
+    <string name="insights_tags_title">Genre teratas</string>
+    <string name="insights_activity_title">Aktivitas</string>
+    <string name="insights_activity_subtitle">12 minggu terakhir</string>
+    <string name="insights_activity_note">Aktivitas dimulai sejak versi ini.</string>
+    <string name="insights_recent_title">Aktivitas terbaru</string>
+    <string name="insights_recent_empty">Riwayat tontonan dimulai dari episode berikutnya</string>
+    <string name="insights_watch_time_note">Waktu menonton diperkirakan 24 menit per episode.</string>
+    <string name="insights_clear_history">Hapus riwayat</string>
+    <string name="insights_clear_history_title">Hapus riwayat tontonan?</string>
+    <string name="insights_clear_history_message">Semua peristiwa menonton yang tercatat akan dihapus. Pustaka, progres, dan streak-mu tetap aman.</string>
+    <string name="insights_clear_history_confirm">Hapus</string>
+    <string name="insights_event_season_episode">S%1$d E%2$d</string>
+    <string name="insights_heatmap_cell">%1$s: %2$d episode</string>
+    <string name="insights_status_row">%1$s: %2$d judul, %3$d%%</string>
+    <string name="insights_rating_row">%1$d bintang: %2$d judul</string>
+    <string name="insights_tag_chip">#%1$s %2$d</string>
+    <plurals name="insights_a11y_hero">
+        <item quantity="other">%1$d episode ditonton dari %2$d serial</item>
+    </plurals>
+    <plurals name="insights_completed_titles">
+        <item quantity="other">%1$d dari %2$d judul</item>
+    </plurals>
+    <plurals name="insights_episode_count">
+        <item quantity="other">%1$d episode</item>
+    </plurals>
+    <plurals name="insights_recent_count">
+        <item quantity="other">%1$d peristiwa terbaru</item>
+    </plurals>
+    <plurals name="insights_title_count">
+        <item quantity="other">%1$d judul</item>
+    </plurals>
 
     <!-- Empty states -->
     <string name="empty_progress_title">Belum ada serial</string>

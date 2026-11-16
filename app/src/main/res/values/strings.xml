@@ -4,6 +4,7 @@
     <!-- Navigation -->
     <string name="nav_progress">Progress</string>
     <string name="nav_library">Library</string>
+    <string name="nav_insights">Insights</string>
     <string name="add">Add</string>
 
     <!-- Top bar -->
@@ -272,6 +273,11 @@
     <string name="changelog_26">New Reduce transparency switch, plus an optional AMOLED mode that turns on with battery saver</string>
     <string name="changelog_27">Dialogs, text fields, switches and gradients now all follow the active palette, with a complete Material 3 colour scheme</string>
     <string name="changelog_28">Fixed: light themes no longer flash a dark window while the app starts</string>
+    <string name="changelog_29">A new Insights tab shows episodes watched, estimated watch time, completion rate, and average rating at a glance</string>
+    <string name="changelog_30">Status breakdown, star ratings, and top genres come as accessible, theme-aware charts</string>
+    <string name="changelog_31">A 12-week activity heatmap and a recent watch timeline, including titles you have since deleted</string>
+    <string name="changelog_32">Watch history is logged automatically when you advance or jump episodes, and backups now use format version 4 with history included</string>
+    <string name="changelog_33">Clear watch history from Insights without touching your library, progress, or streak</string>
 
     <!-- ViewModel messages -->
     <string name="reminder_test_message">Reminder active for %1$s \"%2$s\"!</string>
@@ -334,6 +340,55 @@
     <string name="schedule">Schedule</string>
     <string name="nav_next_tab">Next tab</string>
     <string name="nav_previous_tab">Previous tab</string>
+
+    <!-- Insights -->
+    <string name="insights_title">Insights</string>
+    <string name="insights_subtitle">Your watching at a glance</string>
+    <string name="insights_stat_episodes">Episodes watched</string>
+    <string name="insights_stat_hours">Estimated hours</string>
+    <string name="insights_stat_completion">Completed</string>
+    <string name="insights_stat_series">Series</string>
+    <string name="insights_stat_movies">Movies</string>
+    <string name="insights_stat_avg_rating">Average rating</string>
+    <string name="insights_hours_value">%1$s h</string>
+    <string name="insights_status_title">Status breakdown</string>
+    <string name="insights_ratings_title">Ratings</string>
+    <string name="insights_tags_title">Top genres</string>
+    <string name="insights_activity_title">Activity</string>
+    <string name="insights_activity_subtitle">Last 12 weeks</string>
+    <string name="insights_activity_note">Activity starts with this version.</string>
+    <string name="insights_recent_title">Recent activity</string>
+    <string name="insights_recent_empty">Your watch history starts with the next episode</string>
+    <string name="insights_watch_time_note">Watch time is estimated at 24 minutes per episode.</string>
+    <string name="insights_clear_history">Clear history</string>
+    <string name="insights_clear_history_title">Clear watch history?</string>
+    <string name="insights_clear_history_message">This removes every recorded watch event. Your library, progress, and streak stay untouched.</string>
+    <string name="insights_clear_history_confirm">Clear</string>
+    <string name="insights_event_season_episode">S%1$d E%2$d</string>
+    <string name="insights_heatmap_cell">%1$s: %2$d episodes</string>
+    <string name="insights_status_row">%1$s: %2$d titles, %3$d%%</string>
+    <string name="insights_rating_row">%1$d stars: %2$d titles</string>
+    <string name="insights_tag_chip">#%1$s %2$d</string>
+    <plurals name="insights_a11y_hero">
+        <item quantity="one">%1$d episode watched across %2$d series</item>
+        <item quantity="other">%1$d episodes watched across %2$d series</item>
+    </plurals>
+    <plurals name="insights_completed_titles">
+        <item quantity="one">%1$d of %2$d title</item>
+        <item quantity="other">%1$d of %2$d titles</item>
+    </plurals>
+    <plurals name="insights_episode_count">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <plurals name="insights_recent_count">
+        <item quantity="one">%1$d recent event</item>
+        <item quantity="other">%1$d recent events</item>
+    </plurals>
+    <plurals name="insights_title_count">
+        <item quantity="one">%1$d title</item>
+        <item quantity="other">%1$d titles</item>
+    </plurals>
 
     <!-- Empty states -->
     <string name="empty_progress_title">No series yet</string>

@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-Android%208.0%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 ![Material 3](https://img.shields.io/badge/UI-Material%203-6750A4)
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/eggBrainX/Seriee/actions/workflows/ci.yml/badge.svg)](https://github.com/eggBrainX/Seriee/actions/workflows/ci.yml)
 
@@ -19,6 +19,8 @@ Seriee is free software under the [Apache License 2.0](LICENSE). It is local-fir
 
 **Library** — title search and type filter (**Series / Movie**), adaptive grid or list view with 2:3 posters, pinned favorites first, star ratings, and tag/genre badges.
 
+**Insights** — a third tab with episodes watched, estimated watch time (24 minutes per episode), completion rate, series/movie counts, and average rating; stacked status breakdown, star-rating bars, top genres, an accessible 12-week activity heatmap, and a recent watch timeline. Clearing history never touches the library, progress, or streak.
+
 **Manage media** — add, edit, and delete titles (title, type, status, poster, season, progress, description, release date). Six statuses, duplicate guard, multi-season tracking, per-episode local video files, and posters from URL or device storage.
 
 **Metadata** — one search auto-fills title, poster, description, genres, year, seasons, and dates from **AniList** and **TVmaze** (no key) plus optional **TMDB** and **OMDb** keys. Season numbers are detected from titles/queries; failed sources are skipped.
@@ -27,7 +29,7 @@ Seriee is free software under the [Apache License 2.0](LICENSE). It is local-fir
 
 **Watch** — streaming links (Netflix, Bilibili, YouTube presets) opened in-app or in a browser, and local episode files opened in VLC, MX Player, or any installed player. Seriee hosts, scrapes, and provides no copyrighted video.
 
-**Backup & restore** — JSON export (format version 3) with merge or replace import; streak history is restored and reminders rescheduled. TMDB/OMDb keys are configured in the same sheet.
+**Backup & restore** — JSON export (format version 4) with merge or replace import; library, streak history, and watch history are restored and reminders rescheduled. Older formats still import. TMDB/OMDb keys are configured in the same sheet.
 
 **Collection import** — bring an existing list from **AniList** (public username, no token) or a **MyAnimeList** `.xml`/`.xml.gz` export. Preview new/updated/unchanged counts, merge without losing local edits, or replace after confirmation. Entries match by source ID, then normalized title and type; IDs use `anilist-…` / `mal-…`.
 
@@ -95,8 +97,8 @@ Open the project in Android Studio and run the `app` configuration, or use the c
 Release signing and publishing are maintainer tasks; see [docs/RELEASING.md](docs/RELEASING.md). The version has a single source of truth in [`app/build.gradle.kts`](app/build.gradle.kts):
 
 ```kotlin
-versionCode = 12
-versionName = "0.4.0"
+versionCode = 15
+versionName = "0.5.0"
 ```
 
 Both values reach Kotlin through `BuildConfig` for the changelog and About UI — never hardcode them elsewhere.
@@ -124,12 +126,12 @@ Search tolerates partial failures; if every source fails, the app falls back to 
 
 | Data | Location |
 |---|---|
-| Library, theme, accent/background, view mode, language, streak | `SharedPreferences` file `seriee` (JSON values) |
+| Library, theme, accent/background, view mode, language, streak, watch history | `SharedPreferences` file `seriee` (JSON values) |
 | TMDB / OMDb API keys | `SharedPreferences` file `seriee_secrets` (excluded from system backup) |
 | Uploaded posters | `filesDir/posters/` (`posters/<id>_<timestamp>.<ext>`) |
 | Remote posters | URLs loaded and cached by Coil |
 
-Backups are JSON (version 3) containing items and streak history. Older formats — a bare array or objects without streak fields — are still accepted, and imports are validated defensively. Local poster files are **not embedded**: `posters/…` paths will not resolve on a new device, so re-upload covers or use URLs. API keys are deliberately never exported.
+Backups are JSON (version 4) containing items, streak history, and the capped watch history (newest 500 events, 365-day retention). Older formats — a bare array, version 1–3 objects, or objects without streak/history fields — are still accepted, and imports are validated defensively. **Merge** unions watch history and de-duplicates exact events; **replace** uses the file's history (or clears it when the file has none). Local poster files are **not embedded**: `posters/…` paths will not resolve on a new device, so re-upload covers or use URLs. API keys are deliberately never exported.
 
 Uninstalling removes private storage; export a backup first. Android Auto Backup is enabled (`android:allowBackup="true"`) but should not replace an explicit export.
 
@@ -140,7 +142,7 @@ Uninstalling removes private storage; export a backup first. Android Auto Backup
 ```
 MainActivity
   └── SerieeTheme / SerieeApp (Compose UI)
-        ├── ProgressScreen · LibraryScreen
+        ├── ProgressScreen · LibraryScreen · InsightsScreen
         ├── MediaFormDialog · DetailDialog          (bottom sheets)
         ├── BackupRestoreDialog · ImportSheet       (bottom sheets)
         ├── ThemeMenu · ChangelogDialog · AboutDialog
@@ -148,6 +150,8 @@ MainActivity
               ▼
         SerieeViewModel (AndroidViewModel)
               ├── SerieeRepository    → SharedPreferences + JSON
+              ├── WatchHistoryRules   → capped, pruned event log
+              ├── InsightsCalculator  → pure aggregates for the Insights tab
               ├── MetadataRepository  → AniList / TVmaze / TMDB / OMDb
               ├── AniListListClient   → public collection import
               ├── MalXmlParser        → on-device MAL export import
@@ -156,7 +160,7 @@ MainActivity
 ```
 
 - **Single source of truth:** `SerieeViewModel.items` is a `mutableStateOf` list; every mutation commits to memory and persists immediately through `SerieeRepository`.
-- **Swipe tabs:** `SerieeApp` hosts a `HorizontalPager`; the nav pill interpolates `currentPage + currentPageOffsetFraction`, and filter chips use `FlowRow` so drags reach the pager.
+- **Swipe tabs:** `SerieeApp` hosts a `HorizontalPager` with Progress, Library, and Insights; the nav pill interpolates `currentPage + currentPageOffsetFraction`, and filter chips use `FlowRow` so drags reach the pager.
 - **Concurrency:** metadata search and collection import are the only suspending work and run on `Dispatchers.IO`; there are no coroutines in the UI layer.
 - **Reminders:** stateless broadcasts — an `AlarmManager` alarm with a `PendingIntent` keyed by `item.id.hashCode()`, rebuilt on app start and after import.
 - **Import mapping is pure Kotlin:** `ImportMapper` handles mapping, previews, merge, and replace without Android APIs, so the full matrix runs as JVM tests.
@@ -178,7 +182,7 @@ Seriee/
 │       │   ├── res/values-in/    # Indonesian strings
 │       │   └── java/com/seriee/app/
 │       │       ├── MainActivity.kt · SerieeViewModel.kt
-│       │       ├── data/         # models, repository, metadata, import, posters
+│       │       ├── data/         # models, repository, history, insights, metadata, import, posters
 │       │       ├── reminder/     # scheduler + receiver
 │       │       └── ui/           # screens, sheets, theme menu, design system
 │       └── test/                 # JVM unit tests
@@ -236,6 +240,7 @@ Every push and pull request to `main` runs lint, unit tests, a debug build, and 
 
 - Remote posters load through Coil and need an internet connection.
 - All data is local. Use **Backup & Restore** before switching phones or uninstalling.
+- Watch history is a compact log of explicit watch actions only: advancing or jumping episodes. Manual edits, collection imports, and restored pre-0.5 progress are not backfilled, so activity starts with the first episode watched on 0.5 or later.
 - Collection import is explicit: AniList receives only the username you type at `graphql.anilist.co`, and a MyAnimeList export is parsed entirely on-device.
 - Application ID and Kotlin namespace are both `com.seriee.app`; the pre-0.3.0 ID was `com.aistudio.seriee.twvpmz`, and both versions can coexist.
 

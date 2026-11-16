@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated: 12 November 2026**
+**Last updated: 16 November 2026**
 
 Seriee is a local-first Android app. There is no Seriee account, server, ads, or
 analytics, and the project does not receive your data.
@@ -9,6 +9,8 @@ analytics, and the project does not receive your data.
 
 - Your library (titles, progress, ratings, tags, descriptions, poster URLs or
   local poster files, streaming links, and episode file references).
+- Your watch history: a compact log of episode timestamps recorded when you
+  advance or jump episodes.
 - App settings (theme, custom accent and background, view mode, language) and
   streak history.
 - Optional TMDB and OMDb API keys that you enter yourself.
@@ -58,10 +60,11 @@ storage access. Files you pick are accessed through Android's system picker.
 ## Backups
 
 - **Exported JSON backups** are created only when you ask for them and stay
-  wherever you save them. They do not include API keys.
-- **Android Auto Backup / device transfer** may include your library and
-  settings, but the API-key preferences file is explicitly excluded. You can
-  disable system backup in Android settings.
+  wherever you save them. They include your library, streak, and watch history,
+  but not API keys.
+- **Android Auto Backup / device transfer** may include your library, watch
+  history, and settings, but the API-key preferences file is explicitly
+  excluded. You can disable system backup in Android settings.
 
 ## Children
 
@@ -70,7 +73,9 @@ The app is not directed at children and collects no personal data.
 ## Removing your data
 
 Uninstalling the app removes its private storage. Export a backup first if you
-want to keep it. Local poster files are also removed.
+want to keep it. Local poster files are also removed. You can delete watch
+history at any time from **Insights → Clear history**; this does not affect your
+library, progress, or streak.
 
 ## Changes
 

@@ -28,6 +28,8 @@ import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.SerieeRepository
 import com.seriee.app.data.ThemePresetCodec
+import com.seriee.app.data.WatchEvent
+import com.seriee.app.data.WatchHistoryRules
 import com.seriee.app.data.WatchStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +75,9 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     private val _watchDays = mutableStateOf(repo.loadWatchDays())
     val watchDays: Set<String> get() = _watchDays.value
 
+    var history by mutableStateOf(repo.loadHistory())
+        private set
+
     private val _showChangelog = mutableStateOf(false)
     val showChangelog: Boolean get() = _showChangelog.value
 
@@ -107,7 +112,9 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun incrementEpisode(id: String) {
-        val before = items.sumOf { it.watchedEpisodes }
+        val target = items.find { it.id == id } ?: return
+        val logTarget = incrementTarget(target)
+        val before = target.watchedEpisodes
         commit(items.map { m ->
             if (m.id != id) return@map m
             // Multi-season path
@@ -136,11 +143,16 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
                 )
             } else m
         })
-        if (items.sumOf { it.watchedEpisodes } > before) recordWatch()
+        val after = items.find { it.id == id } ?: return
+        if (after.watchedEpisodes > before) {
+            logTarget?.let { (season, episode) -> logWatch(target, season, episode) }
+            recordWatch()
+        }
     }
 
     fun setCurrentEpisode(id: String, seasonNo: Int, epNo: Int) {
-        val before = items.sumOf { it.watchedEpisodes }
+        val target = items.find { it.id == id } ?: return
+        val before = target.watchedEpisodes
         commit(items.map { m ->
             if (m.id != id) return@map m
             if (m.seasons.isNotEmpty()) {
@@ -163,7 +175,42 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
         })
-        if (items.sumOf { it.watchedEpisodes } > before) recordWatch()
+        val after = items.find { it.id == id } ?: return
+        val delta = after.watchedEpisodes - before
+        if (delta > 0) {
+            val loggedEpisode = if (after.seasons.isNotEmpty()) {
+                after.seasons.firstOrNull { it.number == seasonNo }?.currentEp ?: epNo
+            } else {
+                after.currentEp
+            }
+            logWatch(target, seasonNo, loggedEpisode, delta)
+            recordWatch()
+        }
+    }
+
+    /** Season/episode that a + will watch, or null when the item is already complete. */
+    private fun incrementTarget(item: MediaItem): Pair<Int, Int>? {
+        if (item.seasons.isNotEmpty()) {
+            val season = item.seasons.firstOrNull { it.currentEp < it.totalEp } ?: return null
+            return season.number to (season.currentEp + 1)
+        }
+        if (item.currentEp < item.totalEp) return item.season to (item.currentEp + 1)
+        return null
+    }
+
+    private fun logWatch(item: MediaItem, season: Int, episode: Int, count: Int = 1) {
+        if (count <= 0) return
+        val event = WatchEvent(
+            itemId = item.id,
+            title = item.title,
+            type = item.type,
+            season = season,
+            episode = episode,
+            count = count,
+            watchedAt = System.currentTimeMillis()
+        )
+        history = WatchHistoryRules.trim(history + event)
+        repo.saveHistory(history)
     }
 
     fun togglePin(id: String) {
@@ -200,6 +247,12 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _bestStreak.value = 0
         _watchDays.value = emptySet()
         repo.saveStreak(0, 0, "", emptySet())
+    }
+
+    /** Clearing history is separate from the streak and never touches progress. */
+    fun clearHistory() {
+        history = emptyList()
+        repo.clearHistory()
     }
 
     fun toggleReminder(id: String) {
@@ -485,7 +538,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun exportBackup(context: Context, uri: Uri): Result<Int> {
         return runCatching {
-            val jsonString = repo.exportBackupJson(items)
+            val jsonString = repo.exportBackupJson(items, history)
             context.contentResolver.openOutputStream(uri)?.use { out ->
                 out.write(jsonString.toByteArray(Charsets.UTF_8))
                 out.flush()
@@ -499,7 +552,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             val raw = context.contentResolver.openInputStream(uri)?.use { input ->
                 input.bufferedReader(Charsets.UTF_8).readText()
             } ?: error(getApplication<Application>().getString(R.string.error_read_backup))
-            val imported = repo.importBackupJson(raw)
+            val payload = repo.importBackupJson(raw)
+            val imported = payload.items
             if (imported.isEmpty()) error(getApplication<Application>().getString(R.string.error_empty_backup))
 
             val finalItems = if (replace) {
@@ -509,6 +563,14 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
                 imported + items.filterNot { it.id in importedIds }
             }
             commit(finalItems)
+            // Replace restores the file's history (or clears it); merge unions both sides.
+            val restoredHistory = if (replace) {
+                WatchHistoryRules.trim(payload.history ?: emptyList())
+            } else {
+                WatchHistoryRules.trim(history + (payload.history ?: emptyList()))
+            }
+            history = restoredHistory
+            repo.saveHistory(restoredHistory)
             // Import may have restored streak history (v3 backups).
             _streakDays.value = repo.loadStreakDays()
             _bestStreak.value = repo.loadBestStreak()

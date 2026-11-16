@@ -42,6 +42,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
@@ -115,7 +116,7 @@ fun SerieeApp(vm: SerieeViewModel) {
     var searchTick by remember { mutableIntStateOf(0) }
     var comingSoonTick by remember { mutableIntStateOf(0) }
 
-    val pagerState = rememberPagerState(initialPage = tab) { 2 }
+    val pagerState = rememberPagerState(initialPage = tab) { 3 }
     val scope = rememberCoroutineScope()
 
     val bgBackdrop = rememberLayerBackdrop()
@@ -131,6 +132,7 @@ fun SerieeApp(vm: SerieeViewModel) {
 
     val goToTab: (Int) -> Unit = { index ->
         tab = index
+        fabVisible = true
         scope.launch {
             pagerState.animateScrollToPage(
                 page = index,
@@ -201,11 +203,11 @@ fun SerieeApp(vm: SerieeViewModel) {
                                 .semantics {
                                     customActions = listOf(
                                         CustomAccessibilityAction(nextTabLabel) {
-                                            goToTab(1)
+                                            goToTab((pagerState.currentPage + 1).coerceAtMost(2))
                                             true
                                         },
                                         CustomAccessibilityAction(previousTabLabel) {
-                                            goToTab(0)
+                                            goToTab((pagerState.currentPage - 1).coerceAtLeast(0))
                                             true
                                         }
                                     )
@@ -224,8 +226,8 @@ fun SerieeApp(vm: SerieeViewModel) {
                                         alpha = 1f - absPageOffset * 0.22f
                                     }
                             ) {
-                                if (page == 0) {
-                                    ProgressScreen(
+                                when (page) {
+                                    0 -> ProgressScreen(
                                         list = vm.items,
                                         padding = contentInsets,
                                         onOpen = { detailId = it.id },
@@ -240,8 +242,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                                         searchFocusTick = searchTick,
                                         comingSoonTick = comingSoonTick
                                     )
-                                } else {
-                                    LibraryScreen(
+                                    1 -> LibraryScreen(
                                         list = vm.items,
                                         gridView = vm.gridView,
                                         padding = contentInsets,
@@ -253,6 +254,18 @@ fun SerieeApp(vm: SerieeViewModel) {
                                             showForm = true
                                         },
                                         searchFocusTick = searchTick
+                                    )
+                                    else -> InsightsScreen(
+                                        list = vm.items,
+                                        history = vm.history,
+                                        watchDays = vm.watchDays,
+                                        padding = contentInsets,
+                                        onOpen = { detailId = it.id },
+                                        onAdd = {
+                                            editingId = null
+                                            showForm = true
+                                        },
+                                        onClearHistory = vm::clearHistory
                                     )
                                 }
                             }
@@ -318,7 +331,10 @@ fun SerieeApp(vm: SerieeViewModel) {
                     },
                     onOpenChangelog = { vm.openChangelog() },
                     onOpenAbout = { showAbout = true },
-                    onSearch = { searchTick++ },
+                    onSearch = {
+                        if (tab != 0) goToTab(0)
+                        searchTick++
+                    },
                     onSchedule = {
                         goToTab(0)
                         comingSoonTick++
@@ -350,7 +366,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                 )
 
                 AnimatedVisibility(
-                    visible = fabVisible,
+                    visible = fabVisible && tab != 2,
                     enter = scaleIn(
                         spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -618,7 +634,8 @@ private fun SerieeNavBar(
     val haptic = LocalHapticFeedback.current
     val items = listOf(
         Icons.Filled.Timeline to stringResource(R.string.nav_progress),
-        Icons.Filled.VideoLibrary to stringResource(R.string.nav_library)
+        Icons.Filled.VideoLibrary to stringResource(R.string.nav_library),
+        Icons.Filled.Insights to stringResource(R.string.nav_insights)
     )
 
     Box(
@@ -631,9 +648,10 @@ private fun SerieeNavBar(
                 .fillMaxWidth()
                 .height(52.dp)
         ) {
-            val itemWidth = maxWidth / 2
+            val maxPosition = (items.size - 1).toFloat()
+            val itemWidth = maxWidth / items.size
             val indicatorWidth = itemWidth - 4.dp
-            val targetPosition = pagerPosition.coerceIn(0f, 1f)
+            val targetPosition = pagerPosition.coerceIn(0f, maxPosition)
             val animatedPosition by animateFloatAsState(
                 targetValue = targetPosition,
                 animationSpec = spring(
@@ -642,9 +660,11 @@ private fun SerieeNavBar(
                 ),
                 label = "navPillPosition"
             )
-            val position = animatedPosition.coerceIn(0f, 1f)
-            val travelVelocity = abs(targetPosition - animatedPosition).coerceIn(0f, 1f)
-            val glideStretch = (sin(position * PI.toFloat()) * 0.12f + travelVelocity * 0.18f)
+            val position = animatedPosition.coerceIn(0f, maxPosition)
+            val normalizedPosition = if (maxPosition == 0f) 0f else position / maxPosition
+            val travelVelocity = if (maxPosition == 0f) 0f
+            else (abs(targetPosition - animatedPosition) / maxPosition).coerceIn(0f, 1f)
+            val glideStretch = (sin(normalizedPosition * PI.toFloat()) * 0.12f + travelVelocity * 0.18f)
                 .coerceIn(0f, 0.22f)
             Box(
                 modifier = Modifier
@@ -696,7 +716,11 @@ private fun SerieeNavBar(
                         ),
                         label = "navItemScale_$index"
                     )
-                    val tag = if (index == 0) "nav_tab_progress" else "nav_tab_library"
+                    val tag = when (index) {
+                        0 -> "nav_tab_progress"
+                        1 -> "nav_tab_library"
+                        else -> "nav_tab_insights"
+                    }
                     Row(
                         modifier = Modifier
                             .testTag(tag)
