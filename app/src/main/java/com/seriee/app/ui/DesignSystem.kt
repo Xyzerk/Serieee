@@ -256,7 +256,7 @@ fun Modifier.glassChrome(
         shape = shape,
         backdrop = chromeBackdrop,
         tint = surfaceTint,
-        blurRadius = 22.dp,
+        blurRadius = 12.dp,
         refractionHeight = 18.dp,
         refractionAmount = 36.dp,
         chromaticAberration = true,

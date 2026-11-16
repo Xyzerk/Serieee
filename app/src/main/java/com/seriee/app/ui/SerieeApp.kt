@@ -85,10 +85,6 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import com.seriee.app.R
 import com.seriee.app.SerieeViewModel
 import kotlinx.coroutines.launch
@@ -120,7 +116,6 @@ fun SerieeApp(vm: SerieeViewModel) {
     val scope = rememberCoroutineScope()
 
     val bgBackdrop = rememberLayerBackdrop()
-    val pagerBackdrop = rememberLayerBackdrop()
     val chromeBackdrop = rememberLayerBackdrop()
 
     LaunchedEffect(pagerState.currentPage) {
@@ -173,18 +168,6 @@ fun SerieeApp(vm: SerieeViewModel) {
         ) {
             SerieeBackground(p, modifier = Modifier.layerBackdrop(bgBackdrop))
 
-            val rawTransitionIntensity = sin(
-                abs(pagerState.currentPageOffsetFraction).coerceIn(0f, 1f) * PI.toFloat()
-            ).coerceIn(0f, 1f)
-            val transitionIntensity by animateFloatAsState(
-                targetValue = rawTransitionIntensity,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "navBackdropTransition"
-            )
-
             CompositionLocalProvider(LocalLiquidBackdrop provides bgBackdrop) {
                 Box(
                     Modifier
@@ -192,9 +175,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                         .nestedScroll(scrollConnection)
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .layerBackdrop(pagerBackdrop)
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         HorizontalPager(
                             state = pagerState,
@@ -223,7 +204,7 @@ fun SerieeApp(vm: SerieeViewModel) {
                                         val scale = 1f - absPageOffset * 0.03f
                                         scaleX = scale
                                         scaleY = scale
-                                        alpha = 1f - absPageOffset * 0.22f
+                                        alpha = 1f - absPageOffset * 0.06f
                                     }
                             ) {
                                 when (page) {
@@ -272,42 +253,6 @@ fun SerieeApp(vm: SerieeViewModel) {
                                 }
                             }
                         }
-                    }
-
-                    // Subtle Liquid Glass blur + optical lens transition veil over pages while navigating.
-                    if (p.isGlass && transitionIntensity > 0.01f) {
-                        val safeIntensity = transitionIntensity.coerceIn(0f, 1f)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .drawBackdrop(
-                                    backdrop = pagerBackdrop,
-                                    shape = { RoundedCornerShape(0.dp) },
-                                    effects = {
-                                        vibrancy()
-                                        val blurPx = (safeIntensity * 6f).dp.toPx()
-                                        if (blurPx > 0.5f) {
-                                            blur(blurPx)
-                                        }
-                                        if (p.isLiquidGlass) {
-                                            val heightPx = (safeIntensity * 10f).dp.toPx()
-                                            val amountPx = (safeIntensity * 16f).dp.toPx()
-                                            if (heightPx > 0.5f && amountPx > 0.5f) {
-                                                lens(
-                                                    refractionHeight = heightPx,
-                                                    refractionAmount = amountPx,
-                                                    chromaticAberration = true
-                                                )
-                                            }
-                                        }
-                                    },
-                                    onDrawSurface = {
-                                        drawRect(
-                                            p.bg.copy(alpha = (safeIntensity * 0.10f).coerceIn(0f, 0.14f))
-                                        )
-                                    }
-                                )
-                        )
                     }
                 }
             }
