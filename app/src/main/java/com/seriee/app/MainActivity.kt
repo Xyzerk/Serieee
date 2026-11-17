@@ -13,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.animation.Crossfade
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
@@ -25,6 +26,7 @@ import com.seriee.app.data.SerieeRepository
 import com.seriee.app.ui.CustomThemeColors
 import com.seriee.app.ui.SerieeApp
 import com.seriee.app.ui.SerieeTheme
+import com.seriee.app.ui.WelcomeScreen
 import com.seriee.app.ui.resolvePalette
 
 class MainActivity : AppCompatActivity() {
@@ -49,7 +51,9 @@ class MainActivity : AppCompatActivity() {
                 ActivityResultContracts.RequestPermission()
             ) { _ -> }
 
-            LaunchedEffect(Unit) {
+            // Wait until the welcome slides are done before asking for permissions.
+            LaunchedEffect(vm.showWelcome) {
+                if (vm.showWelcome) return@LaunchedEffect
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                     ContextCompat.checkSelfPermission(
                         this@MainActivity,
@@ -72,11 +76,17 @@ class MainActivity : AppCompatActivity() {
                 reduceTransparency = vm.reduceTransparency,
                 batterySaverAmoled = vm.batterySaverAmoled
             ) {
-                SerieeApp(
-                    vm = vm,
-                    openItemId = pendingWidgetItem.value,
-                    onOpenItemHandled = { pendingWidgetItem.value = null },
-                )
+                Crossfade(targetState = vm.showWelcome, label = "welcome") { welcome ->
+                    if (welcome) {
+                        WelcomeScreen(onFinish = vm::finishWelcome)
+                    } else {
+                        SerieeApp(
+                            vm = vm,
+                            openItemId = pendingWidgetItem.value,
+                            onOpenItemHandled = { pendingWidgetItem.value = null },
+                        )
+                    }
+                }
             }
         }
     }

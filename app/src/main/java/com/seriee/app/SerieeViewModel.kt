@@ -95,6 +95,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     var history by mutableStateOf(repo.loadHistory())
         private set
 
+    private val _showWelcome = mutableStateOf(false)
+    val showWelcome: Boolean get() = _showWelcome.value
     private val _showChangelog = mutableStateOf(false)
     val showChangelog: Boolean get() = _showChangelog.value
 
@@ -176,9 +178,15 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         com.seriee.app.reminder.ReminderScheduler.createNotificationChannel(app)
-        // Show changelog once per version upgrade
         val lastSeen = repo.loadLastSeenVersionCode()
-        if (lastSeen < currentVersionCode) {
+        // First run: show the welcome slides. People who already use the app
+        // (existing library or a previously seen version) are not shown them.
+        if (!repo.loadOnboardingDone()) {
+            if (items.isNotEmpty() || lastSeen > 0) repo.saveOnboardingDone(true)
+            else _showWelcome.value = true
+        }
+        // Show changelog once per version upgrade (never on top of the welcome)
+        if (!_showWelcome.value && lastSeen < currentVersionCode) {
             _showChangelog.value = true
         }
         // Refresh alarms for any pending items
@@ -380,6 +388,18 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     fun setOmdbKey(value: String) {
         _omdbKey.value = value.trim()
         repo.saveOmdbKey(value.trim())
+    }
+
+    /** Closes the welcome slides (finished or skipped) and never shows them again. */
+    fun finishWelcome() {
+        _showWelcome.value = false
+        repo.saveOnboardingDone(true)
+        repo.saveLastSeenVersionCode(currentVersionCode)
+    }
+
+    /** Replays the welcome slides on demand. */
+    fun openWelcome() {
+        _showWelcome.value = true
     }
 
     fun openChangelog() {
