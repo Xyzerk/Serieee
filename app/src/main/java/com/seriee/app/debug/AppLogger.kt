@@ -2,6 +2,7 @@ package com.seriee.app.debug
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.FileProvider
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -223,6 +226,61 @@ object AppLogger {
         }.onFailure { err ->
             e("AppLogger", "Failed to share log file", err)
             Toast.makeText(context, context.getString(R.string.debug_share_failed), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** Device and app details attached to a bug report. Contains no library data. */
+    private fun deviceInfo(context: Context): String {
+        val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US)
+        return buildString {
+            appendLine("Seriee bug report")
+            appendLine("Generated: ${fmt.format(Date())}")
+            appendLine("App version: ${com.seriee.app.BuildConfig.VERSION_NAME} (${com.seriee.app.BuildConfig.VERSION_CODE})")
+            appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+            appendLine("Locale: ${Locale.getDefault().toLanguageTag()}")
+            appendLine("Log entries: ${_logs.value.size}")
+        }
+    }
+
+    /** Bundles the logs and device info into a single zip inside the share folder. */
+    fun writeBugReportZip(context: Context): File? = runCatching {
+        val dir = File(context.filesDir, "logs").apply { mkdirs() }
+        dir.listFiles { f -> f.name.startsWith("seriee-bug-report") && f.extension == "zip" }
+            ?.forEach { it.delete() }
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+        val file = File(dir, "seriee-bug-report-$stamp.zip")
+        ZipOutputStream(file.outputStream().buffered()).use { zip ->
+            zip.putNextEntry(ZipEntry("device-info.txt"))
+            zip.write(deviceInfo(context).toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("logs.txt"))
+            zip.write(formatAllLogs().ifBlank { "No log entries recorded." }.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+        file
+    }.getOrNull()
+
+    /** Builds the bug report zip and opens the share sheet so it can be sent or attached to an issue. */
+    fun shareBugReport(context: Context) {
+        val file = writeBugReportZip(context)
+        if (file == null) {
+            Toast.makeText(context, context.getString(R.string.report_bug_failed), Toast.LENGTH_SHORT).show()
+            return
+        }
+        runCatching {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/zip"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.report_bug_subject))
+                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.report_bug_body))
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, context.getString(R.string.report_bug_subject)))
+        }.onFailure { err ->
+            e("AppLogger", "Failed to share bug report", err)
+            Toast.makeText(context, context.getString(R.string.report_bug_failed), Toast.LENGTH_SHORT).show()
         }
     }
 
