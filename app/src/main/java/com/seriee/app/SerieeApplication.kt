@@ -6,12 +6,16 @@ import android.os.Looper
 import android.os.Process
 import com.seriee.app.data.SerieeRepository
 import com.seriee.app.debug.AppLogger
+import com.seriee.app.ui.NeoBrutalistColors
+import com.seriee.app.ui.NeoTone
 import kotlin.system.exitProcess
 
 class SerieeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         AppLogger.init(this)
+        // Widgets resolve palettes without a ViewModel, so load the Neo tone here.
+        runCatching { NeoBrutalistColors.setTone(NeoTone.fromName(SerieeRepository(this).loadNeoTone())) }
         installUncaughtExceptionHandler()
         AppLogger.i("App", "SerieeApplication initialized (v${BuildConfig.VERSION_NAME})")
     }

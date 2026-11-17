@@ -33,6 +33,8 @@ import com.seriee.app.data.SerieeRepository
 import com.seriee.app.data.StreakRules
 import com.seriee.app.data.StreakState
 import com.seriee.app.data.ThemePresetCodec
+import com.seriee.app.ui.NeoBrutalistColors
+import com.seriee.app.ui.NeoTone
 import com.seriee.app.data.WatchEvent
 import com.seriee.app.data.WatchHistoryRules
 import com.seriee.app.data.WatchStatus
@@ -54,6 +56,10 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     val themeMode: AppThemeMode get() = _themeMode.value
     private val _themeStyle = mutableStateOf(repo.loadThemeStyle())
     val themeStyle: AppThemeStyle get() = _themeStyle.value
+    private val _neoTone = mutableStateOf(
+        NeoTone.fromName(repo.loadNeoTone()).also { NeoBrutalistColors.setTone(it) }
+    )
+    val neoTone: NeoTone get() = _neoTone.value
     private val _customAccent = mutableStateOf(Color(repo.loadCustomAccent()))
     val customAccent: Color get() = _customAccent.value
     private val _customBackgroundStart = mutableStateOf(Color(repo.loadCustomBackgroundStart()))
@@ -395,6 +401,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     fun resetThemeToDefault() {
         setThemeMode(AppThemeMode.System)
         setThemeStyle(AppThemeStyle.Classic)
+        setNeoTone(NeoTone.Yellow)
         setReduceTransparency(false)
         com.seriee.app.debug.AppLogger.dismissPendingCrash()
         val ctx = getApplication<Application>()
@@ -405,6 +412,13 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (_themeStyle.value == value) return
         _themeStyle.value = value
         repo.saveTheme(_themeMode.value, _themeStyle.value)
+    }
+
+    fun setNeoTone(value: NeoTone) {
+        if (_neoTone.value == value) return
+        _neoTone.value = value
+        NeoBrutalistColors.setTone(value)
+        repo.saveNeoTone(value.name)
     }
 
     fun setCustomAccent(value: Color) {
@@ -474,7 +488,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             gradient = _customGradient.value,
             glass = _customGlass.value,
             highContrast = _customHighContrast.value,
-            reduceTransparency = _reduceTransparency.value
+            reduceTransparency = _reduceTransparency.value,
+            neoTone = _neoTone.value.name
         )
     )
 
@@ -490,6 +505,11 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _customGlass.value = preset.glass
         _customHighContrast.value = preset.highContrast
         _reduceTransparency.value = preset.reduceTransparency
+        NeoTone.fromName(preset.neoTone).let { tone ->
+            _neoTone.value = tone
+            NeoBrutalistColors.setTone(tone)
+            repo.saveNeoTone(tone.name)
+        }
         repo.saveTheme(preset.mode, preset.style)
         repo.saveCustomAccent(_customAccent.value.toArgb())
         repo.saveCustomBackground(
