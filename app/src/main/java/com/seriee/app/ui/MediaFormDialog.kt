@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
@@ -144,6 +146,8 @@ fun MediaFormDialog(
     val episodePageBySeason = remember { mutableStateMapOf<Int, Int>() }
     val showMissingOnlyBySeason = remember { mutableStateMapOf<Int, Boolean>() }
     val gotoEpBySeason = remember { mutableStateMapOf<Int, String>() }
+    // The episode list starts collapsed; a button reveals it (keeps 200+ ep forms short).
+    val episodeListOpenBySeason = remember { mutableStateMapOf<Int, Boolean>() }
 
     // fetch state
     var fetchQuery by remember { mutableStateOf(initial?.title ?: "") }
@@ -1330,6 +1334,7 @@ fun MediaFormDialog(
                                                     showMissingOnlyBySeason[draft.number] =
                                                         !chipSelected
                                                     episodePageBySeason[draft.number] = 0
+                                                    episodeListOpenBySeason[draft.number] = true
                                                 },
                                                 role = Role.Button,
                                                 backgroundColor = if (chipSelected) NeoBrutalistColors.Yellow else p.chip,
@@ -1362,6 +1367,7 @@ fun MediaFormDialog(
                                                         showMissingOnlyBySeason[draft.number] =
                                                             !chipSelected
                                                         episodePageBySeason[draft.number] = 0
+                                                        episodeListOpenBySeason[draft.number] = true
                                                     }
                                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                                             ) {
@@ -1380,6 +1386,14 @@ fun MediaFormDialog(
                                         fontSize = 10.sp, color = p.muted
                                     )
                                 }
+
+                                val listOpen = episodeListOpenBySeason[draft.number] == true
+                                EpisodeListToggle(
+                                    open = listOpen,
+                                    label = if (listOpen) stringResource(R.string.episode_list_hide)
+                                    else stringResource(R.string.episode_list_show, visibleTotal),
+                                    onClick = { episodeListOpenBySeason[draft.number] = !listOpen }
+                                )
 
                                 val missingEps = if (showMissingOnly) {
                                     remember(draft.episodes, total) {
@@ -1405,120 +1419,122 @@ fun MediaFormDialog(
                                     if (showMissingOnly) missingEps else (1..total).toList()
                                 }
 
-                                if (isPaged) {
-                                    val gotoText = gotoEpBySeason[draft.number] ?: ""
-                                    val goToPage: () -> Unit = {
-                                        val target = gotoText.toIntOrNull()
-                                        if (target != null) {
-                                            val clamped = target.coerceIn(1, total)
-                                            val destPage = if (showMissingOnly) {
-                                                val idx = missingEps.indexOf(clamped)
-                                                if (idx >= 0) idx / EPISODES_PAGE_SIZE else safePage
-                                            } else {
-                                                (clamped - 1) / EPISODES_PAGE_SIZE
+                                if (listOpen) {
+                                    if (isPaged) {
+                                        val gotoText = gotoEpBySeason[draft.number] ?: ""
+                                        val goToPage: () -> Unit = {
+                                            val target = gotoText.toIntOrNull()
+                                            if (target != null) {
+                                                val clamped = target.coerceIn(1, total)
+                                                val destPage = if (showMissingOnly) {
+                                                    val idx = missingEps.indexOf(clamped)
+                                                    if (idx >= 0) idx / EPISODES_PAGE_SIZE else safePage
+                                                } else {
+                                                    (clamped - 1) / EPISODES_PAGE_SIZE
+                                                }
+                                                episodePageBySeason[draft.number] = destPage
+                                                gotoEpBySeason[draft.number] = ""
                                             }
-                                            episodePageBySeason[draft.number] = destPage
-                                            gotoEpBySeason[draft.number] = ""
                                         }
-                                    }
-                                    // Pager controls
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        EpisodePagerButton(
-                                            label = stringResource(R.string.episode_prev),
-                                            enabled = safePage > 0
-                                        ) { episodePageBySeason[draft.number] = (safePage - 1).coerceAtLeast(0) }
-                                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(
-                                                if (pageEps.isEmpty()) "0 of $visibleTotal"
-                                                else stringResource(
-                                                    R.string.episode_page_range,
-                                                    pageEps.first(), pageEps.last(), visibleTotal
-                                                ),
-                                                fontSize = 11.sp,
-                                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                                                fontWeight = FontWeight.Bold,
-                                                color = p.text
-                                            )
-                                            Text(
-                                                stringResource(R.string.episode_page_label, safePage + 1, pageCount),
-                                                fontSize = 9.sp,
-                                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                                                color = p.muted
-                                            )
-                                        }
-                                        EpisodePagerButton(
-                                            label = stringResource(R.string.episode_next),
-                                            enabled = safePage < pageCount - 1
-                                        ) { episodePageBySeason[draft.number] = (safePage + 1).coerceAtMost((pageCount - 1).coerceAtLeast(0)) }
-                                    }
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        SField(
-                                            value = gotoText,
-                                            onChange = { gotoEpBySeason[draft.number] = it.filter(Char::isDigit).take(4) },
-                                            placeholder = stringResource(R.string.episode_go_to_hint),
-                                            keyboardType = KeyboardType.Number,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        if (p.isNeoBrutalist) {
-                                            NeoBrutalistBox(
-                                                onClick = goToPage,
-                                                enabled = gotoText.isNotBlank(),
-                                                role = Role.Button,
-                                                backgroundColor = if (gotoText.isNotBlank()) NeoBrutalistColors.Yellow else p.chip,
-                                                borderColor = p.border,
-                                                shadowColor = NeoBrutalistColors.Black,
-                                                borderWidth = 2.dp,
-                                                shadowOffset = 3.dp,
-                                                cornerRadius = 8.dp,
-                                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
+                                        // Pager controls
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            EpisodePagerButton(
+                                                label = stringResource(R.string.episode_prev),
+                                                enabled = safePage > 0
+                                            ) { episodePageBySeason[draft.number] = (safePage - 1).coerceAtLeast(0) }
+                                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                                                 Text(
-                                                    stringResource(R.string.episode_go),
+                                                    if (pageEps.isEmpty()) "0 of $visibleTotal"
+                                                    else stringResource(
+                                                        R.string.episode_page_range,
+                                                        pageEps.first(), pageEps.last(), visibleTotal
+                                                    ),
                                                     fontSize = 11.sp,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = NeoBrutalistColors.Black
+                                                    fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = p.text
+                                                )
+                                                Text(
+                                                    stringResource(R.string.episode_page_label, safePage + 1, pageCount),
+                                                    fontSize = 9.sp,
+                                                    fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                                                    color = p.muted
                                                 )
                                             }
-                                        } else {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(p.primary)
-                                                    .clickable(
-                                                        enabled = gotoText.isNotBlank(),
-                                                        onClick = goToPage
+                                            EpisodePagerButton(
+                                                label = stringResource(R.string.episode_next),
+                                                enabled = safePage < pageCount - 1
+                                            ) { episodePageBySeason[draft.number] = (safePage + 1).coerceAtMost((pageCount - 1).coerceAtLeast(0)) }
+                                        }
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            SField(
+                                                value = gotoText,
+                                                onChange = { gotoEpBySeason[draft.number] = it.filter(Char::isDigit).take(4) },
+                                                placeholder = stringResource(R.string.episode_go_to_hint),
+                                                keyboardType = KeyboardType.Number,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            if (p.isNeoBrutalist) {
+                                                NeoBrutalistBox(
+                                                    onClick = goToPage,
+                                                    enabled = gotoText.isNotBlank(),
+                                                    role = Role.Button,
+                                                    backgroundColor = if (gotoText.isNotBlank()) NeoBrutalistColors.Yellow else p.chip,
+                                                    borderColor = p.border,
+                                                    shadowColor = NeoBrutalistColors.Black,
+                                                    borderWidth = 2.dp,
+                                                    shadowOffset = 3.dp,
+                                                    cornerRadius = 8.dp,
+                                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        stringResource(R.string.episode_go),
+                                                        fontSize = 11.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = NeoBrutalistColors.Black
                                                     )
-                                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(stringResource(R.string.episode_go), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = p.onAccent)
+                                                }
+                                            } else {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(p.primary)
+                                                        .clickable(
+                                                            enabled = gotoText.isNotBlank(),
+                                                            onClick = goToPage
+                                                        )
+                                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(stringResource(R.string.episode_go), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = p.onAccent)
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                if (pageEps.isEmpty() && showMissingOnly) {
-                                    Text(stringResource(R.string.episode_all_picked), fontSize = 11.sp, color = p.success)
-                                } else {
-                                    // Only the visible page is composed — 50 rows max even for 1000+ ep shows.
-                                    pageEps.forEach { ep ->
-                                        EpisodeAssignRow(
-                                            ep = ep,
-                                            file = draft.episodes[ep],
-                                            onPick = {
-                                                manualTarget = sIdx to ep
-                                                picker.launch(arrayOf("video/*"))
-                                            }
-                                        )
+                                    if (pageEps.isEmpty() && showMissingOnly) {
+                                        Text(stringResource(R.string.episode_all_picked), fontSize = 11.sp, color = p.success)
+                                    } else {
+                                        // Only the visible page is composed — 50 rows max even for 1000+ ep shows.
+                                        pageEps.forEach { ep ->
+                                            EpisodeAssignRow(
+                                                ep = ep,
+                                                file = draft.episodes[ep],
+                                                onPick = {
+                                                    manualTarget = sIdx to ep
+                                                    picker.launch(arrayOf("video/*"))
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1767,6 +1783,58 @@ private fun PresetChip(label: String, onClick: () -> Unit) {
                 .clickable(onClick = onClick)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) { Text(label, fontSize = 11.sp, color = p.text) }
+    }
+}
+
+@Composable
+private fun EpisodeListToggle(open: Boolean, label: String, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    val icon = if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore
+    if (p.isNeoBrutalist) {
+        NeoBrutalistBox(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onClick,
+            role = Role.Button,
+            backgroundColor = if (open) NeoBrutalistColors.Yellow else NeoBrutalistColors.OffWhite,
+            borderColor = p.border,
+            shadowColor = NeoBrutalistColors.Black,
+            borderWidth = 2.dp,
+            shadowOffset = 3.dp,
+            cornerRadius = 6.dp,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    label,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = NeoBrutalistColors.Black,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(icon, contentDescription = null, tint = NeoBrutalistColors.Black, modifier = Modifier.size(20.dp))
+            }
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(p.chip)
+                .border(1.dp, p.border, RoundedCornerShape(10.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = p.text,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(icon, contentDescription = null, tint = p.muted, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
