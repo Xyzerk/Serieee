@@ -34,11 +34,13 @@ data class CustomThemeExtras(
     ).any { it != null }
 
     fun toJson(): String = org.json.JSONObject().apply {
-        fun put(key: String, v: Long?) { if (v != null) put(key, v) }
-        put("text", text); put("muted", muted); put("card", card)
-        put("surface", surface); put("border", border); put("success", success)
-        put("warning", warning); put("danger", danger); put("info", info)
-        put("reminder", reminder); put("star", star)
+        // Must not be named `put`: a local `put(String, Long?)` would shadow
+        // JSONObject.put and call itself forever (StackOverflowError).
+        fun putColor(key: String, v: Long?) { if (v != null) put(key, v) }
+        putColor("text", text); putColor("muted", muted); putColor("card", card)
+        putColor("surface", surface); putColor("border", border); putColor("success", success)
+        putColor("warning", warning); putColor("danger", danger); putColor("info", info)
+        putColor("reminder", reminder); putColor("star", star)
         imagePath?.let { put("imagePath", it) }
         put("imageEnabled", imageEnabled)
         put("imageDim", imageDim.toDouble())
