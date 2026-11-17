@@ -226,6 +226,8 @@
     <string name="file_not_picked">File not picked for this episode</string>
     <string name="remove_season">Remove Season %1$d</string>
     <string name="episode_picked_ok">Picked</string>
+    <string name="episode_list_show">Show episodes (%1$d)</string>
+    <string name="episode_list_hide">Hide episodes</string>
     <string name="episode_picked_summary">Picked %1$d / %2$d</string>
     <string name="episode_missing_only">Missing only</string>
     <string name="episode_page_range">%1$d–%2$d of %3$d</string>
