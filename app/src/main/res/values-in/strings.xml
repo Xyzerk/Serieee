@@ -518,4 +518,22 @@
     <string name="import_error_cancelled">Impor dibatalkan</string>
     <string name="import_error_unknown">Impor gagal. Coba lagi.</string>
     <string name="import_no_entries">Tidak ada entri di daftar itu</string>
+
+    <!-- Welcome / onboarding -->
+    <string name="welcome_skip">Lewati</string>
+    <string name="welcome_next">Selanjutnya</string>
+    <string name="welcome_start">Mulai</string>
+    <string name="welcome_page_of">Halaman %1$d dari %2$d</string>
+    <string name="welcome_1_title">Selamat datang di Seriee</string>
+    <string name="welcome_1_desc">Pelacak pribadi untuk serial, anime, dan film. Jadi kamu selalu tahu sudah sampai mana nontonnya.</string>
+    <string name="welcome_2_title">Catat progres tontonan</string>
+    <string name="welcome_2_desc">Ketuk + untuk maju satu episode. Pantau tiap season, filter berdasarkan status, dan jaga streak nonton harianmu.</string>
+    <string name="welcome_3_title">Susun koleksimu</string>
+    <string name="welcome_3_desc">Cari judul dan poster, genre, serta detailnya terisi otomatis. Tambahkan rating, favorit, dan impor dari MyAnimeList atau AniList.</string>
+    <string name="welcome_4_title">Lihat statistikmu</string>
+    <string name="welcome_4_desc">Waktu nonton, tingkat penyelesaian, genre favorit, dan heatmap aktivitas mingguan menunjukkan kebiasaan nontonmu.</string>
+    <string name="welcome_5_title">Jangan ketinggalan rilis</string>
+    <string name="welcome_5_desc">Atur pengingat rilis dengan hitung mundur, lalu buka link streaming atau video lokal langsung dari aplikasi.</string>
+    <string name="welcome_6_title">Datamu tetap milikmu</string>
+    <string name="welcome_6_desc">Tanpa akun, tanpa iklan, tanpa pelacakan. Semua tersimpan di perangkatmu dan bisa dicadangkan atau dipulihkan kapan saja.</string>
 </resources>
