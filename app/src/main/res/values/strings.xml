@@ -61,6 +61,7 @@
     <string name="pin">Pin</string>
 
     <!-- Media form -->
+    <string name="back_again_to_cancel">Press back again to cancel</string>
     <string name="add_to_seriee">Add to Seriee</string>
     <string name="edit_media">Edit Media</string>
     <string name="title_label">Movie / Series Title *</string>
