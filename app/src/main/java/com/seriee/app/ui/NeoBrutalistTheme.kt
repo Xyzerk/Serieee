@@ -39,6 +39,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,7 +73,25 @@ object NeoBrutalistColors {
     val Black = Color(0xFF000000)
 
     // Pop accents
-    val Yellow = Color(0xFFFFDE59)
+    private val toneState = mutableStateOf(NeoTone.Yellow.color)
+
+    /**
+     * Primary pop accent. Historically always yellow; it now follows the tone
+     * picked in the theme menu ([NeoTone]) and is snapshot state, so every
+     * composable that reads it recomposes when the tone changes.
+     */
+    val Yellow: Color get() = toneState.value
+
+    /** The classic Neo-Brutalism yellow, for things that must stay yellow (stars, warnings). */
+    val StarYellow = Color(0xFFFFDE59)
+
+    /** Secondary accent; steps aside when the primary tone is already pink. */
+    val Secondary: Color get() = if (toneState.value == Pink) StarYellow else Pink
+
+    fun setTone(tone: NeoTone) {
+        toneState.value = tone.color
+    }
+
     val SkyBlue = Color(0xFF5CE1E6)
     val Pink = Color(0xFFFF90E8)
     val Mint = Color(0xFF7ED957)
@@ -84,6 +103,20 @@ object NeoBrutalistColors {
     val DarkElevated = Color(0xFF2E2E36)
     val DarkMuted = Color(0xFFD4D4D8)
     val LightMuted = Color(0xFF2E2E32)
+}
+
+/** Selectable primary tones for the Neo-Brutalism theme. All are bright pop colours that take black text. */
+enum class NeoTone(val color: Color) {
+    Yellow(Color(0xFFFFDE59)),
+    Orange(Color(0xFFFF914D)),
+    Pink(Color(0xFFFF90E8)),
+    Purple(Color(0xFFB794F6)),
+    Blue(Color(0xFF5CE1E6)),
+    Mint(Color(0xFF7ED957));
+
+    companion object {
+        fun fromName(name: String?): NeoTone = entries.firstOrNull { it.name == name } ?: Yellow
+    }
 }
 
 @Immutable
@@ -173,7 +206,7 @@ data class NeoBrutalistColorScheme(
     }
 }
 
-val NeoBrutalistLightColorScheme = NeoBrutalistColorScheme(
+val NeoBrutalistLightColorScheme: NeoBrutalistColorScheme get() = NeoBrutalistColorScheme(
     background = NeoBrutalistColors.Cream,
     backgroundAlt = NeoBrutalistColors.OffWhite,
     surface = NeoBrutalistColors.PureWhite,
@@ -189,7 +222,7 @@ val NeoBrutalistLightColorScheme = NeoBrutalistColorScheme(
     isLight = true
 )
 
-val NeoBrutalistDarkColorScheme = NeoBrutalistColorScheme(
+val NeoBrutalistDarkColorScheme: NeoBrutalistColorScheme get() = NeoBrutalistColorScheme(
     background = NeoBrutalistColors.DarkBackground,
     backgroundAlt = NeoBrutalistColors.DarkElevated,
     surface = NeoBrutalistColors.DarkSurface,

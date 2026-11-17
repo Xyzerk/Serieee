@@ -470,6 +470,54 @@ private fun ThemePage(
                     )
                 }
             }
+            if (style == AppThemeStyle.NeoBrutalism && isSelected) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 58.dp, end = 16.dp, top = 4.dp, bottom = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.theme_neo_tone),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = p.text
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        NeoTone.entries.forEach { tone ->
+                            val toneSelected = tone == vm.neoTone
+                            val toneShape = RoundedCornerShape(6.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .neoBrutalist(
+                                        backgroundColor = tone.color,
+                                        borderColor = NeoBrutalistColors.Black,
+                                        shadowColor = NeoBrutalistColors.Black,
+                                        borderWidth = if (toneSelected) 3.dp else 2.dp,
+                                        shadowOffset = if (toneSelected) 0.dp else 2.dp,
+                                        cornerRadius = 6.dp
+                                    )
+                                    .clip(toneShape)
+                                    .selectable(
+                                        selected = toneSelected,
+                                        role = Role.RadioButton
+                                    ) { vm.setNeoTone(tone) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (toneSelected) {
+                                    Icon(
+                                        Icons.Filled.Check,
+                                        contentDescription = tone.name,
+                                        tint = NeoBrutalistColors.Black,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             if (style == AppThemeStyle.Custom) {
                 Row(
                     modifier = Modifier

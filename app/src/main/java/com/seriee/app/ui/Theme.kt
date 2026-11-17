@@ -334,7 +334,7 @@ private val LiquidLight = basePalette(
     animatedGradient = true
 )
 
-private val NeoBrutalistLight = basePalette(
+private val NeoBrutalistLight: SeriePalette get() = basePalette(
     bg = NeoBrutalistColors.Cream,
     card = NeoBrutalistColors.PureWhite,
     surface = NeoBrutalistColors.PureWhite,
@@ -342,20 +342,20 @@ private val NeoBrutalistLight = basePalette(
     chip = NeoBrutalistColors.OffWhite,
     border = NeoBrutalistColors.Black,
     primary = NeoBrutalistColors.Yellow,
-    accent = NeoBrutalistColors.Pink,
+    accent = NeoBrutalistColors.Secondary,
     text = NeoBrutalistColors.Black,
     muted = NeoBrutalistColors.LightMuted,
     success = NeoBrutalistColors.Mint,
-    warning = NeoBrutalistColors.Yellow,
+    warning = NeoBrutalistColors.StarYellow,
     danger = NeoBrutalistColors.CoralRed,
     info = NeoBrutalistColors.SkyBlue,
-    reminder = NeoBrutalistColors.Pink,
-    star = NeoBrutalistColors.Yellow,
+    reminder = NeoBrutalistColors.Secondary,
+    star = NeoBrutalistColors.StarYellow,
     isLight = true,
     isNeoBrutalist = true
 )
 
-private val NeoBrutalistDark = basePalette(
+private val NeoBrutalistDark: SeriePalette get() = basePalette(
     bg = NeoBrutalistColors.DarkBackground,
     card = NeoBrutalistColors.DarkSurface,
     surface = NeoBrutalistColors.DarkSurface,
@@ -363,15 +363,15 @@ private val NeoBrutalistDark = basePalette(
     chip = NeoBrutalistColors.DarkElevated,
     border = NeoBrutalistColors.Black,
     primary = NeoBrutalistColors.Yellow,
-    accent = NeoBrutalistColors.Pink,
+    accent = NeoBrutalistColors.Secondary,
     text = NeoBrutalistColors.Cream,
     muted = NeoBrutalistColors.DarkMuted,
     success = NeoBrutalistColors.Mint,
-    warning = NeoBrutalistColors.Yellow,
+    warning = NeoBrutalistColors.StarYellow,
     danger = NeoBrutalistColors.CoralRed,
     info = NeoBrutalistColors.SkyBlue,
-    reminder = NeoBrutalistColors.Pink,
-    star = NeoBrutalistColors.Yellow,
+    reminder = NeoBrutalistColors.Secondary,
+    star = NeoBrutalistColors.StarYellow,
     isLight = false,
     isNeoBrutalist = true
 )
