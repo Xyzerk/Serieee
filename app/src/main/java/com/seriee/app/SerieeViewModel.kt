@@ -17,6 +17,7 @@ import com.seriee.app.data.AniListListClient
 import com.seriee.app.data.AppLanguage
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
+import com.seriee.app.data.CustomThemeExtras
 import com.seriee.app.data.EpisodeIncrement
 import com.seriee.app.data.EpisodeProgressRules
 import com.seriee.app.data.ImportError
@@ -72,6 +73,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     val customGlass: Boolean get() = _customGlass.value
     private val _customHighContrast = mutableStateOf(repo.loadCustomHighContrast())
     val customHighContrast: Boolean get() = _customHighContrast.value
+    private val _customExtras = mutableStateOf(repo.loadCustomExtras())
+    val customExtras: CustomThemeExtras get() = _customExtras.value
     private val _reduceTransparency = mutableStateOf(repo.loadReduceTransparency())
     val reduceTransparency: Boolean get() = _reduceTransparency.value
     private val _batterySaverAmoled = mutableStateOf(repo.loadBatterySaverAmoled())
@@ -482,6 +485,74 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         ensureCustomStyle()
     }
 
+    /** Updates the fine-grained overrides (per-token colours, image tuning). */
+    fun updateCustomExtras(transform: (CustomThemeExtras) -> CustomThemeExtras) {
+        val next = transform(_customExtras.value)
+        _customExtras.value = next
+        repo.saveCustomExtras(next)
+        ensureCustomStyle()
+    }
+
+    /**
+     * Copies the picked image into app storage (downscaled to the screen) so the
+     * background keeps working after the original is moved or deleted.
+     */
+    fun setCustomBackgroundImage(context: Context, uri: Uri) {
+        val app = getApplication<Application>()
+        viewModelScope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                runCatching { importBackgroundImage(app, uri) }.getOrNull()
+            }
+            if (saved == null) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.theme_image_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+            val old = _customExtras.value.imagePath
+            updateCustomExtras { it.copy(imagePath = saved, imageEnabled = true) }
+            if (old != null && old != saved) java.io.File(old).delete()
+        }
+    }
+
+    fun removeCustomBackgroundImage() {
+        val old = _customExtras.value.imagePath
+        updateCustomExtras { it.copy(imagePath = null, imageEnabled = false) }
+        if (old != null) viewModelScope.launch(Dispatchers.IO) { java.io.File(old).delete() }
+    }
+
+    /** Clears every per-token colour override but keeps the picked image. */
+    fun resetCustomColorOverrides() {
+        updateCustomExtras {
+            it.copy(
+                text = null, muted = null, card = null, surface = null, border = null,
+                success = null, warning = null, danger = null, info = null,
+                reminder = null, star = null
+            )
+        }
+    }
+
+    private fun importBackgroundImage(app: Application, uri: Uri): String {
+        val resolver = app.contentResolver
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+        val metrics = app.resources.displayMetrics
+        val target = maxOf(metrics.widthPixels, metrics.heightPixels).coerceAtLeast(1080)
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= target) sample *= 2
+        val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+        val bitmap = resolver.openInputStream(uri)?.use {
+            android.graphics.BitmapFactory.decodeStream(it, null, opts)
+        } ?: error("decode failed")
+        val dir = java.io.File(app.filesDir, "theme").apply { mkdirs() }
+        val file = java.io.File(dir, "background-${System.currentTimeMillis()}.jpg")
+        file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+        bitmap.recycle()
+        return file.absolutePath
+    }
+
     /** Editing any custom colour moves the app onto the Custom style. */
     private fun ensureCustomStyle() {
         if (_themeStyle.value != AppThemeStyle.Custom) setThemeStyle(AppThemeStyle.Custom)
@@ -509,7 +580,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             glass = _customGlass.value,
             highContrast = _customHighContrast.value,
             reduceTransparency = _reduceTransparency.value,
-            neoTone = _neoTone.value.name
+            neoTone = _neoTone.value.name,
+            extras = _customExtras.value.copy(imagePath = null, imageEnabled = false)
         )
     )
 
@@ -540,6 +612,13 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         repo.saveCustomGlass(preset.glass)
         repo.saveCustomHighContrast(preset.highContrast)
         repo.saveReduceTransparency(preset.reduceTransparency)
+        // A code never carries the image file, so keep the one already on this device.
+        val current = _customExtras.value
+        _customExtras.value = preset.extras.copy(
+            imagePath = current.imagePath,
+            imageEnabled = current.imageEnabled
+        )
+        repo.saveCustomExtras(_customExtras.value)
         return true
     }
 
