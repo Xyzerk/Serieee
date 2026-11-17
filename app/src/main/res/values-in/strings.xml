@@ -296,6 +296,10 @@
     <string name="crash_reset_theme">Reset Tema</string>
     <string name="crash_export_backup">Ekspor Cadangan</string>
     <string name="crash_theme_reset_done">Tema direset ke bawaan</string>
+    <string name="report_bug">Laporkan Bug</string>
+    <string name="report_bug_subject">Laporan bug Seriee</string>
+    <string name="report_bug_body">Ceritakan apa yang terjadi dan lampirkan file ini. Isinya log aplikasi dan info dasar perangkat, tanpa data koleksimu.</string>
+    <string name="report_bug_failed">Gagal membuat laporan bug</string>
     <string name="debug_overlay">Overlay Log Debug</string>
     <string name="debug_overlay_title">Overlay Log Debug</string>
     <string name="debug_clear_logs">Hapus</string>
@@ -536,4 +540,35 @@
     <string name="welcome_5_desc">Atur pengingat rilis dengan hitung mundur, lalu buka link streaming atau video lokal langsung dari aplikasi.</string>
     <string name="welcome_6_title">Datamu tetap milikmu</string>
     <string name="welcome_6_desc">Tanpa akun, tanpa iklan, tanpa pelacakan. Semua tersimpan di perangkatmu dan bisa dicadangkan atau dipulihkan kapan saja.</string>
+
+    <!-- Theme Studio -->
+    <string name="studio_title">Studio Tema</string>
+    <string name="studio_hint">Ketuk warna mana saja untuk membuka color picker. Setiap perubahan langsung berlaku ke seluruh aplikasi.</string>
+    <string name="studio_bg_image">Gambar</string>
+    <string name="studio_pick_image">Pilih dari galeri</string>
+    <string name="studio_change_image">Ganti gambar</string>
+    <string name="studio_remove_image">Hapus</string>
+    <string name="studio_base_color">Warna dasar (menentukan teks terang atau gelap)</string>
+    <string name="studio_image_dim">Lapisan: %1$d%%</string>
+    <string name="studio_image_blur">Blur: %1$d (Android 12+)</string>
+    <string name="studio_surface_opacity">Opasitas kartu: %1$d%%</string>
+    <string name="studio_image_note">Gambar disalin ke dalam aplikasi dan disesuaikan ke ukuran layar. Foto aslimu tidak diubah.</string>
+    <string name="studio_section_colors">Semua warna</string>
+    <string name="studio_section_share">Bagikan tema</string>
+    <string name="studio_reset_colors">Reset semua</string>
+    <string name="studio_color_auto">Otomatis</string>
+    <string name="studio_color_reset">Kembalikan ke otomatis</string>
+    <string name="studio_hex">Hex</string>
+    <string name="studio_c_text">Teks</string>
+    <string name="studio_c_muted">Teks sekunder</string>
+    <string name="studio_c_card">Kartu</string>
+    <string name="studio_c_surface">Panel &amp; sheet</string>
+    <string name="studio_c_border">Garis tepi</string>
+    <string name="studio_c_success">Berhasil</string>
+    <string name="studio_c_warning">Peringatan</string>
+    <string name="studio_c_danger">Bahaya</string>
+    <string name="studio_c_info">Info</string>
+    <string name="studio_c_reminder">Pengingat</string>
+    <string name="studio_c_star">Bintang &amp; rating</string>
+    <string name="theme_image_failed">Gambar tidak bisa dipakai</string>
 </resources>
