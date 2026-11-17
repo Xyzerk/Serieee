@@ -207,9 +207,8 @@ class MainActivityLaunchTest {
         SerieeRepository(context).saveLastSeenVersionCode(BuildConfig.VERSION_CODE)
         recreateFresh()
 
-        composeRule.onNodeWithContentDescription(context.getString(R.string.more_options)).performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(context.getString(R.string.theme)).performClick()
+        // Theme lives behind its own top-bar button, not the overflow menu.
+        composeRule.onNodeWithContentDescription(context.getString(R.string.theme)).performClick()
         composeRule.waitForIdle()
 
         // The dropdown measures its content with intrinsic sizes, so anything
@@ -220,7 +219,7 @@ class MainActivityLaunchTest {
         composeRule.onNodeWithText(context.getString(AppThemeMode.System.labelRes)).performClick()
         composeRule.waitForIdle()
 
-        // The customize page hosts another segmented control; open it too.
+        // Customize opens the full-screen Theme Studio; make sure it composes too.
         composeRule.onNodeWithText(context.getString(R.string.theme_customize)).performClick()
         composeRule.waitForIdle()
     }
