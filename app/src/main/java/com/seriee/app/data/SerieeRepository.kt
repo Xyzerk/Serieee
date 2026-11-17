@@ -156,6 +156,13 @@ class SerieeRepository(context: Context) {
     }
 
     /** Accessibility: collapse translucent glass surfaces to opaque ones. */
+    fun loadCustomExtras(): CustomThemeExtras =
+        CustomThemeExtras.fromJson(prefs.getString(KEY_CUSTOM_EXTRAS, null))
+
+    fun saveCustomExtras(extras: CustomThemeExtras) {
+        prefs.edit().putString(KEY_CUSTOM_EXTRAS, extras.toJson()).apply()
+    }
+
     fun loadReduceTransparency(): Boolean = prefs.getBoolean(KEY_REDUCE_TRANSPARENCY, false)
 
     fun saveReduceTransparency(value: Boolean) {
@@ -471,6 +478,7 @@ class SerieeRepository(context: Context) {
         const val KEY_CUSTOM_BG_START = "custom_background_start"
         const val KEY_CUSTOM_BG_END = "custom_background_end"
         const val KEY_CUSTOM_GRADIENT = "custom_background_gradient"
+        const val KEY_CUSTOM_EXTRAS = "custom_theme_extras"
         const val KEY_CUSTOM_GLASS = "custom_glass"
         const val KEY_CUSTOM_HIGH_CONTRAST = "custom_high_contrast"
         const val KEY_REDUCE_TRANSPARENCY = "seriee_reduce_transparency"
