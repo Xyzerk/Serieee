@@ -1,6 +1,7 @@
 package com.seriee.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.drawable.ColorDrawable
@@ -13,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
@@ -26,6 +28,10 @@ import com.seriee.app.ui.SerieeTheme
 import com.seriee.app.ui.resolvePalette
 
 class MainActivity : AppCompatActivity() {
+
+    /** Item the widget asked us to open, consumed once by [SerieeApp]. */
+    private val pendingWidgetItem = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val savedTag = getSharedPreferences("seriee", MODE_PRIVATE).getString("seriee_lang", "") ?: ""
         val currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
@@ -33,6 +39,7 @@ class MainActivity : AppCompatActivity() {
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(savedTag))
         }
         super.onCreate(savedInstanceState)
+        pendingWidgetItem.value = widgetItemFrom(intent)
         runCatching { applyWindowBackground() }
         enableEdgeToEdge()
         setContent {
@@ -60,12 +67,31 @@ class MainActivity : AppCompatActivity() {
                 customBackgroundStart = vm.customBackgroundStart,
                 customBackgroundEnd = vm.customBackgroundEnd,
                 customGradient = vm.customGradient,
+                customGlass = vm.customGlass,
+                customHighContrast = vm.customHighContrast,
                 reduceTransparency = vm.reduceTransparency,
                 batterySaverAmoled = vm.batterySaverAmoled
             ) {
-                SerieeApp(vm)
+                SerieeApp(
+                    vm = vm,
+                    openItemId = pendingWidgetItem.value,
+                    onOpenItemHandled = { pendingWidgetItem.value = null },
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingWidgetItem.value = widgetItemFrom(intent)
+    }
+
+    /** Reads a `seriee://item/<id>` deep link from a widget row tap. */
+    private fun widgetItemFrom(intent: Intent?): String? {
+        val data = intent?.data ?: return null
+        if (data.scheme != "seriee" || data.host != "item") return null
+        return data.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() }
     }
 
     override fun onResume() {
@@ -90,7 +116,9 @@ class MainActivity : AppCompatActivity() {
                 accent = Color(repo.loadCustomAccent()),
                 backgroundStart = Color(repo.loadCustomBackgroundStart()),
                 backgroundEnd = Color(repo.loadCustomBackgroundEnd()),
-                gradient = repo.loadCustomGradient()
+                gradient = repo.loadCustomGradient(),
+                glass = repo.loadCustomGlass(),
+                highContrast = repo.loadCustomHighContrast()
             ),
             reduceTransparency = repo.loadReduceTransparency()
         )

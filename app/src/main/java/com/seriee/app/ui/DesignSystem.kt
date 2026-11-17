@@ -18,12 +18,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,10 +40,8 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -61,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -577,7 +574,9 @@ fun IconPillButton(
             Icon(
                 icon,
                 contentDescription = contentDescription,
-                tint = tint ?: p.text,
+                // OffWhite is a light surface even in dark Neo-Brutalism, so the
+                // palette's light text colour would be almost invisible here.
+                tint = tint ?: NeoBrutalistColors.Black,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -781,19 +780,33 @@ fun SegmentedTabs(
                 cornerRadius = 8.dp
             )
             .padding(4.dp)
-        BoxWithConstraints(modifier = neoContainerModifier) {
-            val tabWidth = (maxWidth / labels.size).coerceAtLeast(0.dp)
+        // The sliding pill needs the container width, which is only known after
+        // measurement. Drawing it in the draw phase keeps this component free of
+        // BoxWithConstraints (a SubcomposeLayout), so it also works inside
+        // popups/dropdowns that measure their content with intrinsics.
+        Box(modifier = neoContainerModifier) {
             val pillShape = RoundedCornerShape(6.dp)
             Box(
                 modifier = Modifier
-                    .width(tabWidth)
-                    .height(34.dp)
-                    .graphicsLayer {
-                        translationX = tabWidth.toPx() * animatedIndex
+                    .matchParentSize()
+                    .drawBehind {
+                        val tabWidth = size.width / labels.size
+                        val left = tabWidth * animatedIndex
+                        val corner = CornerRadius(6.dp.toPx())
+                        drawRoundRect(
+                            color = NeoBrutalistColors.Yellow,
+                            topLeft = Offset(left, 0f),
+                            size = Size(tabWidth, size.height),
+                            cornerRadius = corner
+                        )
+                        drawRoundRect(
+                            color = NeoBrutalistColors.Black,
+                            topLeft = Offset(left, 0f),
+                            size = Size(tabWidth, size.height),
+                            cornerRadius = corner,
+                            style = Stroke(width = 2.dp.toPx())
+                        )
                     }
-                    .clip(pillShape)
-                    .background(NeoBrutalistColors.Yellow)
-                    .border(2.dp, NeoBrutalistColors.Black, pillShape)
             )
             Row(modifier = Modifier.fillMaxWidth()) {
                 labels.forEachIndexed { index, label ->
@@ -825,7 +838,7 @@ fun SegmentedTabs(
         if (p.isLight) Color.White.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.10f)
     } else p.chip
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(SerieeShape.pill)
@@ -833,21 +846,29 @@ fun SegmentedTabs(
             .themedBorder(p, SerieeShape.pill, width = if (p.isGlass) 0.75.dp else 1.dp)
             .padding(4.dp)
     ) {
-        val tabWidth = (maxWidth / labels.size).coerceAtLeast(0.dp)
         Box(
             modifier = Modifier
-                .width(tabWidth)
-                .height(36.dp)
-                .graphicsLayer {
-                    translationX = tabWidth.toPx() * animatedIndex
-                }
-                .clip(SerieeShape.pill)
-                .background(Brush.horizontalGradient(listOf(p.primary, p.accent)))
-                .then(
+                .matchParentSize()
+                .drawBehind {
+                    val tabWidth = size.width / labels.size
+                    val left = tabWidth * animatedIndex
+                    val corner = CornerRadius(size.height / 2f)
+                    drawRoundRect(
+                        brush = Brush.horizontalGradient(listOf(p.primary, p.accent)),
+                        topLeft = Offset(left, 0f),
+                        size = Size(tabWidth, size.height),
+                        cornerRadius = corner
+                    )
                     if (p.isGlass) {
-                        Modifier.border(0.75.dp, Color.White.copy(alpha = 0.45f), SerieeShape.pill)
-                    } else Modifier
-                )
+                        drawRoundRect(
+                            color = Color.White.copy(alpha = 0.45f),
+                            topLeft = Offset(left, 0f),
+                            size = Size(tabWidth, size.height),
+                            cornerRadius = corner,
+                            style = Stroke(width = 0.75.dp.toPx())
+                        )
+                    }
+                }
         )
         Row(modifier = Modifier.fillMaxWidth()) {
             labels.forEachIndexed { index, label ->

@@ -16,13 +16,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -32,8 +30,6 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -54,8 +50,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
@@ -262,7 +256,7 @@ fun BackupRestoreDialog(
                             NeoBrutalistBox(
                                 onClick = {
                                     vm.resetStreak()
-                                    android.widget.Toast.makeText(context, context.getString(R.string.streak_reset_done), android.widget.Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.streak_reset_done), Toast.LENGTH_SHORT).show()
                                 },
                                 role = Role.Button,
                                 backgroundColor = NeoBrutalistColors.CoralRed,
@@ -289,7 +283,7 @@ fun BackupRestoreDialog(
                                 color = p.danger,
                                 modifier = Modifier.clickable {
                                     vm.resetStreak()
-                                    android.widget.Toast.makeText(context, context.getString(R.string.streak_reset_done), android.widget.Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.streak_reset_done), Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -591,343 +585,6 @@ fun BackupRestoreDialog(
                     }
                 }
 
-                // TMDB API key — hidden after save
-                Column(
-                    modifier = sectionCardModifier(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.tmdb_api_key_title),
-                        fontSize = 15.sp,
-                        fontWeight = if (p.isNeoBrutalist) FontWeight.ExtraBold else FontWeight.Bold,
-                        color = p.text
-                    )
-                    Text(
-                        stringResource(R.string.tmdb_api_key_hint),
-                        fontSize = 12.sp, color = p.muted
-                    )
-                    var keyInput by remember { mutableStateOf(vm.tmdbKey) }
-                    // Visible while entering a new key, hidden after save — eye icon toggles reveal
-                    var showKey by remember { mutableStateOf(vm.tmdbKey.isBlank()) }
-                    val isSaved = vm.tmdbKey.isNotBlank()
-                    SField(
-                        value = keyInput,
-                        onChange = {
-                            keyInput = it
-                            // Reveal while typing so user can verify, hide again on Save
-                            if (!showKey && isSaved && it != vm.tmdbKey) {
-                                showKey = true
-                            }
-                        },
-                        placeholder = if (isSaved && !showKey) "••••••••••••••••••••" else "API key",
-                        visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailing = {
-                            if (p.isNeoBrutalist) {
-                                NeoBrutalistBox(
-                                    onClick = { showKey = !showKey },
-                                    role = Role.Button,
-                                    backgroundColor = NeoBrutalistColors.OffWhite,
-                                    borderColor = p.border,
-                                    shadowColor = NeoBrutalistColors.Black,
-                                    borderWidth = 1.5.dp,
-                                    shadowOffset = 2.dp,
-                                    cornerRadius = 6.dp,
-                                    modifier = Modifier.size(34.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (showKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                        contentDescription = if (showKey) "Hide key" else "Show key",
-                                        tint = NeoBrutalistColors.Black,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { showKey = !showKey },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (showKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                        contentDescription = if (showKey) "Hide key" else "Show key",
-                                        tint = p.muted,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    )
-                    // Saved indicator
-                    if (isSaved) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Storage,
-                                contentDescription = null,
-                                tint = p.success,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Text(
-                                text = if (showKey) "Visible" else "Key saved — tap eye to reveal",
-                                fontSize = 11.sp,
-                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                                fontWeight = if (p.isNeoBrutalist) FontWeight.Bold else FontWeight.Normal,
-                                color = p.muted
-                            )
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (p.isNeoBrutalist) {
-                            NeoBrutalistBox(
-                                onClick = {
-                                    vm.setTmdbKey(keyInput)
-                                    showKey = false
-                                    android.widget.Toast.makeText(context, context.getString(R.string.tmdb_api_key_save), android.widget.Toast.LENGTH_SHORT).show()
-                                },
-                                role = Role.Button,
-                                backgroundColor = NeoBrutalistColors.Yellow,
-                                borderColor = p.border,
-                                shadowColor = NeoBrutalistColors.Black,
-                                borderWidth = 2.dp,
-                                shadowOffset = 3.dp,
-                                cornerRadius = 6.dp,
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
-                            ) {
-                                Text(
-                                    stringResource(R.string.tmdb_api_key_save),
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = NeoBrutalistColors.Black
-                                )
-                            }
-                            if (vm.tmdbKey.isNotBlank()) {
-                                NeoBrutalistBox(
-                                    onClick = {
-                                        vm.setTmdbKey("")
-                                        keyInput = ""
-                                        showKey = true
-                                        android.widget.Toast.makeText(context, context.getString(R.string.tmdb_api_key_cleared), android.widget.Toast.LENGTH_SHORT).show()
-                                    },
-                                    role = Role.Button,
-                                    backgroundColor = NeoBrutalistColors.CoralRed,
-                                    borderColor = p.border,
-                                    shadowColor = NeoBrutalistColors.Black,
-                                    borderWidth = 2.dp,
-                                    shadowOffset = 3.dp,
-                                    cornerRadius = 6.dp,
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
-                                ) {
-                                    Text(
-                                        stringResource(R.string.delete),
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = NeoBrutalistColors.Black
-                                    )
-                                }
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(p.primary)
-                                    .clickable {
-                                        vm.setTmdbKey(keyInput)
-                                        showKey = false
-                                        android.widget.Toast.makeText(context, context.getString(R.string.tmdb_api_key_save), android.widget.Toast.LENGTH_SHORT).show()
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 9.dp)
-                            ) { Text(stringResource(R.string.tmdb_api_key_save), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.onAccent) }
-                            if (vm.tmdbKey.isNotBlank()) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(p.chip)
-                                        .clickable {
-                                            vm.setTmdbKey("")
-                                            keyInput = ""
-                                            // Empty input is shown in plain text (see showKey init)
-                                            showKey = true
-                                            android.widget.Toast.makeText(context, context.getString(R.string.tmdb_api_key_cleared), android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                        .padding(horizontal = 14.dp, vertical = 9.dp)
-                                ) { Text(stringResource(R.string.delete), fontSize = 12.sp, color = p.muted) }
-                            }
-                        }
-                    }
-                }
-
-                // OMDb API key — hidden after save (same pattern as TMDB)
-                Column(
-                    modifier = sectionCardModifier(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.omdb_api_key_title),
-                        fontSize = 15.sp,
-                        fontWeight = if (p.isNeoBrutalist) FontWeight.ExtraBold else FontWeight.Bold,
-                        color = p.text
-                    )
-                    Text(
-                        stringResource(R.string.omdb_api_key_hint),
-                        fontSize = 12.sp, color = p.muted
-                    )
-                    var omdbInput by remember { mutableStateOf(vm.omdbKey) }
-                    var omdbShow by remember { mutableStateOf(vm.omdbKey.isBlank()) }
-                    val omdbSaved = vm.omdbKey.isNotBlank()
-                    SField(
-                        value = omdbInput,
-                        onChange = {
-                            omdbInput = it
-                            if (!omdbShow && omdbSaved && it != vm.omdbKey) omdbShow = true
-                        },
-                        placeholder = if (omdbSaved && !omdbShow) "••••••••••••••••••••" else "API key",
-                        visualTransformation = if (omdbShow) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailing = {
-                            if (p.isNeoBrutalist) {
-                                NeoBrutalistBox(
-                                    onClick = { omdbShow = !omdbShow },
-                                    role = Role.Button,
-                                    backgroundColor = NeoBrutalistColors.OffWhite,
-                                    borderColor = p.border,
-                                    shadowColor = NeoBrutalistColors.Black,
-                                    borderWidth = 1.5.dp,
-                                    shadowOffset = 2.dp,
-                                    cornerRadius = 6.dp,
-                                    modifier = Modifier.size(34.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (omdbShow) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                        contentDescription = if (omdbShow) "Hide key" else "Show key",
-                                        tint = NeoBrutalistColors.Black,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { omdbShow = !omdbShow },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (omdbShow) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                        contentDescription = if (omdbShow) "Hide key" else "Show key",
-                                        tint = p.muted,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    )
-                    if (omdbSaved) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Storage,
-                                contentDescription = null,
-                                tint = p.success,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Text(
-                                text = if (omdbShow) "Visible" else "Key saved — tap eye to reveal",
-                                fontSize = 11.sp,
-                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                                fontWeight = if (p.isNeoBrutalist) FontWeight.Bold else FontWeight.Normal,
-                                color = p.muted
-                            )
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (p.isNeoBrutalist) {
-                            NeoBrutalistBox(
-                                onClick = {
-                                    vm.setOmdbKey(omdbInput)
-                                    omdbShow = false
-                                    android.widget.Toast.makeText(context, context.getString(R.string.omdb_api_key_save), android.widget.Toast.LENGTH_SHORT).show()
-                                },
-                                role = Role.Button,
-                                backgroundColor = NeoBrutalistColors.Yellow,
-                                borderColor = p.border,
-                                shadowColor = NeoBrutalistColors.Black,
-                                borderWidth = 2.dp,
-                                shadowOffset = 3.dp,
-                                cornerRadius = 6.dp,
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
-                            ) {
-                                Text(
-                                    stringResource(R.string.omdb_api_key_save),
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = NeoBrutalistColors.Black
-                                )
-                            }
-                            if (vm.omdbKey.isNotBlank()) {
-                                NeoBrutalistBox(
-                                    onClick = {
-                                        vm.setOmdbKey("")
-                                        omdbInput = ""
-                                        omdbShow = true
-                                        android.widget.Toast.makeText(context, context.getString(R.string.omdb_api_key_cleared), android.widget.Toast.LENGTH_SHORT).show()
-                                    },
-                                    role = Role.Button,
-                                    backgroundColor = NeoBrutalistColors.CoralRed,
-                                    borderColor = p.border,
-                                    shadowColor = NeoBrutalistColors.Black,
-                                    borderWidth = 2.dp,
-                                    shadowOffset = 3.dp,
-                                    cornerRadius = 6.dp,
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
-                                ) {
-                                    Text(
-                                        stringResource(R.string.delete),
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = NeoBrutalistColors.Black
-                                    )
-                                }
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(p.primary)
-                                    .clickable {
-                                        vm.setOmdbKey(omdbInput)
-                                        omdbShow = false
-                                        android.widget.Toast.makeText(context, context.getString(R.string.omdb_api_key_save), android.widget.Toast.LENGTH_SHORT).show()
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 9.dp)
-                            ) { Text(stringResource(R.string.omdb_api_key_save), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.onAccent) }
-                            if (vm.omdbKey.isNotBlank()) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(p.chip)
-                                        .clickable {
-                                            vm.setOmdbKey("")
-                                            omdbInput = ""
-                                            omdbShow = true
-                                            android.widget.Toast.makeText(context, context.getString(R.string.omdb_api_key_cleared), android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                        .padding(horizontal = 14.dp, vertical = 9.dp)
-                                ) { Text(stringResource(R.string.delete), fontSize = 12.sp, color = p.muted) }
-                            }
-                        }
-                    }
-                }
             }
         }
     }

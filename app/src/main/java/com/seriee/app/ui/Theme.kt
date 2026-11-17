@@ -9,7 +9,6 @@ import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Build
 import android.os.PowerManager
-import java.util.Locale
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -40,6 +39,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
+import java.util.Locale
 
 object SerieColors {
     val Blue400 = Color(0xFF60A5FA)
@@ -97,13 +97,17 @@ data class SeriePalette(
     val isNeoBrutalist: Boolean = false
 )
 
-/** User-controlled colours for [AppThemeStyle.Custom]. */
+/** User-controlled colours and surface treatment for [AppThemeStyle.Custom]. */
 @Immutable
 data class CustomThemeColors(
     val accent: Color = SerieColors.Blue500,
     val backgroundStart: Color = Color(0xFF1D4ED8),
     val backgroundEnd: Color = Color(0xFF7C2A64),
-    val gradient: Boolean = false
+    val gradient: Boolean = false,
+    /** Translucent surfaces that let the custom background show through. */
+    val glass: Boolean = false,
+    /** Neo-Brutalist surface treatment: hard borders, shadows and bold type. */
+    val highContrast: Boolean = false
 )
 
 private fun basePalette(
@@ -413,6 +417,77 @@ fun contrastRatio(a: Color, b: Color): Float {
 fun SeriePalette.hasReadableAccent(): Boolean =
     contrastRatio(accent, bg) >= 3f
 
+/** Builds a palette from the user's custom colours and surface treatment. */
+private fun customPalette(custom: CustomThemeColors): SeriePalette {
+    val bg = custom.backgroundStart
+    val accent = custom.accent
+    val light = bg.luminance() > 0.5f
+    val gradient = if (custom.gradient) listOf(bg, custom.backgroundEnd) else null
+
+    // High contrast borrows the Neo-Brutalist tokens, keeping the user's
+    // accent and background so it still feels like their own theme.
+    if (custom.highContrast) {
+        val neo = if (light) NeoBrutalistLight else NeoBrutalistDark
+        return neo.copy(
+            bg = bg,
+            card = if (light) NeoBrutalistColors.PureWhite else NeoBrutalistColors.DarkSurface,
+            surface = if (light) NeoBrutalistColors.PureWhite else NeoBrutalistColors.DarkSurface,
+            elevated = if (light) NeoBrutalistColors.OffWhite else NeoBrutalistColors.DarkElevated,
+            chip = if (light) NeoBrutalistColors.OffWhite else NeoBrutalistColors.DarkElevated,
+            primary = accent,
+            accent = accent,
+            accentSoft = accent,
+            onAccent = neoContrastOn(accent),
+            text = if (light) NeoBrutalistColors.Black else NeoBrutalistColors.Cream,
+            muted = if (light) NeoBrutalistColors.LightMuted else NeoBrutalistColors.DarkMuted,
+            gradient = gradient
+        )
+    }
+
+    val text = if (light) Color(0xFF0F172A) else Color(0xFFF2F6FC)
+    val muted = if (light) Color(0xFF52627A) else Color(0xFF94A3B8)
+    // Composite white over the base colour for opaque solid surfaces.
+    fun solid(alpha: Float): Color = Color.White.copy(alpha = alpha).compositeOver(bg)
+    val glassTint = if (light) Color.White else Color(0xFF070B12)
+
+    val card = if (custom.glass) glassTint.copy(alpha = if (light) 0.55f else 0.45f)
+        else solid(if (light) 0.88f else 0.10f)
+    val surface = if (custom.glass) glassTint.copy(alpha = if (light) 0.68f else 0.58f)
+        else solid(if (light) 0.94f else 0.14f)
+    val elevated = if (custom.glass) glassTint.copy(alpha = if (light) 0.82f else 0.72f)
+        else solid(if (light) 0.99f else 0.18f)
+    val chip = if (custom.glass) glassTint.copy(alpha = if (light) 0.42f else 0.34f)
+        else solid(if (light) 0.78f else 0.07f)
+    val border = if (custom.glass) {
+        if (light) Color(0xFF0F172A).copy(alpha = 0.14f) else Color.White.copy(alpha = 0.16f)
+    } else {
+        if (light) Color(0xFF0F172A).copy(alpha = 0.12f) else Color.White.copy(alpha = 0.12f)
+    }
+
+    return basePalette(
+        bg = bg,
+        card = card,
+        surface = surface,
+        elevated = elevated,
+        chip = chip,
+        border = border,
+        primary = accent,
+        accent = accent,
+        text = text,
+        muted = muted,
+        success = if (light) Color(0xFF059669) else Color(0xFF34D399),
+        warning = if (light) Color(0xFFD97706) else Color(0xFFFBBF24),
+        danger = if (light) Color(0xFFDC2626) else Color(0xFFF87171),
+        info = accent,
+        reminder = if (light) Color(0xFFEA580C) else Color(0xFFFB923C),
+        star = if (light) Color(0xFFD97706) else Color(0xFFFBBF24),
+        isLight = light,
+        gradient = gradient,
+        isGlass = custom.glass,
+        isLiquidGlass = custom.glass
+    )
+}
+
 /** Resolves the concrete palette for a mode/style pair. */
 fun resolvePalette(
     mode: AppThemeMode,
@@ -435,18 +510,7 @@ fun resolvePalette(
         AppThemeStyle.MaterialYou ->
             dynamicScheme?.let { paletteFromScheme(it) }
                 ?: (if (dark) ClassicDark else ClassicLight)
-        AppThemeStyle.Custom -> {
-            val base = if (dark) ClassicDark else ClassicLight
-            base.copy(
-                primary = custom.accent,
-                accent = custom.accent,
-                accentSoft = custom.accent.copy(alpha = 0.16f),
-                onAccent = contrastOn(custom.accent),
-                gradient = if (custom.gradient) {
-                    listOf(custom.backgroundStart, custom.backgroundEnd)
-                } else null
-            )
-        }
+        AppThemeStyle.Custom -> customPalette(custom)
         AppThemeStyle.NeoBrutalism -> if (dark) NeoBrutalistDark else NeoBrutalistLight
     }
     return if (reduceTransparency) resolved.opaque() else resolved
@@ -692,6 +756,8 @@ fun SerieeTheme(
     customBackgroundStart: Color = Color(0xFF1D4ED8),
     customBackgroundEnd: Color = Color(0xFF7C2A64),
     customGradient: Boolean = false,
+    customGlass: Boolean = false,
+    customHighContrast: Boolean = false,
     reduceTransparency: Boolean = false,
     batterySaverAmoled: Boolean = false,
     content: @Composable () -> Unit
@@ -718,7 +784,9 @@ fun SerieeTheme(
             accent = customAccent,
             backgroundStart = customBackgroundStart,
             backgroundEnd = customBackgroundEnd,
-            gradient = customGradient
+            gradient = customGradient,
+            glass = customGlass,
+            highContrast = customHighContrast
         ),
         dynamicScheme = dynamicScheme,
         reduceTransparency = reduceTransparency

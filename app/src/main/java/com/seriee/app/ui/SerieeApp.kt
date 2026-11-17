@@ -60,7 +60,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -100,6 +99,7 @@ import androidx.compose.ui.unit.sp
 import com.seriee.app.R
 import com.seriee.app.SerieeViewModel
 import com.seriee.app.debug.AppLogger
+import `import androidx`.compose.ui.input.nestedscroll.NestedScrollSource.Companion.UserInput
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -109,7 +109,11 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @Composable
-fun SerieeApp(vm: SerieeViewModel) {
+fun SerieeApp(
+    vm: SerieeViewModel,
+    openItemId: String? = null,
+    onOpenItemHandled: () -> Unit = {}
+) {
     val p = LocalPalette.current
     val haptic = LocalHapticFeedback.current
     val nextTabLabel = stringResource(R.string.nav_next_tab)
@@ -120,10 +124,18 @@ fun SerieeApp(vm: SerieeViewModel) {
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var detailId by rememberSaveable { mutableStateOf<String?>(null) }
     var showBackupRestore by rememberSaveable { mutableStateOf(false) }
+    var showApiKeys by rememberSaveable { mutableStateOf(false) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var showImport by rememberSaveable { mutableStateOf(false) }
     var showDebugOverlay by rememberSaveable { mutableStateOf(false) }
     var fabVisible by remember { mutableStateOf(true) }
+
+    // A widget row tap deep-links straight to that title's detail sheet.
+    LaunchedEffect(openItemId) {
+        val id = openItemId ?: return@LaunchedEffect
+        if (vm.items.any { it.id == id }) detailId = id
+        onOpenItemHandled()
+    }
 
     val context = LocalContext.current
     val pendingCrash by AppLogger.pendingCrash.collectAsState()
@@ -179,7 +191,7 @@ fun SerieeApp(vm: SerieeViewModel) {
     val scrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.Drag) {
+                if (source == NestedScrollSource.UserInput) {
                     if (available.y < -6f) fabVisible = false
                     else if (available.y > 6f) fabVisible = true
                 }
@@ -301,6 +313,7 @@ fun SerieeApp(vm: SerieeViewModel) {
             SerieeTopBar(
                 vm = vm,
                 onOpenBackupRestore = { showBackupRestore = true },
+                onOpenApiKeys = { showApiKeys = true },
                 onOpenImport = {
                     vm.beginImport()
                     showImport = true
@@ -518,6 +531,13 @@ fun SerieeApp(vm: SerieeViewModel) {
         )
     }
 
+    if (showApiKeys) {
+        ApiKeysDialog(
+            vm = vm,
+            onDismiss = { showApiKeys = false }
+        )
+    }
+
     if (showImport) {
         ImportSheet(
             vm = vm,
@@ -648,6 +668,7 @@ private fun LiquidAddOrb(
 private fun SerieeTopBar(
     vm: SerieeViewModel,
     onOpenBackupRestore: () -> Unit,
+    onOpenApiKeys: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenChangelog: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -742,6 +763,7 @@ private fun SerieeTopBar(
                     expanded = optionsMenu,
                     onDismiss = { optionsMenu = false },
                     onBackupRestore = onOpenBackupRestore,
+                    onApiKeys = onOpenApiKeys,
                     onImport = onOpenImport,
                     onChangelog = onOpenChangelog,
                     onAbout = onOpenAbout,

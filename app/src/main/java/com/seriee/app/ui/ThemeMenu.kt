@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Translate
@@ -67,9 +68,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -77,6 +78,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -122,6 +124,7 @@ fun SerieeOverflowMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     onBackupRestore: () -> Unit,
+    onApiKeys: () -> Unit,
     onImport: () -> Unit,
     onChangelog: () -> Unit,
     onAbout: () -> Unit,
@@ -206,6 +209,14 @@ fun SerieeOverflowMenu(
                     ) {
                         onDismiss()
                         onBackupRestore()
+                    }
+                    SettingRow(
+                        icon = Icons.Filled.Key,
+                        title = stringResource(R.string.api_keys),
+                        tint = if (p.isNeoBrutalist) p.text else p.primary
+                    ) {
+                        onDismiss()
+                        onApiKeys()
                     }
                     HorizontalDivider(color = p.border, thickness = if (p.isNeoBrutalist) 2.dp else 1.dp)
                     Row(
@@ -373,7 +384,9 @@ private fun ThemePage(
         accent = vm.customAccent,
         backgroundStart = vm.customBackgroundStart,
         backgroundEnd = vm.customBackgroundEnd,
-        gradient = vm.customGradient
+        gradient = vm.customGradient,
+        glass = vm.customGlass,
+        highContrast = vm.customHighContrast
     )
     Column(
         Modifier
@@ -412,7 +425,12 @@ private fun ThemePage(
                     .selectable(
                         selected = isSelected,
                         role = Role.RadioButton
-                    ) { vm.setThemeStyle(style) }
+                    ) {
+                        vm.setThemeStyle(style)
+                        // Custom is an editor, not a dead end: selecting it opens
+                        // the colour/surface controls straight away.
+                        if (style == AppThemeStyle.Custom) onCustomize()
+                    }
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -452,6 +470,30 @@ private fun ThemePage(
                     )
                 }
             }
+            if (style == AppThemeStyle.Custom) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 42.dp)
+                        .clickable(onClick = onCustomize)
+                        .padding(start = 58.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Palette,
+                        contentDescription = null,
+                        tint = if (p.isNeoBrutalist) p.text else p.accent,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.theme_customize),
+                        fontSize = 12.sp,
+                        fontWeight = if (p.isNeoBrutalist) FontWeight.Bold else FontWeight.Medium,
+                        color = if (p.isNeoBrutalist) p.text else p.accent
+                    )
+                }
+            }
         }
 
         HorizontalDivider(
@@ -471,29 +513,6 @@ private fun ThemePage(
             checked = vm.batterySaverAmoled,
             onCheckedChange = vm::setBatterySaverAmoled
         )
-        HorizontalDivider(color = p.border, thickness = if (p.isNeoBrutalist) 2.dp else 1.dp)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp)
-                .clickable(onClick = onCustomize)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Filled.Palette,
-                contentDescription = null,
-                tint = if (p.isNeoBrutalist) p.text else p.accent,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                stringResource(R.string.theme_customize),
-                fontSize = 13.sp,
-                fontWeight = if (p.isNeoBrutalist) FontWeight.ExtraBold else FontWeight.SemiBold,
-                color = if (p.isNeoBrutalist) p.text else p.accent
-            )
-        }
     }
 }
 
@@ -630,7 +649,9 @@ private fun CustomizePage(
         accent = vm.customAccent,
         backgroundStart = vm.customBackgroundStart,
         backgroundEnd = vm.customBackgroundEnd,
-        gradient = vm.customGradient
+        gradient = vm.customGradient,
+        glass = vm.customGlass,
+        highContrast = vm.customHighContrast
     )
     val live = resolvePalette(
         mode = vm.themeMode,
@@ -640,7 +661,7 @@ private fun CustomizePage(
         reduceTransparency = vm.reduceTransparency
     )
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var pickingArtwork by remember { mutableStateOf(false) }
     var codeMessage by remember { mutableStateOf<Int?>(null) }
@@ -702,13 +723,18 @@ private fun CustomizePage(
                     }
                 }
             }
+            HexColorField(
+                label = stringResource(R.string.theme_hex_accent),
+                color = vm.customAccent,
+                onColorChange = vm::setCustomAccent
+            )
             if (p.isNeoBrutalist) {
                 NeoBrutalistBox(
                     onClick = if (artworkPoster != null && !pickingArtwork) {
                         {
                             pickingArtwork = true
                             scope.launch {
-                                val color = artworkPoster?.let { accentFromPoster(context, it) }
+                                val color = artworkPoster.let { accentFromPoster(context, it) }
                                 if (color != null) vm.setCustomAccent(color)
                                 pickingArtwork = false
                             }
@@ -825,6 +851,24 @@ private fun CustomizePage(
                 onSelect = { vm.setCustomGradient(it == 1) }
             )
             if (vm.customGradient) {
+                HexColorField(
+                    label = stringResource(R.string.theme_hex_start),
+                    color = vm.customBackgroundStart,
+                    onColorChange = { vm.setCustomBackground(it, vm.customBackgroundEnd) }
+                )
+                HexColorField(
+                    label = stringResource(R.string.theme_hex_end),
+                    color = vm.customBackgroundEnd,
+                    onColorChange = { vm.setCustomBackground(vm.customBackgroundStart, it) }
+                )
+            } else {
+                HexColorField(
+                    label = stringResource(R.string.theme_hex_background),
+                    color = vm.customBackgroundStart,
+                    onColorChange = { vm.setCustomBackground(it, vm.customBackgroundEnd) }
+                )
+            }
+            if (vm.customGradient) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -846,7 +890,10 @@ private fun CustomizePage(
                                 .selectable(
                                     selected = selected,
                                     role = Role.RadioButton
-                                ) { vm.setCustomBackground(start, end) },
+                                ) {
+                                    vm.setCustomGradient(true)
+                                    vm.setCustomBackground(start, end)
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             if (selected) {
@@ -862,6 +909,27 @@ private fun CustomizePage(
                 }
             }
         }
+
+        Text(
+            stringResource(R.string.theme_surface),
+            fontSize = 11.sp,
+            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+            fontWeight = FontWeight.Bold,
+            color = p.muted,
+            modifier = Modifier.padding(start = 16.dp, top = 12.dp)
+        )
+        SwitchRow(
+            title = stringResource(R.string.theme_glass_surfaces),
+            subtitle = stringResource(R.string.theme_glass_surfaces_desc),
+            checked = vm.customGlass,
+            onCheckedChange = vm::setCustomGlass
+        )
+        SwitchRow(
+            title = stringResource(R.string.theme_high_contrast),
+            subtitle = stringResource(R.string.theme_high_contrast_desc),
+            checked = vm.customHighContrast,
+            onCheckedChange = vm::setCustomHighContrast
+        )
 
         HorizontalDivider(
             thickness = if (p.isNeoBrutalist) 2.dp else 1.dp,
@@ -938,6 +1006,65 @@ private fun CodeRow(
         )
     }
 }
+
+@Composable
+private fun HexColorField(
+    label: String,
+    color: Color,
+    onColorChange: (Color) -> Unit
+) {
+    val p = LocalPalette.current
+    val canonical = color.toHexRgb()
+    // Keyed on the applied colour so preset picks refresh the text but partial
+    // typing is never overwritten mid-edit.
+    var text by remember(canonical) { mutableStateOf(canonical) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            label,
+            fontSize = 10.sp,
+            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+            fontWeight = FontWeight.Bold,
+            color = p.muted
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val swatchShape = if (p.isNeoBrutalist) RoundedCornerShape(6.dp) else RoundedCornerShape(9.dp)
+            Box(
+                Modifier
+                    .size(width = 44.dp, height = 34.dp)
+                    .clip(swatchShape)
+                    .background(color)
+                    .border(
+                        if (p.isNeoBrutalist) 2.dp else 1.dp,
+                        if (p.isNeoBrutalist) NeoBrutalistColors.Black else p.border,
+                        swatchShape
+                    )
+            )
+            SField(
+                value = text,
+                onChange = { raw ->
+                    val clean = raw.uppercase()
+                        .filter { it in '0'..'9' || it in 'A'..'F' }
+                        .take(6)
+                    text = clean
+                    if (clean.length == 6) {
+                        clean.toLongOrNull(16)?.let { value ->
+                            onColorChange(Color(0xFF000000L or value))
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                placeholder = stringResource(R.string.theme_hex_placeholder),
+                keyboardType = KeyboardType.Ascii
+            )
+        }
+    }
+}
+
+private fun Color.toHexRgb(): String =
+    (toArgb() and 0xFFFFFF).toString(16).uppercase().padStart(6, '0')
 
 @Composable
 private fun ThemePreview(palette: SeriePalette) {

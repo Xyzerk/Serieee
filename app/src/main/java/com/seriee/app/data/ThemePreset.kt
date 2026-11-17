@@ -13,6 +13,8 @@ data class ThemePreset(
     val backgroundStart: Long = 0xFF1D4ED8L,
     val backgroundEnd: Long = 0xFF7C2A64L,
     val gradient: Boolean = true,
+    val glass: Boolean = false,
+    val highContrast: Boolean = false,
     val reduceTransparency: Boolean = false
 )
 
@@ -34,6 +36,8 @@ object ThemePresetCodec {
             "bg1" to hex(preset.backgroundStart),
             "bg2" to hex(preset.backgroundEnd),
             "gradient" to if (preset.gradient) "1" else "0",
+            "glass" to if (preset.glass) "1" else "0",
+            "contrast" to if (preset.highContrast) "1" else "0",
             "flat" to if (preset.reduceTransparency) "1" else "0"
         )
         return "$PREFIX;" + fields.entries.joinToString(";") { "${it.key}=${it.value}" }
@@ -62,6 +66,8 @@ object ThemePresetCodec {
             backgroundStart = fields["bg1"]?.let(::parseColor) ?: defaults.backgroundStart,
             backgroundEnd = fields["bg2"]?.let(::parseColor) ?: defaults.backgroundEnd,
             gradient = fields["gradient"]?.let { it != "0" } ?: defaults.gradient,
+            glass = fields["glass"]?.let { it != "0" } ?: defaults.glass,
+            highContrast = fields["contrast"]?.let { it != "0" } ?: defaults.highContrast,
             reduceTransparency = fields["flat"]?.let { it != "0" } ?: defaults.reduceTransparency
         )
     }

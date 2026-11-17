@@ -186,10 +186,42 @@ class MainActivityLaunchTest {
         composeRule.onNodeWithContentDescription(context.getString(R.string.close)).performClick()
         composeRule.waitForIdle()
 
+        // Open overflow menu -> API Keys
+        composeRule.onNodeWithContentDescription(context.getString(R.string.more_options)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.api_keys)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.close)).performClick()
+        composeRule.waitForIdle()
+
         // Open overflow menu -> About
         composeRule.onNodeWithContentDescription(context.getString(R.string.more_options)).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithText(context.getString(R.string.about_title)).performClick()
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun overflowMenuThemePages_measureInsideDropdownWithoutCrash() {
+        val context = RuntimeEnvironment.getApplication()
+        SerieeRepository(context).saveLastSeenVersionCode(BuildConfig.VERSION_CODE)
+        recreateFresh()
+
+        composeRule.onNodeWithContentDescription(context.getString(R.string.more_options)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.theme)).performClick()
+        composeRule.waitForIdle()
+
+        // The dropdown measures its content with intrinsic sizes, so anything
+        // built on SubcomposeLayout (e.g. BoxWithConstraints) inside it crashes.
+        // Switching the segmented control re-measures the animated pill.
+        composeRule.onNodeWithText(context.getString(AppThemeMode.Dark.labelRes)).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(AppThemeMode.System.labelRes)).performClick()
+        composeRule.waitForIdle()
+
+        // The customize page hosts another segmented control; open it too.
+        composeRule.onNodeWithText(context.getString(R.string.theme_customize)).performClick()
         composeRule.waitForIdle()
     }
 

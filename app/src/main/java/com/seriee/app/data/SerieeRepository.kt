@@ -134,6 +134,20 @@ class SerieeRepository(context: Context) {
         prefs.edit().putBoolean(KEY_CUSTOM_GRADIENT, gradient).apply()
     }
 
+    /** Custom theme surface treatment: translucent glass cards. */
+    fun loadCustomGlass(): Boolean = prefs.getBoolean(KEY_CUSTOM_GLASS, false)
+
+    fun saveCustomGlass(glass: Boolean) {
+        prefs.edit().putBoolean(KEY_CUSTOM_GLASS, glass).apply()
+    }
+
+    /** Custom theme surface treatment: Neo-Brutalist high contrast. */
+    fun loadCustomHighContrast(): Boolean = prefs.getBoolean(KEY_CUSTOM_HIGH_CONTRAST, false)
+
+    fun saveCustomHighContrast(value: Boolean) {
+        prefs.edit().putBoolean(KEY_CUSTOM_HIGH_CONTRAST, value).apply()
+    }
+
     /** Accessibility: collapse translucent glass surfaces to opaque ones. */
     fun loadReduceTransparency(): Boolean = prefs.getBoolean(KEY_REDUCE_TRANSPARENCY, false)
 
@@ -442,6 +456,8 @@ class SerieeRepository(context: Context) {
         const val KEY_CUSTOM_BG_START = "custom_background_start"
         const val KEY_CUSTOM_BG_END = "custom_background_end"
         const val KEY_CUSTOM_GRADIENT = "custom_background_gradient"
+        const val KEY_CUSTOM_GLASS = "custom_glass"
+        const val KEY_CUSTOM_HIGH_CONTRAST = "custom_high_contrast"
         const val KEY_REDUCE_TRANSPARENCY = "seriee_reduce_transparency"
         const val KEY_BATTERY_AMOLED = "seriee_battery_amoled"
         const val KEY_GRID = "seriee_grid"

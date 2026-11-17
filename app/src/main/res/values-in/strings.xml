@@ -207,6 +207,13 @@
     <string name="omdb_api_key_hint">Kunci gratis di omdbapi.com — tambah film &amp; serial berbasis IMDb</string>
     <string name="omdb_api_key_save">Simpan kunci OMDb</string>
     <string name="omdb_api_key_cleared">Kunci OMDb dihapus</string>
+    <string name="api_keys">Kunci API</string>
+    <string name="api_keys_desc">Kunci opsional membuka tautan streaming resmi dan metadata berbasis IMDb.</string>
+    <string name="api_key_placeholder">Kunci API</string>
+    <string name="api_key_show">Tampilkan kunci</string>
+    <string name="api_key_hide">Sembunyikan kunci</string>
+    <string name="api_key_saved_hint">Kunci tersimpan — ketuk ikon mata untuk melihat</string>
+    <string name="api_key_visible">Terlihat</string>
     <string name="description_label">Deskripsi</string>
     <string name="add_season">Tambah Season</string>
     <string name="season_number_label">Season %1$d</string>
@@ -260,6 +267,11 @@
     <string name="widget_watching_count">%1$d sedang ditonton</string>
     <string name="widget_increment">+1</string>
     <string name="widget_increment_description">Tambahkan satu episode ke %1$s</string>
+    <string name="widget_series_progress">S%1$d · %2$d/%3$d</string>
+    <string name="widget_row_description">%1$s, %2$s</string>
+    <string name="widget_episode_watched">%1$s · S%2$d E%3$d ditonton</string>
+    <string name="widget_movie_watched">%1$s · ditonton</string>
+    <string name="widget_finished">%1$s · selesai</string>
 
     <!-- Pengingat cadangan -->
     <string name="backup_reminder_title">Cadangkan pustaka terbaru Anda</string>
@@ -364,7 +376,7 @@
     <string name="theme_style_material_you">Material You</string>
     <string name="theme_style_material_you_desc">Warna dari wallpaper (Android 12+)</string>
     <string name="theme_style_custom">Kustom</string>
-    <string name="theme_style_custom_desc">Aksen dan latar pilihanmu</string>
+    <string name="theme_style_custom_desc">Warna, kaca, atau kontras tinggi pilihanmu</string>
     <string name="theme_style_neo_brutalism">Neo-Brutalism</string>
     <string name="theme_style_neo_brutalism_desc">Garis tegas kontras tinggi, warna pop, bayangan solid</string>
     <string name="theme_customize">Sesuaikan Tema…</string>
@@ -375,6 +387,16 @@
     <string name="background">Latar</string>
     <string name="background_solid">Solid</string>
     <string name="background_gradient">Gradien</string>
+    <string name="theme_hex_accent">Hex aksen</string>
+    <string name="theme_hex_background">Hex latar</string>
+    <string name="theme_hex_start">Hex awal gradien</string>
+    <string name="theme_hex_end">Hex akhir gradien</string>
+    <string name="theme_hex_placeholder">RRGGBB</string>
+    <string name="theme_surface">Permukaan</string>
+    <string name="theme_glass_surfaces">Permukaan kaca</string>
+    <string name="theme_glass_surfaces_desc">Kartu transparan yang memperlihatkan latar belakangmu</string>
+    <string name="theme_high_contrast">Kontras tinggi</string>
+    <string name="theme_high_contrast_desc">Garis Neo-Brutalis, bayangan solid, dan teks tebal</string>
     <string name="theme_copy_code">Salin kode tema</string>
     <string name="theme_paste_code">Tempel kode tema</string>
     <string name="theme_code_copied">Kode tema disalin ke papan klip</string>

@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.seriee.app.R
 import com.seriee.app.data.AniListListClient
 import com.seriee.app.data.AppLanguage
 import com.seriee.app.data.AppThemeMode
@@ -63,6 +62,10 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     val customBackgroundEnd: Color get() = _customBackgroundEnd.value
     private val _customGradient = mutableStateOf(repo.loadCustomGradient())
     val customGradient: Boolean get() = _customGradient.value
+    private val _customGlass = mutableStateOf(repo.loadCustomGlass())
+    val customGlass: Boolean get() = _customGlass.value
+    private val _customHighContrast = mutableStateOf(repo.loadCustomHighContrast())
+    val customHighContrast: Boolean get() = _customHighContrast.value
     private val _reduceTransparency = mutableStateOf(repo.loadReduceTransparency())
     val reduceTransparency: Boolean get() = _reduceTransparency.value
     private val _batterySaverAmoled = mutableStateOf(repo.loadBatterySaverAmoled())
@@ -358,7 +361,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     fun delete(id: String) {
         com.seriee.app.reminder.ReminderScheduler.cancelReminder(getApplication(), id)
         items.find { it.id == id }?.poster?.let {
-            com.seriee.app.data.PosterStore.deleteIfLocal(getApplication(), it)
+            PosterStore.deleteIfLocal(getApplication(), it)
         }
         commit(items.filterNot { it.id == id })
     }
@@ -414,12 +417,34 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _customBackgroundStart.value = start
         _customBackgroundEnd.value = end
         repo.saveCustomBackground(start.toArgb(), end.toArgb())
-        if (!_customGradient.value) setCustomGradient(true) else ensureCustomStyle()
+        ensureCustomStyle()
     }
 
     fun setCustomGradient(value: Boolean) {
         _customGradient.value = value
         repo.saveCustomGradient(value)
+        ensureCustomStyle()
+    }
+
+    /** Glass and high contrast are two different surface treatments. */
+    fun setCustomGlass(value: Boolean) {
+        _customGlass.value = value
+        repo.saveCustomGlass(value)
+        if (value && _customHighContrast.value) {
+            _customHighContrast.value = false
+            repo.saveCustomHighContrast(false)
+        }
+        ensureCustomStyle()
+    }
+
+    /** Neo-Brutalist treatment; mutually exclusive with glass surfaces. */
+    fun setCustomHighContrast(value: Boolean) {
+        _customHighContrast.value = value
+        repo.saveCustomHighContrast(value)
+        if (value && _customGlass.value) {
+            _customGlass.value = false
+            repo.saveCustomGlass(false)
+        }
         ensureCustomStyle()
     }
 
@@ -447,6 +472,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             backgroundStart = _customBackgroundStart.value.toArgb().toLong() and 0xFFFFFFFFL,
             backgroundEnd = _customBackgroundEnd.value.toArgb().toLong() and 0xFFFFFFFFL,
             gradient = _customGradient.value,
+            glass = _customGlass.value,
+            highContrast = _customHighContrast.value,
             reduceTransparency = _reduceTransparency.value
         )
     )
@@ -460,6 +487,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _customBackgroundStart.value = Color(preset.backgroundStart.toInt())
         _customBackgroundEnd.value = Color(preset.backgroundEnd.toInt())
         _customGradient.value = preset.gradient
+        _customGlass.value = preset.glass
+        _customHighContrast.value = preset.highContrast
         _reduceTransparency.value = preset.reduceTransparency
         repo.saveTheme(preset.mode, preset.style)
         repo.saveCustomAccent(_customAccent.value.toArgb())
@@ -468,6 +497,8 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             _customBackgroundEnd.value.toArgb()
         )
         repo.saveCustomGradient(preset.gradient)
+        repo.saveCustomGlass(preset.glass)
+        repo.saveCustomHighContrast(preset.highContrast)
         repo.saveReduceTransparency(preset.reduceTransparency)
         return true
     }

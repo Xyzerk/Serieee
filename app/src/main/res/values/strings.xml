@@ -207,6 +207,13 @@
     <string name="omdb_api_key_hint">Free key at omdbapi.com — adds IMDb-powered movies &amp; series</string>
     <string name="omdb_api_key_save">Save OMDb key</string>
     <string name="omdb_api_key_cleared">OMDb key cleared</string>
+    <string name="api_keys">API Keys</string>
+    <string name="api_keys_desc">Optional keys unlock official streaming links and IMDb-powered metadata.</string>
+    <string name="api_key_placeholder">API key</string>
+    <string name="api_key_show">Show key</string>
+    <string name="api_key_hide">Hide key</string>
+    <string name="api_key_saved_hint">Key saved — tap eye to reveal</string>
+    <string name="api_key_visible">Visible</string>
     <string name="description_label">Description</string>
     <string name="add_season">Add Season</string>
     <string name="season_number_label">Season %1$d</string>
@@ -260,6 +267,11 @@
     <string name="widget_watching_count">%1$d watching</string>
     <string name="widget_increment">+1</string>
     <string name="widget_increment_description">Add one episode to %1$s</string>
+    <string name="widget_series_progress">S%1$d · %2$d/%3$d</string>
+    <string name="widget_row_description">%1$s, %2$s</string>
+    <string name="widget_episode_watched">%1$s · S%2$d E%3$d watched</string>
+    <string name="widget_movie_watched">%1$s · watched</string>
+    <string name="widget_finished">%1$s · finished</string>
 
     <!-- Backup reminder -->
     <string name="backup_reminder_title">Back up your updated library</string>
@@ -380,7 +392,7 @@
     <string name="theme_style_material_you">Material You</string>
     <string name="theme_style_material_you_desc">Colours from your wallpaper (Android 12+)</string>
     <string name="theme_style_custom">Custom</string>
-    <string name="theme_style_custom_desc">Your own accent and background</string>
+    <string name="theme_style_custom_desc">Your own colours, glass or high contrast</string>
     <string name="theme_style_neo_brutalism">Neo-Brutalism</string>
     <string name="theme_style_neo_brutalism_desc">High-contrast borders, pop colors, hard shadows</string>
     <string name="theme_customize">Customize Theme…</string>
@@ -391,6 +403,16 @@
     <string name="background">Background</string>
     <string name="background_solid">Solid</string>
     <string name="background_gradient">Gradient</string>
+    <string name="theme_hex_accent">Accent hex</string>
+    <string name="theme_hex_background">Background hex</string>
+    <string name="theme_hex_start">Gradient start hex</string>
+    <string name="theme_hex_end">Gradient end hex</string>
+    <string name="theme_hex_placeholder">RRGGBB</string>
+    <string name="theme_surface">Surface</string>
+    <string name="theme_glass_surfaces">Glass surfaces</string>
+    <string name="theme_glass_surfaces_desc">Translucent cards that let your background show through</string>
+    <string name="theme_high_contrast">High contrast</string>
+    <string name="theme_high_contrast_desc">Neo-Brutalist borders, hard shadows and bold type</string>
     <string name="theme_copy_code">Copy theme code</string>
     <string name="theme_paste_code">Paste theme code</string>
     <string name="theme_code_copied">Theme code copied to the clipboard</string>
