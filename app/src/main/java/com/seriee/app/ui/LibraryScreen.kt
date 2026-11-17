@@ -34,8 +34,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,7 +51,6 @@ import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,8 +61,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -91,7 +86,6 @@ private enum class LibrarySort(val labelRes: Int) {
     PROGRESS(R.string.sort_progress),
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LibraryScreen(
     list: List<MediaItem>,
@@ -100,8 +94,7 @@ fun LibraryScreen(
     onSetGrid: (Boolean) -> Unit,
     onOpen: (MediaItem) -> Unit,
     onPin: (String) -> Unit,
-    onAdd: () -> Unit,
-    searchFocusTick: Int = 0
+    onAdd: () -> Unit
 ) {
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
@@ -109,11 +102,6 @@ fun LibraryScreen(
     var statusFilter by rememberSaveable { mutableIntStateOf(0) }
     var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortBy by rememberSaveable { mutableStateOf(LibrarySort.RECENT) }
-    val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(searchFocusTick) {
-        if (searchFocusTick > 0) runCatching { focusRequester.requestFocus() }
-    }
 
     val typeLabels = listOf(
         stringResource(R.string.all_types),
@@ -187,7 +175,6 @@ fun LibraryScreen(
             SField(
                 value = query,
                 onChange = { query = it },
-                modifier = Modifier.focusRequester(focusRequester),
                 placeholder = stringResource(R.string.search_library_placeholder),
                 filled = true,
                 leading = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
@@ -205,14 +192,27 @@ fun LibraryScreen(
                 } else null
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                DropdownField(
-                    label = "",
+                CompactDropdownField(
                     valueLabel = typeLabels.getOrElse(typeFilter) { typeLabels.first() },
                     options = typeLabels.mapIndexed { i, s -> i to s },
                     onSelect = { typeFilter = it },
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(10.dp))
+                CompactDropdownField(
+                    valueLabel = statusChips.getOrNull(statusFilter)?.first ?: "",
+                    options = statusChips.mapIndexed { i, (label, _, count) -> i to "$label ($count)" },
+                    onSelect = { statusFilter = it },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(10.dp))
+                CompactDropdownField(
+                    valueLabel = stringResource(sortBy.labelRes),
+                    options = LibrarySort.entries.map { it to stringResource(it.labelRes) },
+                    onSelect = { sortBy = it },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(10.dp))
                 Row(
                     modifier = if (p.isNeoBrutalist) {
                         Modifier
@@ -245,37 +245,6 @@ fun LibraryScreen(
                     ViewToggle(selected = !gridView, onClick = { onSetGrid(false) }) {
                         Icon(Icons.AutoMirrored.Filled.ViewList, contentDescription = stringResource(R.string.list), modifier = Modifier.size(18.dp), tint = it)
                     }
-                }
-            }
-
-            // Status filter chips, wrapping so the pager still receives swipes
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                statusChips.forEachIndexed { index, (label, _, count) ->
-                    FilterChip(
-                        label = "$label ($count)",
-                        selected = statusFilter == index,
-                        onClick = { statusFilter = index }
-                    )
-                }
-            }
-
-            // Sort order
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-            ) {
-                LibrarySort.entries.forEach { option ->
-                    FilterChip(
-                        label = stringResource(option.labelRes),
-                        selected = sortBy == option,
-                        onClick = { sortBy = option }
-                    )
                 }
             }
 
