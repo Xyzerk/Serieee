@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.lifecycle.ViewModelProvider
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
 import com.seriee.app.data.MediaItem
@@ -17,8 +18,10 @@ import com.seriee.app.data.SerieeRepository
 import com.seriee.app.data.WatchStatus
 import org.json.JSONArray
 import org.json.JSONObject
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,6 +35,37 @@ class MainActivityLaunchTest {
 
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Robolectric gives every test method its own [android.app.Application], but
+     * [ViewModelProvider.AndroidViewModelFactory] caches the first application it
+     * ever saw in a static singleton. Without clearing it, ViewModels in later
+     * tests read shared preferences from the previous test's (now stale)
+     * application context, so seeded data appears to be missing.
+     */
+    @Before
+    fun resetCachedViewModelFactory() {
+        clearAndroidViewModelFactorySingleton()
+    }
+
+    @After
+    fun clearCachedViewModelFactory() {
+        clearAndroidViewModelFactorySingleton()
+    }
+
+    private fun clearAndroidViewModelFactorySingleton() {
+        runCatching {
+            val factoryClass = ViewModelProvider.AndroidViewModelFactory::class.java
+            // Field name varies across Lifecycle versions (`_instance` in 2.8.x,
+            // `sInstance` in older releases).
+            val field = listOf("_instance", "sInstance")
+                .mapNotNull { name -> runCatching { factoryClass.getDeclaredField(name) }.getOrNull() }
+                .firstOrNull()
+                ?: return
+            field.isAccessible = true
+            field.set(null, null)
+        }
+    }
 
     @Test
     fun coldStart_rendersWithoutCrash() {
