@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.os.Looper
 import android.os.Process
+import com.seriee.app.data.SerieeRepository
 import com.seriee.app.debug.AppLogger
 import kotlin.system.exitProcess
 
@@ -19,15 +20,30 @@ class SerieeApplication : Application() {
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             val isMainThread = thread === Looper.getMainLooper().thread
-            runCatching {
+            val report = runCatching {
                 AppLogger.recordCrash(
                     threadName = thread.name,
                     throwable = throwable,
                     commitSync = isMainThread,
                 )
-            }
+            }.getOrNull()
 
             if (isMainThread) {
+                // A second crash in a row means the user's custom appearance is a
+                // likely culprit: restore the shipped defaults before relaunching.
+                if ((report?.consecutiveCount ?: 1) >= SAFE_MODE_CRASH_STREAK) {
+                    runCatching { SerieeRepository(this).resetAppearanceToDefaults() }
+                }
+
+                // A deterministic startup crash would relaunch forever because the
+                // in-app error dialog can never compose. After a few attempts in a
+                // short window, hand the crash back to the platform.
+                if (!AppLogger.allowCrashRelaunch()) {
+                    previousHandler?.uncaughtException(thread, throwable)
+                        ?: terminate()
+                    return@setDefaultUncaughtExceptionHandler
+                }
+
                 // On main UI thread exceptions the Looper can no longer pump frames in the broken task,
                 // so relaunch MainActivity in a clean task to immediately present the user-friendly error dialog
                 // instead of an abrupt OS force-close popup.
@@ -44,18 +60,26 @@ class SerieeApplication : Application() {
                 }.isSuccess
 
                 if (launched) {
-                    Process.killProcess(Process.myPid())
-                    exitProcess(1)
+                    terminate()
                 } else {
                     previousHandler?.uncaughtException(thread, throwable)
                 }
+            } else if (throwable is VirtualMachineError || throwable is LinkageError) {
+                // The JVM state is no longer trustworthy; let the platform handle it.
+                previousHandler?.uncaughtException(thread, throwable)
             }
-            // Background thread uncaught exceptions are captured in AppLogger.pendingCrash
+            // Recoverable background exceptions are captured in AppLogger.pendingCrash
             // so the active UI displays the user-friendly CrashErrorDialog without force closing.
         }
     }
 
+    private fun terminate(): Nothing {
+        Process.killProcess(Process.myPid())
+        exitProcess(1)
+    }
+
     companion object {
         const val EXTRA_SHOW_CRASH_DIALOG = "com.seriee.app.EXTRA_SHOW_CRASH_DIALOG"
+        private const val SAFE_MODE_CRASH_STREAK = 2
     }
 }

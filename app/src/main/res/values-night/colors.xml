@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Replaced at runtime from the persisted theme in MainActivity. -->
-    <color name="window_bg">#FFFDF5</color>
+    <color name="window_bg">#0B0B0F</color>
+
+    <!-- Home-screen widget (dark). -->
+    <color name="widget_surface">#141419</color>
+    <color name="widget_row">#1E1E26</color>
+    <color name="widget_accent">#FFD60A</color>
+    <color name="widget_border">#F5F5F5</color>
+    <color name="widget_text">#F5F5F5</color>
+    <color name="widget_text_muted">#A0A0A0</color>
 </resources>

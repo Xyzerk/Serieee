@@ -18,6 +18,8 @@ import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 enum class LogLevel {
     INFO,
@@ -48,10 +50,23 @@ object AppLogger {
     private const val KEY_LOGS = "logs_json"
     private const val KEY_PENDING_CRASH = "pending_crash_json"
     private const val KEY_CRASH_STREAK = "consecutive_crashes"
+    private const val KEY_RELAUNCH_TIMES = "crash_relaunch_times"
     private const val MAX_ENTRIES = 150
+    private const val MAX_STACK_CHARS = 6000
+    private const val RELAUNCH_WINDOW_MS = 60_000L
+    private const val MAX_RELAUNCHES_PER_WINDOW = 3
 
     private val lock = Any()
     private var appContext: Context? = null
+
+    /**
+     * Log writes happen on every i/w/e call, so the whole prefs blob is written on
+     * a single background thread and coalesced instead of blocking the caller.
+     */
+    private val persistExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "seriee-log-persist").apply { isDaemon = true }
+    }
+    private val persistPending = AtomicBoolean(false)
 
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
@@ -121,7 +136,11 @@ object AppLogger {
             val next = (listOf(entry) + _logs.value).take(MAX_ENTRIES)
             _logs.value = next
             _pendingCrash.value = report
-            persistLocked(next, report, count, commitSync)
+            // Persist the new streak before the (possibly asynchronous) log write
+            // so the next crash sees the incremented counter.
+            val editor = prefs?.edit()?.putInt(KEY_CRASH_STREAK, count)
+            if (commitSync) editor?.commit() else editor?.apply()
+            if (commitSync) persistNow(commit = true) else schedulePersist()
             return report
         }
     }
@@ -133,23 +152,41 @@ object AppLogger {
                 ?.edit()
                 ?.remove(KEY_PENDING_CRASH)
                 ?.putInt(KEY_CRASH_STREAK, 0)
-                ?.apply()
+                ?.commit()
+        }
+    }
+
+    /**
+     * Guards against a deterministic crash relaunching the app forever.
+     * Returns false once [MAX_RELAUNCHES_PER_WINDOW] attempts happened inside
+     * [RELAUNCH_WINDOW_MS], so the platform can take over with a force-close.
+     */
+    fun allowCrashRelaunch(now: Long = System.currentTimeMillis()): Boolean {
+        synchronized(lock) {
+            val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) ?: return true
+            val recent = (prefs.getString(KEY_RELAUNCH_TIMES, "") ?: "")
+                .split(',')
+                .mapNotNull { it.toLongOrNull() }
+                .filter { now - it in 0..RELAUNCH_WINDOW_MS }
+                .toMutableList()
+            if (recent.size >= MAX_RELAUNCHES_PER_WINDOW) return false
+            recent.add(now)
+            prefs.edit().putString(KEY_RELAUNCH_TIMES, recent.joinToString(",")).apply()
+            return true
         }
     }
 
     fun clearLogs() {
         synchronized(lock) {
             _logs.value = emptyList()
-            appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                ?.edit()
-                ?.remove(KEY_LOGS)
-                ?.apply()
+            persistNow(commit = true)
         }
     }
 
     fun formatAllLogs(): String {
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
-        return _logs.value.joinToString("\n\n") { entry ->
+        // Oldest first so exported files read like a timeline.
+        return _logs.value.asReversed().joinToString("\n\n") { entry ->
             buildString {
                 append("[${fmt.format(Date(entry.timestampMs))}] ${entry.level.name}/${entry.tag}: ${entry.message}")
                 if (entry.stackTrace.isNotBlank()) {
@@ -201,27 +238,44 @@ object AppLogger {
             )
             val next = (listOf(entry) + _logs.value).take(MAX_ENTRIES)
             _logs.value = next
-            val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val streak = prefs?.getInt(KEY_CRASH_STREAK, 0) ?: 0
-            persistLocked(next, _pendingCrash.value, streak, commitSync = false)
+            schedulePersist()
         }
     }
 
-    private fun persistLocked(logs: List<LogEntry>, crash: CrashReport?, crashStreak: Int, commitSync: Boolean) {
+    /** Serializes the latest in-memory state; caller must hold [lock] for a stable snapshot. */
+    private fun persistNow(commit: Boolean) {
         val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) ?: return
         val editor = prefs.edit()
-            .putString(KEY_LOGS, serializeLogs(logs))
-            .putInt(KEY_CRASH_STREAK, crashStreak)
-        if (crash != null) {
-            editor.putString(KEY_PENDING_CRASH, serializeCrash(crash))
+            .putString(KEY_LOGS, serializeLogs(_logs.value))
+            .putInt(KEY_CRASH_STREAK, prefs.getInt(KEY_CRASH_STREAK, 0))
+        _pendingCrash.value?.let { editor.putString(KEY_PENDING_CRASH, serializeCrash(it)) }
+        if (commit) editor.commit() else editor.apply()
+    }
+
+    /**
+     * Coalesces writes: at most one pending task, which keeps re-reading the
+     * latest snapshot until no new entries arrived while it was writing.
+     */
+    private fun schedulePersist() {
+        if (!persistPending.compareAndSet(false, true)) return
+        persistExecutor.execute {
+            try {
+                while (true) {
+                    persistPending.set(false)
+                    synchronized(lock) { persistNow(commit = false) }
+                    if (!persistPending.get()) break
+                }
+            } finally {
+                persistPending.set(false)
+            }
         }
-        if (commitSync) editor.commit() else editor.apply()
     }
 
     fun stackTraceString(throwable: Throwable): String {
         val sw = StringWriter()
         throwable.printStackTrace(PrintWriter(sw))
-        return sw.toString()
+        val raw = sw.toString()
+        return if (raw.length <= MAX_STACK_CHARS) raw else raw.take(MAX_STACK_CHARS) + "\n… (truncated)"
     }
 
     private fun serializeLogs(entries: List<LogEntry>): String {

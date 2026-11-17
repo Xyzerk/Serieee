@@ -16,6 +16,7 @@ class SerieeRepository(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences("seriee", Context.MODE_PRIVATE)
 
+
     // API keys are kept in a separate preferences file that is excluded from
     // Android Auto Backup and device-to-device transfer (see res/xml/backup_rules.xml
     // and res/xml/data_extraction_rules.xml).
@@ -197,21 +198,22 @@ class SerieeRepository(context: Context) {
      * runs outside the ViewModel and therefore cannot update its in-memory state.
      */
     fun recordWatchToday(now: java.time.LocalDate = java.time.LocalDate.now()) {
-        val todayStr = now.toString()
-        val last = runCatching { java.time.LocalDate.parse(loadLastWatchDay()) }.getOrNull()
-        val current = loadStreakDays()
-        val newStreak = when (last) {
-            null -> 1
-            now -> current
-            now.minusDays(1) -> current + 1
-            else -> 1
-        }
-        val newBest = maxOf(loadBestStreak(), newStreak)
-        val cutoff = now.minusDays(6)
-        val newDays = (loadWatchDays() + todayStr)
-            .filter { runCatching { java.time.LocalDate.parse(it) >= cutoff }.getOrDefault(false) }
-            .toSet()
-        saveStreak(newStreak, newBest, todayStr, newDays)
+        val next = StreakRules.advance(
+            StreakState(
+                streakDays = loadStreakDays(),
+                bestStreak = loadBestStreak(),
+                lastWatchDay = loadLastWatchDay(),
+                watchDays = loadWatchDays(),
+            ),
+            now,
+        )
+        saveStreak(next.streakDays, next.bestStreak, next.lastWatchDay, next.watchDays)
+    }
+
+    /** Restores the shipped appearance defaults after repeated crashes. */
+    fun resetAppearanceToDefaults() {
+        saveTheme(AppThemeMode.System, AppThemeStyle.Classic)
+        saveReduceTransparency(false)
     }
 
     // Backup reminders: the last successful export and any pending prompt.
@@ -220,6 +222,10 @@ class SerieeRepository(context: Context) {
     fun loadPendingBackupPrompt(): Boolean = prefs.getBoolean(KEY_PENDING_BACKUP_PROMPT, false)
     fun savePendingBackupPrompt(v: Boolean) =
         prefs.edit().putBoolean(KEY_PENDING_BACKUP_PROMPT, v).apply()
+    /** Library size when the banner was last shown, so it only re-appears after real growth. */
+    fun loadBackupPromptedAtCount(): Int = prefs.getInt(KEY_BACKUP_PROMPTED_AT_COUNT, 0)
+    fun saveBackupPromptedAtCount(v: Int) =
+        prefs.edit().putInt(KEY_BACKUP_PROMPTED_AT_COUNT, v).apply()
 
     private fun toJson(m: MediaItem): JSONObject = JSONObject().apply {
         put("id", m.id)
@@ -445,6 +451,7 @@ class SerieeRepository(context: Context) {
         const val KEY_LAST_SEEN_VERSION = "last_seen_version_code"
         const val KEY_LAST_BACKUP_AT = "last_backup_at"
         const val KEY_PENDING_BACKUP_PROMPT = "pending_backup_prompt"
+        const val KEY_BACKUP_PROMPTED_AT_COUNT = "backup_prompted_at_count"
         const val KEY_STREAK_DAYS = "streak_days"
         const val KEY_BEST_STREAK = "best_streak"
         const val KEY_LAST_WATCH_DAY = "last_watch_day"

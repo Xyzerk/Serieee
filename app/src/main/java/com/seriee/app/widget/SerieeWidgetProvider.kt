@@ -7,10 +7,13 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import com.seriee.app.MainActivity
 import com.seriee.app.R
+import com.seriee.app.data.EpisodeProgressRules
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
 import com.seriee.app.data.SerieeRepository
@@ -18,6 +21,7 @@ import com.seriee.app.data.WatchEvent
 import com.seriee.app.data.WatchHistoryRules
 import com.seriee.app.data.WatchStatus
 import com.seriee.app.debug.AppLogger
+import java.util.concurrent.Executors
 
 class SerieeWidgetProvider : AppWidgetProvider() {
 
@@ -29,6 +33,16 @@ class SerieeWidgetProvider : AppWidgetProvider() {
         for (id in appWidgetIds) {
             updateWidget(context, appWidgetManager, id)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        updateWidget(context, appWidgetManager, appWidgetId)
     }
 
     companion object {
@@ -55,57 +69,23 @@ class SerieeWidgetProvider : AppWidgetProvider() {
                 val target = items.firstOrNull { it.id == itemId } ?: return
                 // Only active, released titles can advance from the widget.
                 if (target.status != WatchStatus.Watching) return
-                val now = System.currentTimeMillis()
-                if (target.type == MediaType.Movie) {
-                    if (target.currentEp >= 1) return
-                    val updated = target.copy(
-                        currentEp = 1,
-                        totalEp = 1,
-                        status = WatchStatus.Completed,
-                        updatedAt = now,
-                    )
-                    repo.saveItems(items.map { if (it.id == itemId) updated else it })
-                    repo.recordWatchToday()
-                    repo.saveHistory(
-                        WatchHistoryRules.append(
-                            repo.loadHistory(),
-                            WatchEvent(updated.id, updated.title, updated.type, 1, 1, 1, now),
-                            now,
-                        )
-                    )
-                    return
-                }
-                val seasons = target.effectiveSeasons.toMutableList()
-                var incSeason = seasons.firstOrNull()?.number ?: 1
-                var incEp = 1
-                var bumped = false
-                for (i in seasons.indices) {
-                    val sec = seasons[i]
-                    if (sec.currentEp < sec.totalEp) {
-                        val nextEp = sec.currentEp + 1
-                        seasons[i] = sec.copy(currentEp = nextEp)
-                        incSeason = sec.number
-                        incEp = nextEp
-                        bumped = true
-                        break
-                    }
-                }
-                if (!bumped) return
-                val allDone = seasons.all { it.currentEp >= it.totalEp }
-                val updated = target.copy(
-                    seasons = seasons,
-                    season = incSeason,
-                    currentEp = seasons.sumOf { it.currentEp },
-                    totalEp = seasons.sumOf { it.totalEp.coerceAtLeast(1) }.coerceAtLeast(1),
-                    status = if (allDone) WatchStatus.Completed else WatchStatus.Watching,
-                    updatedAt = now,
-                )
+                val increment = EpisodeProgressRules.increment(target) ?: return
+                val updated = increment.item
+                val now = updated.updatedAt
                 repo.saveItems(items.map { if (it.id == itemId) updated else it })
                 repo.recordWatchToday()
                 repo.saveHistory(
                     WatchHistoryRules.append(
                         repo.loadHistory(),
-                        WatchEvent(updated.id, updated.title, updated.type, incSeason, incEp, 1, now),
+                        WatchEvent(
+                            updated.id,
+                            updated.title,
+                            updated.type,
+                            increment.season,
+                            increment.episode,
+                            count = 1,
+                            watchedAt = now,
+                        ),
                         now,
                     )
                 )
@@ -146,9 +126,15 @@ class SerieeWidgetProvider : AppWidgetProvider() {
             if (active.isEmpty()) {
                 views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
                 views.setOnClickPendingIntent(R.id.widget_empty, openPi)
+                views.setViewVisibility(R.id.widget_subtitle, View.GONE)
                 for (rId in rowIds) views.setViewVisibility(rId, View.GONE)
             } else {
                 views.setViewVisibility(R.id.widget_empty, View.GONE)
+                views.setViewVisibility(R.id.widget_subtitle, View.VISIBLE)
+                views.setTextViewText(
+                    R.id.widget_subtitle,
+                    context.getString(R.string.widget_watching_count, active.size),
+                )
                 for (i in rowIds.indices) {
                     if (i < active.size) {
                         val item = active[i]
@@ -162,11 +148,12 @@ class SerieeWidgetProvider : AppWidgetProvider() {
                         views.setTextViewText(subIds[i], subText)
                         views.setOnClickPendingIntent(rowIds[i], openPi)
 
-                        val canIncrement = item.watchedEpisodes < item.totalEpisodes
+                        val canIncrement = EpisodeProgressRules.canIncrement(item)
                         views.setViewVisibility(btnIds[i], if (canIncrement) View.VISIBLE else View.GONE)
                         if (canIncrement) {
                             val incIntent = Intent(context, WidgetIncrementReceiver::class.java).apply {
                                 action = ACTION_INCREMENT
+                                data = itemUri(item.id)
                                 putExtra(EXTRA_ITEM_ID, item.id)
                             }
                             val incPi = PendingIntent.getBroadcast(
@@ -176,8 +163,13 @@ class SerieeWidgetProvider : AppWidgetProvider() {
                                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                             )
                             views.setOnClickPendingIntent(btnIds[i], incPi)
+                            views.setContentDescription(
+                                btnIds[i],
+                                context.getString(R.string.widget_increment_description, item.title),
+                            )
                         } else {
                             views.setOnClickPendingIntent(btnIds[i], null)
+                            views.setContentDescription(btnIds[i], null)
                         }
                     } else {
                         views.setViewVisibility(rowIds[i], View.GONE)
@@ -186,6 +178,10 @@ class SerieeWidgetProvider : AppWidgetProvider() {
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
+
+        /** Unique per-item data URI so two items can never share a PendingIntent. */
+        private fun itemUri(itemId: String): Uri =
+            Uri.parse("seriee://widget/item/${Uri.encode(itemId)}")
     }
 }
 
@@ -197,7 +193,21 @@ class WidgetIncrementReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != SerieeWidgetProvider.ACTION_INCREMENT) return
         val itemId = intent.getStringExtra(SerieeWidgetProvider.EXTRA_ITEM_ID) ?: return
-        SerieeWidgetProvider.incrementFromWidget(context, itemId)
-        SerieeWidgetProvider.notifyChanged(context)
+        val pending = goAsync()
+        executor.execute {
+            try {
+                SerieeWidgetProvider.incrementFromWidget(context, itemId)
+                SerieeWidgetProvider.notifyChanged(context)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    private companion object {
+        /** Storage and RemoteViews work must stay off the broadcast main thread. */
+        val executor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "seriee-widget").apply { isDaemon = true }
+        }
     }
 }

@@ -7,4 +7,6 @@
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="seriee_secrets.xml" />
+    <!-- Debug/crash logs stay on-device. -->
+    <exclude domain="sharedpref" path="seriee_debug_logs.xml" />
 </full-backup-content>

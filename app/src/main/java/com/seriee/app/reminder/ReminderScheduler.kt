@@ -66,6 +66,7 @@ object ReminderScheduler {
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(context, ReminderReceiver::class.java).apply {
+            data = reminderUri(item.id)
             putExtra(ReminderReceiver.EXTRA_ID, item.id)
             putExtra(ReminderReceiver.EXTRA_TITLE, item.title)
             putExtra(ReminderReceiver.EXTRA_TYPE, item.type.name)
@@ -94,18 +95,41 @@ object ReminderScheduler {
 
     fun cancelReminder(context: Context, itemId: String) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-        val intent = Intent(context, ReminderReceiver::class.java)
+        // Cancel the current (data-qualified) alarm and the legacy one scheduled
+        // before reminders carried a data URI, so upgrades don't leave stale alarms.
+        cancelPending(
+            context,
+            alarmManager,
+            Intent(context, ReminderReceiver::class.java).apply { data = reminderUri(itemId) },
+            itemId.hashCode(),
+        )
+        cancelPending(
+            context,
+            alarmManager,
+            Intent(context, ReminderReceiver::class.java),
+            itemId.hashCode(),
+        )
+    }
+
+    private fun cancelPending(
+        context: Context,
+        alarmManager: AlarmManager,
+        intent: Intent,
+        requestCode: Int,
+    ) {
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            itemId.hashCode(),
+            requestCode,
             intent,
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-        )
-        if (pendingIntent != null) {
-            alarmManager.cancel(pendingIntent)
-            pendingIntent.cancel()
-        }
+        ) ?: return
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
     }
+
+    /** Unique per-item data URI so two items can never share a PendingIntent. */
+    private fun reminderUri(itemId: String): Uri =
+        Uri.parse("seriee://reminder/item/${Uri.encode(itemId)}")
 
     fun sendImmediateNotification(context: Context, title: String, message: String, itemId: String) {
         createNotificationChannel(context)

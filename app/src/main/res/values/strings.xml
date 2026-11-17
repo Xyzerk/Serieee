@@ -257,6 +257,9 @@
     <!-- Home-screen widget -->
     <string name="widget_description">Active Watching progress and quick +1 episode tracker</string>
     <string name="widget_empty">No active Watching titles yet</string>
+    <string name="widget_watching_count">%1$d watching</string>
+    <string name="widget_increment">+1</string>
+    <string name="widget_increment_description">Add one episode to %1$s</string>
 
     <!-- Backup reminder -->
     <string name="backup_reminder_title">Back up your updated library</string>

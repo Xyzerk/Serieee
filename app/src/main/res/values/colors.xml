@@ -3,4 +3,12 @@
     <!-- Replaced at runtime from the persisted theme in MainActivity. -->
     <color name="window_bg">#FFFDF5</color>
     <color name="ic_launcher_background">#2563EB</color>
+
+    <!-- Home-screen widget (light). Mirrors the default Classic palette. -->
+    <color name="widget_surface">#FFF8E7</color>
+    <color name="widget_row">#FFFFFF</color>
+    <color name="widget_accent">#FFD60A</color>
+    <color name="widget_border">#121212</color>
+    <color name="widget_text">#121212</color>
+    <color name="widget_text_muted">#5A5A5A</color>
 </resources>

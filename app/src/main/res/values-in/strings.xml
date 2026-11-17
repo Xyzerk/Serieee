@@ -257,6 +257,9 @@
     <!-- Widget layar utama -->
     <string name="widget_description">Progres Sedang Ditonton dan tombol cepat +1 episode</string>
     <string name="widget_empty">Belum ada tayangan Sedang Ditonton</string>
+    <string name="widget_watching_count">%1$d sedang ditonton</string>
+    <string name="widget_increment">+1</string>
+    <string name="widget_increment_description">Tambahkan satu episode ke %1$s</string>
 
     <!-- Pengingat cadangan -->
     <string name="backup_reminder_title">Cadangkan pustaka terbaru Anda</string>

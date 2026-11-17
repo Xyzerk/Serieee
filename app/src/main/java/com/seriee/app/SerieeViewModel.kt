@@ -18,6 +18,8 @@ import com.seriee.app.data.AniListListClient
 import com.seriee.app.data.AppLanguage
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
+import com.seriee.app.data.EpisodeIncrement
+import com.seriee.app.data.EpisodeProgressRules
 import com.seriee.app.data.ImportError
 import com.seriee.app.data.ImportException
 import com.seriee.app.data.ImportMapper
@@ -29,6 +31,8 @@ import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.PosterStore
 import com.seriee.app.data.SerieeRepository
+import com.seriee.app.data.StreakRules
+import com.seriee.app.data.StreakState
 import com.seriee.app.data.ThemePresetCodec
 import com.seriee.app.data.WatchEvent
 import com.seriee.app.data.WatchHistoryRules
@@ -37,6 +41,7 @@ import com.seriee.app.widget.SerieeWidgetProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -97,16 +102,33 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     val currentVersionCode: Int = BuildConfig.VERSION_CODE
     val currentVersionName: String = BuildConfig.VERSION_NAME
 
+    @Volatile
+    private var latestActivePosters: Set<String> = emptySet()
+    private var maintenanceJob: Job? = null
+
     private fun commit(newItems: List<MediaItem>) {
         val uniqueItems = newItems.distinctBy { it.id }
         items = uniqueItems
         repo.saveItems(uniqueItems)
-        val ctx = getApplication<Application>()
-        val activePosters = uniqueItems
+        latestActivePosters = uniqueItems
             .mapNotNull { it.poster.takeIf { p -> p.isNotBlank() } }
             .toSet()
-        PosterStore.pruneUnused(ctx, activePosters)
-        SerieeWidgetProvider.notifyChanged(ctx)
+        scheduleMaintenance()
+    }
+
+    /**
+     * Poster pruning and widget refreshes touch the file system and RemoteViews,
+     * so they run off the main thread. Debouncing coalesces bursts (imports,
+     * mark-all-watched) and guarantees the prune sees the newest poster set.
+     */
+    private fun scheduleMaintenance() {
+        maintenanceJob?.cancel()
+        val app = getApplication<Application>()
+        maintenanceJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(200)
+            PosterStore.pruneUnused(app, latestActivePosters)
+            SerieeWidgetProvider.notifyChanged(app)
+        }
     }
 
     fun dismissBackupReminder() {
@@ -114,7 +136,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         showBackupReminder = false
     }
 
-    /** Re-reads storage after the widget or another process changed it. */
+    /** Re-reads storage after the widget changed it. */
     fun refreshFromStorage() {
         val storedItems = repo.loadItems()
         val storedHistory = repo.loadHistory()
@@ -129,11 +151,16 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun maybeTriggerBackupReminder(itemCount: Int, importedDelta: Int = 0) {
+        if (showBackupReminder || repo.loadPendingBackupPrompt()) return
         val sevenDaysMs = 7L * 86_400_000L
         val lastBackup = repo.loadLastBackupAt()
         val backupIsStale = lastBackup == 0L || (System.currentTimeMillis() - lastBackup) > sevenDaysMs
-        if (backupIsStale && (importedDelta >= 3 || (itemCount >= 10 && itemCount % 10 == 0))) {
+        if (!backupIsStale) return
+        val sinceLastPrompt = itemCount - repo.loadBackupPromptedAtCount()
+        val enoughNewItems = itemCount >= 10 && sinceLastPrompt >= 10
+        if (importedDelta >= 3 || enoughNewItems) {
             repo.savePendingBackupPrompt(true)
+            repo.saveBackupPromptedAtCount(itemCount)
             showBackupReminder = true
         }
     }
@@ -155,39 +182,19 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun incrementEpisode(id: String) {
         val target = items.find { it.id == id } ?: return
-        val logTarget = incrementTarget(target)
         val before = target.watchedEpisodes
+        var logged: EpisodeIncrement? = null
         commit(items.map { m ->
             if (m.id != id) return@map m
-            // Multi-season path
-            if (m.seasons.isNotEmpty()) {
-                val idx = m.seasons.indexOfFirst { it.currentEp < it.totalEp }
-                val newSeasons = if (idx < 0) m.seasons else m.seasons.mapIndexed { i, s ->
-                    if (i == idx) s.copy(currentEp = (s.currentEp + 1).coerceAtMost(s.totalEp)) else s
-                }
-                val watched = newSeasons.sumOf { it.currentEp }
-                val total = newSeasons.sumOf { it.totalEp }
-                val activeSeason = newSeasons.firstOrNull { it.currentEp < it.totalEp } ?: newSeasons.lastOrNull()
-                m.copy(
-                    seasons = newSeasons,
-                    season = activeSeason?.number ?: m.season,
-                    currentEp = watched,
-                    totalEp = total.coerceAtLeast(1),
-                    status = if (watched >= total) WatchStatus.Completed else m.status,
-                    updatedAt = System.currentTimeMillis()
-                )
-            } else if (m.currentEp < m.totalEp) {
-                val next = m.currentEp + 1
-                m.copy(
-                    currentEp = next,
-                    status = if (next >= m.totalEp) WatchStatus.Completed else m.status,
-                    updatedAt = System.currentTimeMillis()
-                )
-            } else m
+            val increment = EpisodeProgressRules.increment(m)
+            if (increment == null) m else {
+                logged = increment
+                increment.item
+            }
         })
         val after = items.find { it.id == id } ?: return
         if (after.watchedEpisodes > before) {
-            logTarget?.let { (season, episode) -> logWatch(target, season, episode) }
+            logged?.let { logWatch(target, it.season, it.episode) }
             recordWatch()
         }
     }
@@ -208,11 +215,14 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
                     season = seasonNo,
                     currentEp = watched,
                     totalEp = total.coerceAtLeast(1),
+                    status = statusAfterProgress(m.status, watched, total),
                     updatedAt = System.currentTimeMillis()
                 )
             } else {
+                val next = epNo.coerceIn(0, m.totalEp)
                 m.copy(
-                    currentEp = epNo.coerceIn(0, m.totalEp),
+                    currentEp = next,
+                    status = statusAfterProgress(m.status, next, m.totalEp),
                     updatedAt = System.currentTimeMillis()
                 )
             }
@@ -230,21 +240,18 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Completed when everything is watched; a finished item moved backwards becomes active again. */
+    private fun statusAfterProgress(current: WatchStatus, watched: Int, total: Int): WatchStatus = when {
+        total > 0 && watched >= total -> WatchStatus.Completed
+        current == WatchStatus.Completed -> WatchStatus.Watching
+        else -> current
+    }
+
     /** Marks every episode of [seasonNum] as watched in one step. */
     fun markSeasonComplete(id: String, seasonNum: Int) {
         val target = items.firstOrNull { it.id == id } ?: return
         val sec = target.effectiveSeasons.firstOrNull { it.number == seasonNum } ?: return
         setCurrentEpisode(id, seasonNum, sec.totalEp)
-    }
-
-    /** Season/episode that a + will watch, or null when the item is already complete. */
-    private fun incrementTarget(item: MediaItem): Pair<Int, Int>? {
-        if (item.seasons.isNotEmpty()) {
-            val season = item.seasons.firstOrNull { it.currentEp < it.totalEp } ?: return null
-            return season.number to (season.currentEp + 1)
-        }
-        if (item.currentEp < item.totalEp) return item.season to (item.currentEp + 1)
-        return null
     }
 
     private fun logWatch(item: MediaItem, season: Int, episode: Int, count: Int = 1) {
@@ -271,24 +278,18 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
      * same day = no change, yesterday = +1, gap = reset to 1.
      */
     private fun recordWatch() {
-        val today = java.time.LocalDate.now()
-        val todayStr = today.toString()
-        val last = runCatching { java.time.LocalDate.parse(repo.loadLastWatchDay()) }.getOrNull()
-        val newStreak = when (last) {
-            null -> 1
-            today -> _streakDays.value
-            today.minusDays(1) -> _streakDays.value + 1
-            else -> 1
-        }
-        val newBest = maxOf(_bestStreak.value, newStreak)
-        val cutoff = today.minusDays(6)
-        val newDays = (_watchDays.value + todayStr)
-            .filter { runCatching { java.time.LocalDate.parse(it) >= cutoff }.getOrDefault(false) }
-            .toSet()
-        _streakDays.value = newStreak
-        _bestStreak.value = newBest
-        _watchDays.value = newDays
-        repo.saveStreak(newStreak, newBest, todayStr, newDays)
+        val next = StreakRules.advance(
+            StreakState(
+                streakDays = _streakDays.value,
+                bestStreak = _bestStreak.value,
+                lastWatchDay = repo.loadLastWatchDay(),
+                watchDays = _watchDays.value,
+            )
+        )
+        _streakDays.value = next.streakDays
+        _bestStreak.value = next.bestStreak
+        _watchDays.value = next.watchDays
+        repo.saveStreak(next.streakDays, next.bestStreak, next.lastWatchDay, next.watchDays)
     }
 
     fun resetStreak() {
@@ -387,11 +388,12 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         repo.saveTheme(_themeMode.value, _themeStyle.value)
     }
 
-    /** Falls back to the app defaults after repeated crashes. */
+    /** Falls back to the app defaults after repeated crashes and clears the crash streak. */
     fun resetThemeToDefault() {
-        setThemeMode(AppThemeMode.Light)
-        setThemeStyle(AppThemeStyle.NeoBrutalism)
+        setThemeMode(AppThemeMode.System)
+        setThemeStyle(AppThemeStyle.Classic)
         setReduceTransparency(false)
+        com.seriee.app.debug.AppLogger.dismissPendingCrash()
         val ctx = getApplication<Application>()
         Toast.makeText(ctx, ctx.getString(R.string.crash_theme_reset_done), Toast.LENGTH_SHORT).show()
     }
@@ -591,7 +593,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             preview = null,
             result = result
         )
-        maybeTriggerBackupReminder(items.size, importedDelta = result.added + result.updated)
+        maybeTriggerBackupReminder(items.size, importedDelta = result.added)
     }
 
     fun dismissImport() {
@@ -610,6 +612,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         }.onSuccess {
             repo.saveLastBackupAt(System.currentTimeMillis())
             repo.savePendingBackupPrompt(false)
+            repo.saveBackupPromptedAtCount(items.size)
             showBackupReminder = false
         }
     }

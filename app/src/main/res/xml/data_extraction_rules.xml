@@ -7,8 +7,11 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="seriee_secrets.xml" />
+        <!-- Debug/crash logs stay on-device. -->
+        <exclude domain="sharedpref" path="seriee_debug_logs.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="seriee_secrets.xml" />
+        <exclude domain="sharedpref" path="seriee_debug_logs.xml" />
     </device-transfer>
 </data-extraction-rules>
