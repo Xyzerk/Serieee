@@ -15,7 +15,9 @@ data class ThemePreset(
     val gradient: Boolean = true,
     val glass: Boolean = false,
     val highContrast: Boolean = false,
-    val reduceTransparency: Boolean = false
+    val reduceTransparency: Boolean = false,
+    /** Neo-Brutalism tone name (e.g. "Yellow", "Pink"). */
+    val neoTone: String = "Yellow"
 )
 
 /**
@@ -38,7 +40,8 @@ object ThemePresetCodec {
             "gradient" to if (preset.gradient) "1" else "0",
             "glass" to if (preset.glass) "1" else "0",
             "contrast" to if (preset.highContrast) "1" else "0",
-            "flat" to if (preset.reduceTransparency) "1" else "0"
+            "flat" to if (preset.reduceTransparency) "1" else "0",
+            "neo" to preset.neoTone
         )
         return "$PREFIX;" + fields.entries.joinToString(";") { "${it.key}=${it.value}" }
     }
@@ -68,7 +71,8 @@ object ThemePresetCodec {
             gradient = fields["gradient"]?.let { it != "0" } ?: defaults.gradient,
             glass = fields["glass"]?.let { it != "0" } ?: defaults.glass,
             highContrast = fields["contrast"]?.let { it != "0" } ?: defaults.highContrast,
-            reduceTransparency = fields["flat"]?.let { it != "0" } ?: defaults.reduceTransparency
+            reduceTransparency = fields["flat"]?.let { it != "0" } ?: defaults.reduceTransparency,
+            neoTone = fields["neo"] ?: defaults.neoTone
         )
     }
 

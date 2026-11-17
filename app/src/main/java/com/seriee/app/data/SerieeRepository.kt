@@ -109,6 +109,13 @@ class SerieeRepository(context: Context) {
             .apply()
     }
 
+    /** Neo-Brutalism primary tone, stored by enum name. Null means the default yellow. */
+    fun loadNeoTone(): String? = prefs.getString(KEY_NEO_TONE, null)
+
+    fun saveNeoTone(name: String) {
+        prefs.edit().putString(KEY_NEO_TONE, name).apply()
+    }
+
     /** Custom theme accent, stored as ARGB. Defaults to the blue primary. */
     fun loadCustomAccent(): Int = prefs.getInt(KEY_CUSTOM_ACCENT, 0xFF3B82F6.toInt())
 
@@ -227,6 +234,7 @@ class SerieeRepository(context: Context) {
     /** Restores the shipped appearance defaults after repeated crashes. */
     fun resetAppearanceToDefaults() {
         saveTheme(AppThemeMode.System, AppThemeStyle.Classic)
+        saveNeoTone("Yellow")
         saveReduceTransparency(false)
     }
 
@@ -452,6 +460,7 @@ class SerieeRepository(context: Context) {
         const val KEY_THEME = "seriee_theme"
         const val KEY_THEME_MODE = "seriee_theme_mode"
         const val KEY_THEME_STYLE = "seriee_theme_style"
+        const val KEY_NEO_TONE = "seriee_neo_tone"
         const val KEY_CUSTOM_ACCENT = "custom_accent"
         const val KEY_CUSTOM_BG_START = "custom_background_start"
         const val KEY_CUSTOM_BG_END = "custom_background_end"
