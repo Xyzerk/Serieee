@@ -192,6 +192,12 @@ class SerieeRepository(context: Context) {
         secretPrefs.edit().putString(KEY_OMDB, key.trim()).apply()
     }
 
+    /** True once the first-run welcome slides were finished or skipped. */
+    fun loadOnboardingDone(): Boolean = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
+    fun saveOnboardingDone(done: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_DONE, done).apply()
+    }
+
     fun loadLastSeenVersionCode(): Int = prefs.getInt(KEY_LAST_SEEN_VERSION, 0)
     fun saveLastSeenVersionCode(code: Int) {
         prefs.edit().putInt(KEY_LAST_SEEN_VERSION, code).apply()
@@ -474,6 +480,7 @@ class SerieeRepository(context: Context) {
         const val KEY_TMDB = "tmdb_api_key"
         const val KEY_OMDB = "omdb_api_key"
         const val KEY_LAST_SEEN_VERSION = "last_seen_version_code"
+        const val KEY_ONBOARDING_DONE = "onboarding_done"
         const val KEY_LAST_BACKUP_AT = "last_backup_at"
         const val KEY_PENDING_BACKUP_PROMPT = "pending_backup_prompt"
         const val KEY_BACKUP_PROMPTED_AT_COUNT = "backup_prompted_at_count"
