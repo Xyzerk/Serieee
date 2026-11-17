@@ -22,6 +22,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
@@ -39,6 +40,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
+import com.seriee.app.data.CustomThemeExtras
 import java.util.Locale
 
 object SerieColors {
@@ -107,8 +109,16 @@ data class CustomThemeColors(
     /** Translucent surfaces that let the custom background show through. */
     val glass: Boolean = false,
     /** Neo-Brutalist surface treatment: hard borders, shadows and bold type. */
-    val highContrast: Boolean = false
+    val highContrast: Boolean = false,
+    /** Per-token colour overrides and background image settings. */
+    val extras: CustomThemeExtras = CustomThemeExtras()
 )
+
+/** Background image currently painted behind the whole app, if any. */
+@Immutable
+data class ThemeBackdrop(val path: String, val dim: Float, val blurDp: Float)
+
+val LocalThemeBackdrop = staticCompositionLocalOf<ThemeBackdrop?> { null }
 
 private fun basePalette(
     bg: Color,
@@ -418,7 +428,44 @@ fun SeriePalette.hasReadableAccent(): Boolean =
     contrastRatio(accent, bg) >= 3f
 
 /** Builds a palette from the user's custom colours and surface treatment. */
-private fun customPalette(custom: CustomThemeColors): SeriePalette {
+private fun customPalette(custom: CustomThemeColors): SeriePalette =
+    applyCustomExtras(baseCustomPalette(custom), custom.extras)
+
+/** Layers per-token overrides and the image-friendly translucency on a base palette. */
+internal fun applyCustomExtras(base: SeriePalette, x: CustomThemeExtras): SeriePalette {
+    var p = base
+    fun color(v: Long?): Color? = v?.let { Color(it.toInt()) }
+    color(x.text)?.let { p = p.copy(text = it) }
+    color(x.muted)?.let { p = p.copy(muted = it) }
+    color(x.border)?.let { p = p.copy(border = it) }
+    color(x.success)?.let { p = p.copy(success = it) }
+    color(x.warning)?.let { p = p.copy(warning = it) }
+    color(x.danger)?.let { p = p.copy(danger = it) }
+    color(x.info)?.let { p = p.copy(info = it) }
+    color(x.reminder)?.let { p = p.copy(reminder = it) }
+    color(x.star)?.let { p = p.copy(star = it) }
+    color(x.card)?.let { p = p.copy(card = it) }
+    color(x.surface)?.let { surface ->
+        p = p.copy(
+            surface = surface,
+            elevated = surface,
+            chip = p.text.copy(alpha = 0.08f).compositeOver(surface)
+        )
+    }
+    if (x.hasImage) {
+        // Let the picture show through every card without touching the hues.
+        val o = x.surfaceOpacity.coerceIn(0.25f, 1f)
+        p = p.copy(
+            card = p.card.copy(alpha = p.card.alpha * o),
+            surface = p.surface.copy(alpha = p.surface.alpha * (o + 0.1f).coerceAtMost(1f)),
+            elevated = p.elevated.copy(alpha = p.elevated.alpha * (o + 0.18f).coerceAtMost(1f)),
+            chip = p.chip.copy(alpha = p.chip.alpha * o)
+        )
+    }
+    return p
+}
+
+private fun baseCustomPalette(custom: CustomThemeColors): SeriePalette {
     val bg = custom.backgroundStart
     val accent = custom.accent
     val light = bg.luminance() > 0.5f
@@ -758,6 +805,7 @@ fun SerieeTheme(
     customGradient: Boolean = false,
     customGlass: Boolean = false,
     customHighContrast: Boolean = false,
+    customExtras: CustomThemeExtras = CustomThemeExtras(),
     reduceTransparency: Boolean = false,
     batterySaverAmoled: Boolean = false,
     content: @Composable () -> Unit
@@ -786,7 +834,8 @@ fun SerieeTheme(
             backgroundEnd = customBackgroundEnd,
             gradient = customGradient,
             glass = customGlass,
-            highContrast = customHighContrast
+            highContrast = customHighContrast,
+            extras = customExtras
         ),
         dynamicScheme = dynamicScheme,
         reduceTransparency = reduceTransparency
@@ -808,8 +857,14 @@ fun SerieeTheme(
 
     val neoScheme = if (p.isLight) NeoBrutalistLightColorScheme else NeoBrutalistDarkColorScheme
     val materialScheme = remember(p) { schemeFor(p) }
+    val backdrop = remember(effectiveStyle, customExtras) {
+        if (effectiveStyle == AppThemeStyle.Custom && customExtras.hasImage) {
+            ThemeBackdrop(customExtras.imagePath.orEmpty(), customExtras.imageDim, customExtras.imageBlur)
+        } else null
+    }
     CompositionLocalProvider(
         LocalPalette provides p,
+        LocalThemeBackdrop provides backdrop,
         LocalNeoBrutalistColors provides neoScheme
     ) {
         MaterialTheme(
