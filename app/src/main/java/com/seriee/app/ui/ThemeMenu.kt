@@ -83,16 +83,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
+import com.seriee.app.debug.AppLogger
 import com.seriee.app.SerieeViewModel
 import com.seriee.app.data.AppLanguage
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
 import kotlinx.coroutines.launch
 
-private enum class MenuPage { Root, Theme, Customize, Language }
+private enum class MenuPage { Root, Language }
 
 /** Accent presets offered by the custom theme. */
-private val accentPresets = listOf(
+internal val accentPresets = listOf(
     Color(0xFF3B82F6),
     Color(0xFFF0559B),
     Color(0xFF8B5CF6),
@@ -104,7 +105,7 @@ private val accentPresets = listOf(
 )
 
 /** Two-stop background gradients for the custom theme. */
-private val gradientPresets = listOf(
+internal val gradientPresets = listOf(
     Color(0xFF1D4ED8) to Color(0xFF7C2A64),
     Color(0xFF0EA5E9) to Color(0xFF6366F1),
     Color(0xFFF0559B) to Color(0xFF8B5CF6),
@@ -114,9 +115,50 @@ private val gradientPresets = listOf(
 )
 
 /**
- * Root overflow menu with the Theme → Customize page stack.
+ * Theme popup opened from its own top-bar button. [onOpenStudio] launches the
+ * full-screen Theme Studio for deep customisation.
+ */
+@Composable
+fun SerieeThemeMenu(
+    vm: SerieeViewModel,
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onOpenStudio: () -> Unit
+) {
+    val p = LocalPalette.current
+    val systemDark = isSystemInDarkTheme()
+    val maxHeight = minOf(
+        560.dp,
+        LocalConfiguration.current.screenHeightDp.dp * 0.72f
+    ).coerceAtLeast(120.dp)
+
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        shape = if (p.isNeoBrutalist) RoundedCornerShape(8.dp) else RoundedCornerShape(24.dp),
+        containerColor = if (p.isNeoBrutalist) p.surface else if (p.isGlass) p.elevated else p.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = if (p.isNeoBrutalist) 0.dp else 8.dp,
+        border = if (p.isNeoBrutalist) BorderStroke(2.5.dp, p.border) else null,
+        modifier = Modifier.width(312.dp)
+    ) {
+        ThemePage(
+            vm = vm,
+            systemDark = systemDark,
+            maxHeight = maxHeight,
+            onBack = onDismiss,
+            onCustomize = {
+                onDismiss()
+                onOpenStudio()
+            }
+        )
+    }
+}
+
+/**
+ * Root overflow menu with the Language page.
  *
- * Back (system or in-menu arrow) walks up the stack before closing the popup.
+ * Back (system or in-menu arrow) returns to the root page before closing the popup.
  */
 @Composable
 fun SerieeOverflowMenu(
@@ -127,17 +169,11 @@ fun SerieeOverflowMenu(
     onApiKeys: () -> Unit,
     onImport: () -> Unit,
     onChangelog: () -> Unit,
-    onAbout: () -> Unit,
-    onOpenDebugOverlay: () -> Unit,
-    artworkPoster: String?
+    onAbout: () -> Unit
 ) {
     val p = LocalPalette.current
-    val systemDark = isSystemInDarkTheme()
+    val context = LocalContext.current
     var page by remember { mutableStateOf(MenuPage.Root) }
-    val maxHeight = minOf(
-        560.dp,
-        LocalConfiguration.current.screenHeightDp.dp * 0.72f
-    ).coerceAtLeast(120.dp)
 
     LaunchedEffect(expanded) {
         if (expanded) page = MenuPage.Root
@@ -184,12 +220,6 @@ fun SerieeOverflowMenu(
         ) { current ->
             when (current) {
                 MenuPage.Root -> Column {
-                    SettingRow(
-                        icon = Icons.Filled.Palette,
-                        title = stringResource(R.string.theme),
-                        value = "${stringResource(vm.themeMode.labelRes)} · ${stringResource(vm.themeStyle.labelRes)}",
-                        tint = if (p.isNeoBrutalist) p.text else p.accent
-                    ) { page = MenuPage.Theme }
                     SettingRow(
                         icon = Icons.Filled.Translate,
                         title = stringResource(R.string.language),
@@ -261,10 +291,10 @@ fun SerieeOverflowMenu(
                     }
                     SettingRow(
                         icon = Icons.Filled.BugReport,
-                        title = stringResource(R.string.debug_overlay)
+                        title = stringResource(R.string.report_bug)
                     ) {
                         onDismiss()
-                        onOpenDebugOverlay()
+                        AppLogger.shareBugReport(context)
                     }
                     SettingRow(
                         icon = Icons.Filled.Info,
@@ -274,22 +304,6 @@ fun SerieeOverflowMenu(
                         onAbout()
                     }
                 }
-
-                MenuPage.Theme -> ThemePage(
-                    vm = vm,
-                    systemDark = systemDark,
-                    maxHeight = maxHeight,
-                    onBack = { page = MenuPage.Root },
-                    onCustomize = { page = MenuPage.Customize }
-                )
-
-                MenuPage.Customize -> CustomizePage(
-                    vm = vm,
-                    systemDark = systemDark,
-                    maxHeight = maxHeight,
-                    artworkPoster = artworkPoster,
-                    onBack = { page = MenuPage.Theme }
-                )
 
                 MenuPage.Language -> LanguagePage(
                     selected = vm.language,
@@ -302,7 +316,7 @@ fun SerieeOverflowMenu(
 }
 
 @Composable
-private fun MenuHeader(title: String, onBack: () -> Unit) {
+internal fun MenuHeader(title: String, onBack: () -> Unit) {
     val p = LocalPalette.current
     Row(
         modifier = Modifier
@@ -359,7 +373,7 @@ private fun MenuHeader(title: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun SectionLabel(text: String) {
+internal fun SectionLabel(text: String) {
     val p = LocalPalette.current
     Text(
         text = if (p.isNeoBrutalist) text.uppercase() else text,
@@ -386,7 +400,8 @@ private fun ThemePage(
         backgroundEnd = vm.customBackgroundEnd,
         gradient = vm.customGradient,
         glass = vm.customGlass,
-        highContrast = vm.customHighContrast
+        highContrast = vm.customHighContrast,
+        extras = vm.customExtras
     )
     Column(
         Modifier
@@ -565,7 +580,7 @@ private fun ThemePage(
 }
 
 @Composable
-private fun SwitchRow(
+internal fun SwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -685,352 +700,7 @@ private fun ThemeSwatch(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CustomizePage(
-    vm: SerieeViewModel,
-    systemDark: Boolean,
-    maxHeight: androidx.compose.ui.unit.Dp,
-    artworkPoster: String?,
-    onBack: () -> Unit
-) {
-    val p = LocalPalette.current
-    val custom = CustomThemeColors(
-        accent = vm.customAccent,
-        backgroundStart = vm.customBackgroundStart,
-        backgroundEnd = vm.customBackgroundEnd,
-        gradient = vm.customGradient,
-        glass = vm.customGlass,
-        highContrast = vm.customHighContrast
-    )
-    val live = resolvePalette(
-        mode = vm.themeMode,
-        style = AppThemeStyle.Custom,
-        systemDark = systemDark,
-        custom = custom,
-        reduceTransparency = vm.reduceTransparency
-    )
-    val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
-    var pickingArtwork by remember { mutableStateOf(false) }
-    var codeMessage by remember { mutableStateOf<Int?>(null) }
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(max = maxHeight)
-            .verticalScroll(rememberScrollState())
-    ) {
-        MenuHeader(stringResource(R.string.customize_theme_title), onBack)
-
-        Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                stringResource(R.string.accent),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = p.muted
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                accentPresets.forEach { preset ->
-                    val selected = preset.value == vm.customAccent.value
-                    val presetShape = if (p.isNeoBrutalist) RoundedCornerShape(6.dp) else CircleShape
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(presetShape)
-                            .background(preset)
-                            .border(
-                                if (p.isNeoBrutalist) 2.dp else 2.dp,
-                                when {
-                                    selected && p.isNeoBrutalist -> NeoBrutalistColors.Black
-                                    selected -> p.text
-                                    p.isNeoBrutalist -> p.border
-                                    else -> Color.Transparent
-                                },
-                                presetShape
-                            )
-                            .selectable(
-                                selected = selected,
-                                role = Role.RadioButton
-                            ) { vm.setCustomAccent(preset) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (selected) {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = if (preset.luminance() > 0.6f) Color.Black else Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-            HexColorField(
-                label = stringResource(R.string.theme_hex_accent),
-                color = vm.customAccent,
-                onColorChange = vm::setCustomAccent
-            )
-            if (p.isNeoBrutalist) {
-                NeoBrutalistBox(
-                    onClick = if (artworkPoster != null && !pickingArtwork) {
-                        {
-                            pickingArtwork = true
-                            scope.launch {
-                                val color = artworkPoster.let { accentFromPoster(context, it) }
-                                if (color != null) vm.setCustomAccent(color)
-                                pickingArtwork = false
-                            }
-                        }
-                    } else null,
-                    enabled = artworkPoster != null && !pickingArtwork,
-                    backgroundColor = if (artworkPoster != null) NeoBrutalistColors.SkyBlue else p.chip,
-                    borderColor = p.border,
-                    shadowColor = NeoBrutalistColors.Black,
-                    borderWidth = 2.dp,
-                    shadowOffset = 2.dp,
-                    cornerRadius = 6.dp,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (pickingArtwork) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = NeoBrutalistColors.Black
-                            )
-                        } else {
-                            Icon(
-                                Icons.Filled.AutoAwesome,
-                                contentDescription = null,
-                                tint = if (artworkPoster != null) NeoBrutalistColors.Black else p.muted,
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            stringResource(R.string.theme_accent_from_artwork),
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = if (artworkPoster != null) NeoBrutalistColors.Black else p.muted
-                        )
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (artworkPoster != null) p.chip else p.chip.copy(alpha = 0.4f))
-                        .clickable(enabled = artworkPoster != null && !pickingArtwork) {
-                            pickingArtwork = true
-                            scope.launch {
-                                val color = artworkPoster?.let { accentFromPoster(context, it) }
-                                if (color != null) vm.setCustomAccent(color)
-                                pickingArtwork = false
-                            }
-                        }
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (pickingArtwork) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
-                            strokeWidth = 2.dp,
-                            color = p.accent
-                        )
-                    } else {
-                        Icon(
-                            Icons.Filled.AutoAwesome,
-                            contentDescription = null,
-                            tint = if (artworkPoster != null) p.accent else p.muted,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.theme_accent_from_artwork),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (artworkPoster != null) p.text else p.muted
-                    )
-                }
-            }
-            if (!live.hasReadableAccent()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.WarningAmber,
-                        contentDescription = null,
-                        tint = p.warning,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.theme_accent_low_contrast),
-                        fontSize = 10.sp,
-                        color = p.warning
-                    )
-                }
-            }
-        }
-
-        Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                stringResource(R.string.background),
-                fontSize = 11.sp,
-                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                fontWeight = FontWeight.Bold,
-                color = p.muted
-            )
-            SegmentedTabs(
-                labels = listOf(
-                    stringResource(R.string.background_solid),
-                    stringResource(R.string.background_gradient)
-                ),
-                selected = if (vm.customGradient) 1 else 0,
-                onSelect = { vm.setCustomGradient(it == 1) }
-            )
-            if (vm.customGradient) {
-                HexColorField(
-                    label = stringResource(R.string.theme_hex_start),
-                    color = vm.customBackgroundStart,
-                    onColorChange = { vm.setCustomBackground(it, vm.customBackgroundEnd) }
-                )
-                HexColorField(
-                    label = stringResource(R.string.theme_hex_end),
-                    color = vm.customBackgroundEnd,
-                    onColorChange = { vm.setCustomBackground(vm.customBackgroundStart, it) }
-                )
-            } else {
-                HexColorField(
-                    label = stringResource(R.string.theme_hex_background),
-                    color = vm.customBackgroundStart,
-                    onColorChange = { vm.setCustomBackground(it, vm.customBackgroundEnd) }
-                )
-            }
-            if (vm.customGradient) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    gradientPresets.forEach { (start, end) ->
-                        val selected = start.value == vm.customBackgroundStart.value &&
-                            end.value == vm.customBackgroundEnd.value
-                        val gradRadius = if (p.isNeoBrutalist) 6.dp else 9.dp
-                        Box(
-                            modifier = Modifier
-                                .size(width = 52.dp, height = 30.dp)
-                                .clip(RoundedCornerShape(gradRadius))
-                                .background(Brush.linearGradient(listOf(start, end)))
-                                .border(
-                                    width = if (p.isNeoBrutalist) (if (selected) 2.5.dp else 1.5.dp) else (if (selected) 2.dp else 1.dp),
-                                    color = if (selected) p.text else p.border,
-                                    shape = RoundedCornerShape(gradRadius)
-                                )
-                                .selectable(
-                                    selected = selected,
-                                    role = Role.RadioButton
-                                ) {
-                                    vm.setCustomGradient(true)
-                                    vm.setCustomBackground(start, end)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (selected) {
-                                Icon(
-                                    Icons.Filled.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Text(
-            stringResource(R.string.theme_surface),
-            fontSize = 11.sp,
-            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-            fontWeight = FontWeight.Bold,
-            color = p.muted,
-            modifier = Modifier.padding(start = 16.dp, top = 12.dp)
-        )
-        SwitchRow(
-            title = stringResource(R.string.theme_glass_surfaces),
-            subtitle = stringResource(R.string.theme_glass_surfaces_desc),
-            checked = vm.customGlass,
-            onCheckedChange = vm::setCustomGlass
-        )
-        SwitchRow(
-            title = stringResource(R.string.theme_high_contrast),
-            subtitle = stringResource(R.string.theme_high_contrast_desc),
-            checked = vm.customHighContrast,
-            onCheckedChange = vm::setCustomHighContrast
-        )
-
-        HorizontalDivider(
-            thickness = if (p.isNeoBrutalist) 2.dp else 1.dp,
-            color = p.border,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-        CodeRow(
-            icon = Icons.Filled.ContentCopy,
-            label = stringResource(R.string.theme_copy_code)
-        ) {
-            clipboard.setText(AnnotatedString(vm.themeCode()))
-            codeMessage = R.string.theme_code_copied
-        }
-        CodeRow(
-            icon = Icons.Filled.ContentPaste,
-            label = stringResource(R.string.theme_paste_code)
-        ) {
-            val applied = vm.applyThemeCode(clipboard.getText()?.text)
-            codeMessage = if (applied) R.string.theme_code_applied else R.string.theme_code_invalid
-        }
-        codeMessage?.let { message ->
-            Text(
-                text = stringResource(message),
-                fontSize = 10.sp,
-                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                fontWeight = if (p.isNeoBrutalist) FontWeight.Bold else FontWeight.Normal,
-                color = p.muted,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-            )
-        }
-        HorizontalDivider(
-            thickness = if (p.isNeoBrutalist) 2.dp else 1.dp,
-            color = p.border
-        )
-
-        Column(
-            Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                stringResource(R.string.theme_preview),
-                fontSize = 11.sp,
-                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                fontWeight = FontWeight.Bold,
-                color = p.muted
-            )
-            ThemePreview(live)
-        }
-    }
-}
-
-@Composable
-private fun CodeRow(
+internal fun CodeRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit
@@ -1056,7 +726,7 @@ private fun CodeRow(
 }
 
 @Composable
-private fun HexColorField(
+internal fun HexColorField(
     label: String,
     color: Color,
     onColorChange: (Color) -> Unit
@@ -1111,11 +781,11 @@ private fun HexColorField(
     }
 }
 
-private fun Color.toHexRgb(): String =
+internal fun Color.toHexRgb(): String =
     (toArgb() and 0xFFFFFF).toString(16).uppercase().padStart(6, '0')
 
 @Composable
-private fun ThemePreview(palette: SeriePalette) {
+internal fun ThemePreview(palette: SeriePalette) {
     val p = LocalPalette.current
     val useNeo = p.isNeoBrutalist || palette.isNeoBrutalist
     val shape = RoundedCornerShape(if (useNeo) 8.dp else 16.dp)

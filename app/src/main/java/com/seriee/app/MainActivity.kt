@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
                 customGradient = vm.customGradient,
                 customGlass = vm.customGlass,
                 customHighContrast = vm.customHighContrast,
+                customExtras = vm.customExtras,
                 reduceTransparency = vm.reduceTransparency,
                 batterySaverAmoled = vm.batterySaverAmoled
             ) {
@@ -128,7 +129,8 @@ class MainActivity : AppCompatActivity() {
                 backgroundEnd = Color(repo.loadCustomBackgroundEnd()),
                 gradient = repo.loadCustomGradient(),
                 glass = repo.loadCustomGlass(),
-                highContrast = repo.loadCustomHighContrast()
+                highContrast = repo.loadCustomHighContrast(),
+                extras = repo.loadCustomExtras()
             ),
             reduceTransparency = repo.loadReduceTransparency()
         )

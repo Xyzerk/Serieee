@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.rounded.Backup
@@ -124,6 +125,7 @@ fun SerieeApp(
     var showBackupRestore by rememberSaveable { mutableStateOf(false) }
     var showApiKeys by rememberSaveable { mutableStateOf(false) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
+    var showThemeStudio by rememberSaveable { mutableStateOf(false) }
     var showImport by rememberSaveable { mutableStateOf(false) }
     var showDebugOverlay by rememberSaveable { mutableStateOf(false) }
     var fabVisible by remember { mutableStateOf(true) }
@@ -286,18 +288,23 @@ fun SerieeApp(
         ) {
             // Pages scroll under the floating chrome, so fade them out before
             // they reach the clock instead of showing card rows in the status bar.
+            // Over a custom background picture the fade uses the readability
+            // scrim colour so it does not paint a solid band across the photo.
+            val fadeBase = if (LocalThemeBackdrop.current != null) {
+                if (p.isLight) Color.White else Color.Black
+            } else p.bg
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(statusBarTop + 24.dp)
                     .then(
-                        if (p.isNeoBrutalist) {
+                        if (p.isNeoBrutalist && LocalThemeBackdrop.current == null) {
                             Modifier.background(p.bg)
                         } else {
                             Modifier.background(
                                 Brush.verticalGradient(
-                                    0f to p.bg.copy(alpha = 0.94f),
-                                    0.55f to p.bg.copy(alpha = 0.72f),
+                                    0f to fadeBase.copy(alpha = 0.94f),
+                                    0.55f to fadeBase.copy(alpha = 0.72f),
                                     1f to Color.Transparent
                                 )
                             )
@@ -314,11 +321,11 @@ fun SerieeApp(
                 },
                 onOpenChangelog = { vm.openChangelog() },
                 onOpenAbout = { showAbout = true },
+                onOpenThemeStudio = { showThemeStudio = true },
                 onSchedule = {
                     goToTab(0)
                     comingSoonTick++
-                },
-                onOpenDebugOverlay = { showDebugOverlay = !showDebugOverlay }
+                }
             )
 
             if (vm.showBackupReminder) {
@@ -546,6 +553,14 @@ fun SerieeApp(
         )
     }
 
+    if (showThemeStudio) {
+        ThemeStudioDialog(
+            vm = vm,
+            artworkPoster = vm.items.firstOrNull { !it.poster.isNullOrBlank() }?.poster,
+            onDismiss = { showThemeStudio = false }
+        )
+    }
+
     if (showAbout) {
         AboutDialog(
             versionName = vm.currentVersionName,
@@ -662,11 +677,12 @@ private fun SerieeTopBar(
     onOpenImport: () -> Unit,
     onOpenChangelog: () -> Unit,
     onOpenAbout: () -> Unit,
-    onSchedule: () -> Unit,
-    onOpenDebugOverlay: () -> Unit
+    onOpenThemeStudio: () -> Unit,
+    onSchedule: () -> Unit
 ) {
     val p = LocalPalette.current
     var optionsMenu by remember { mutableStateOf(false) }
+    var themeMenu by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -738,6 +754,19 @@ private fun SerieeTopBar(
             )
             Box {
                 IconPillButton(
+                    icon = Icons.Filled.Palette,
+                    contentDescription = stringResource(R.string.theme),
+                    onClick = { themeMenu = true }
+                )
+                SerieeThemeMenu(
+                    vm = vm,
+                    expanded = themeMenu,
+                    onDismiss = { themeMenu = false },
+                    onOpenStudio = onOpenThemeStudio
+                )
+            }
+            Box {
+                IconPillButton(
                     icon = Icons.Filled.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
                     onClick = { optionsMenu = true }
@@ -750,9 +779,7 @@ private fun SerieeTopBar(
                     onApiKeys = onOpenApiKeys,
                     onImport = onOpenImport,
                     onChangelog = onOpenChangelog,
-                    onAbout = onOpenAbout,
-                    onOpenDebugOverlay = onOpenDebugOverlay,
-                    artworkPoster = vm.items.firstOrNull { !it.poster.isNullOrBlank() }?.poster
+                    onAbout = onOpenAbout
                 )
             }
         }

@@ -421,6 +421,8 @@ fun SerieeBackground(p: SeriePalette, modifier: Modifier = Modifier) {
                 )
         )
 
+        ThemeBackdropImage()
+
         if (gradient != null && !p.isNeoBrutalist && p.animatedGradient && p.isGlass) {
             val transition = rememberInfiniteTransition(label = "liquidBackground")
             val drift by transition.animateFloat(
