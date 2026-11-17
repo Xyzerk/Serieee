@@ -226,6 +226,8 @@
     <string name="file_not_picked">File belum dipilih untuk episode ini</string>
     <string name="remove_season">Hapus Season %1$d</string>
     <string name="episode_picked_ok">Terisi</string>
+    <string name="episode_list_show">Tampilkan episode (%1$d)</string>
+    <string name="episode_list_hide">Sembunyikan episode</string>
     <string name="episode_picked_summary">Terisi %1$d / %2$d</string>
     <string name="episode_missing_only">Hanya yang kosong</string>
     <string name="episode_page_range">%1$d–%2$d dari %3$d</string>
