@@ -296,6 +296,10 @@
     <string name="crash_reset_theme">Reset Theme</string>
     <string name="crash_export_backup">Export Backup</string>
     <string name="crash_theme_reset_done">Theme reset to default</string>
+    <string name="report_bug">Report Bug</string>
+    <string name="report_bug_subject">Seriee bug report</string>
+    <string name="report_bug_body">Describe what happened and attach this file. It contains app logs and basic device info, but none of your library.</string>
+    <string name="report_bug_failed">Could not create the bug report</string>
     <string name="debug_overlay">Debug Logs Overlay</string>
     <string name="debug_overlay_title">Debug Log Overlay</string>
     <string name="debug_clear_logs">Clear</string>
@@ -557,4 +561,35 @@
     <string name="welcome_5_desc">Set a release reminder with a countdown, and open your streaming link or local video straight from the app.</string>
     <string name="welcome_6_title">Your data stays yours</string>
     <string name="welcome_6_desc">No account, no ads, no tracking. Everything lives on your device, and you can back it up or restore it anytime.</string>
+
+    <!-- Theme Studio -->
+    <string name="studio_title">Theme Studio</string>
+    <string name="studio_hint">Tap any color to open the picker. Every change applies to the whole app instantly.</string>
+    <string name="studio_bg_image">Image</string>
+    <string name="studio_pick_image">Choose from gallery</string>
+    <string name="studio_change_image">Change image</string>
+    <string name="studio_remove_image">Remove</string>
+    <string name="studio_base_color">Base color (decides light or dark text)</string>
+    <string name="studio_image_dim">Overlay: %1$d%%</string>
+    <string name="studio_image_blur">Blur: %1$d (Android 12+)</string>
+    <string name="studio_surface_opacity">Card opacity: %1$d%%</string>
+    <string name="studio_image_note">The image is copied into the app and scaled to your screen. Your original photo is not changed.</string>
+    <string name="studio_section_colors">All colors</string>
+    <string name="studio_section_share">Share theme</string>
+    <string name="studio_reset_colors">Reset all</string>
+    <string name="studio_color_auto">Auto</string>
+    <string name="studio_color_reset">Reset to auto</string>
+    <string name="studio_hex">Hex</string>
+    <string name="studio_c_text">Text</string>
+    <string name="studio_c_muted">Secondary text</string>
+    <string name="studio_c_card">Cards</string>
+    <string name="studio_c_surface">Panels &amp; sheets</string>
+    <string name="studio_c_border">Borders</string>
+    <string name="studio_c_success">Success</string>
+    <string name="studio_c_warning">Warning</string>
+    <string name="studio_c_danger">Danger</string>
+    <string name="studio_c_info">Info</string>
+    <string name="studio_c_reminder">Reminder</string>
+    <string name="studio_c_star">Stars &amp; ratings</string>
+    <string name="theme_image_failed">Could not use that image</string>
 </resources>
