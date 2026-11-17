@@ -24,8 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
@@ -51,8 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
@@ -71,7 +67,6 @@ import com.seriee.app.data.MediaType
 import com.seriee.app.data.WatchStatus
 import com.seriee.app.reminder.ReminderScheduler
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProgressScreen(
     list: List<MediaItem>,
@@ -82,24 +77,15 @@ fun ProgressScreen(
     bestStreak: Int = 0,
     watchDays: Set<String> = emptySet(),
     onAdd: () -> Unit = {},
-    searchFocusTick: Int = 0,
     comingSoonTick: Int = 0,
-    onSearchHandled: () -> Unit = {},
     onComingSoonHandled: () -> Unit = {}
 ) {
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableIntStateOf(0) }
-    val focusRequester = remember { FocusRequester() }
 
-    // The ticks are one-shot requests from the top bar. Consume them so that
+    // The tick is a one-shot request from the top bar. Consume it so that
     // returning to Progress later keeps whatever filter/search the user left.
-    LaunchedEffect(searchFocusTick) {
-        if (searchFocusTick > 0) {
-            runCatching { focusRequester.requestFocus() }
-            onSearchHandled()
-        }
-    }
     LaunchedEffect(comingSoonTick) {
         if (comingSoonTick > 0) {
             filter = 4
@@ -179,7 +165,6 @@ fun ProgressScreen(
                 SField(
                     value = query,
                     onChange = { query = it },
-                    modifier = Modifier.focusRequester(focusRequester),
                     placeholder = stringResource(R.string.search_progress_placeholder),
                     filled = true,
                     leading = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
@@ -197,19 +182,15 @@ fun ProgressScreen(
                     } else null
                 )
 
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    filters.forEachIndexed { index, (label, _) ->
-                        FilterChip(
-                            label = "$label (${filterCounts[index]})",
-                            selected = filter == index,
-                            onClick = { filter = index }
-                        )
-                    }
-                }
+                DropdownField(
+                    label = "",
+                    valueLabel = filters.getOrNull(filter)
+                        ?.let { (label, _) -> "$label (${filterCounts[filter]})" }
+                        ?: "",
+                    options = filters.mapIndexed { i, (label, _) -> i to "$label (${filterCounts[i]})" },
+                    onSelect = { filter = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 

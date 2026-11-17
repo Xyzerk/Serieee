@@ -50,7 +50,6 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.rounded.Backup
@@ -153,7 +152,6 @@ fun SerieeApp(
     }
 
     // Quick-action triggers handed down to the active screen.
-    var searchTick by remember { mutableIntStateOf(0) }
     var comingSoonTick by remember { mutableIntStateOf(0) }
 
     val pagerState = rememberPagerState(initialPage = tab) { 3 }
@@ -247,9 +245,7 @@ fun SerieeApp(
                                     editingId = null
                                     showForm = true
                                 },
-                                searchFocusTick = searchTick,
                                 comingSoonTick = comingSoonTick,
-                                onSearchHandled = { searchTick = 0 },
                                 onComingSoonHandled = { comingSoonTick = 0 }
                             )
                             1 -> LibraryScreen(
@@ -262,8 +258,7 @@ fun SerieeApp(
                                 onAdd = {
                                     editingId = null
                                     showForm = true
-                                },
-                                searchFocusTick = searchTick
+                                }
                             )
                             else -> InsightsScreen(
                                 list = vm.items,
@@ -319,10 +314,6 @@ fun SerieeApp(
                 },
                 onOpenChangelog = { vm.openChangelog() },
                 onOpenAbout = { showAbout = true },
-                onSearch = {
-                    if (tab != 0) goToTab(0)
-                    searchTick++
-                },
                 onSchedule = {
                     goToTab(0)
                     comingSoonTick++
@@ -671,7 +662,6 @@ private fun SerieeTopBar(
     onOpenImport: () -> Unit,
     onOpenChangelog: () -> Unit,
     onOpenAbout: () -> Unit,
-    onSearch: () -> Unit,
     onSchedule: () -> Unit,
     onOpenDebugOverlay: () -> Unit
 ) {
@@ -741,11 +731,6 @@ private fun SerieeTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconPillButton(
-                icon = Icons.Filled.Search,
-                contentDescription = stringResource(R.string.search),
-                onClick = onSearch
-            )
             IconPillButton(
                 icon = Icons.Filled.CalendarMonth,
                 contentDescription = stringResource(R.string.schedule),
