@@ -2,7 +2,9 @@ package com.seriee.app.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.os.SystemClock
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -51,6 +53,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,6 +89,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val EPISODES_PAGE_SIZE = 50
+private const val BACK_CONFIRM_WINDOW_MS = 2000L
 private const val EPISODES_UNPAGED_LIMIT = 100
 
 private data class SeasonDraft(
@@ -417,6 +421,22 @@ fun MediaFormDialog(
         dragHandle = { SheetDragHandle() }
     ) {
         LiquidSheetHost {
+            // Adding a title takes effort, so a stray back press must not throw it away:
+            // the first press only warns, a second one within 2 seconds cancels.
+            var lastBackPressAt by remember { mutableLongStateOf(0L) }
+            BackHandler(enabled = initial == null) {
+                val now = SystemClock.elapsedRealtime()
+                if (lastBackPressAt != 0L && now - lastBackPressAt <= BACK_CONFIRM_WINDOW_MS) {
+                    onDismiss()
+                } else {
+                    lastBackPressAt = now
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.back_again_to_cancel),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
             Column(
                 Modifier
                     .fillMaxWidth()
