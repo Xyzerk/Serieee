@@ -40,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.derivedStateOf
@@ -82,43 +81,26 @@ fun ProgressScreen(
 ) {
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableIntStateOf(0) }
+    var filter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
 
     // The tick is a one-shot request from the top bar. Consume it so that
-    // returning to Progress later keeps whatever filter/search the user left.
+    // returning to Progress later keeps whatever filter the user left.
     LaunchedEffect(comingSoonTick) {
         if (comingSoonTick > 0) {
-            filter = 4
+            filter = WatchStatus.ComingSoon
             onComingSoonHandled()
         }
     }
 
-    val filters = listOf(
-        stringResource(R.string.filter_all) to null,
-        stringResource(R.string.filter_watching) to WatchStatus.Watching,
-        stringResource(R.string.filter_completed) to WatchStatus.Completed,
-        stringResource(R.string.filter_plan_to_watch) to WatchStatus.PlanToWatch,
-        stringResource(R.string.filter_coming_soon) to WatchStatus.ComingSoon,
-        stringResource(R.string.filter_on_hold) to WatchStatus.OnHold,
-        stringResource(R.string.filter_dropped) to WatchStatus.Dropped
-    )
+    val filterOptions = statusFilters.map { (status, labelRes) -> status to stringResource(labelRes) }
     val filterCounts = remember(list) {
-        listOf(
-            list.size,
-            list.count { it.status == WatchStatus.Watching },
-            list.count { it.status == WatchStatus.Completed },
-            list.count { it.status == WatchStatus.PlanToWatch },
-            list.count { it.status == WatchStatus.ComingSoon },
-            list.count { it.status == WatchStatus.OnHold },
-            list.count { it.status == WatchStatus.Dropped }
-        )
+        statusFilters.associate { (status, _) -> status to list.countWithStatus(status) }
     }
 
     val filtered by remember(list, query, filter) {
         derivedStateOf {
-            val status = filters.getOrNull(filter)?.second
             list.filter { it.title.contains(query.trim(), ignoreCase = true) }
-                .filter { status == null || it.status == status }
+                .filter { filter == null || it.status == filter }
         }
     }
 
@@ -184,12 +166,13 @@ fun ProgressScreen(
 
                 DropdownField(
                     label = "",
-                    valueLabel = filters.getOrNull(filter)
-                        ?.let { (label, _) -> "$label (${filterCounts[filter]})" }
-                        ?: "",
-                    options = filters.mapIndexed { i, (label, _) -> i to "$label (${filterCounts[i]})" },
+                    valueLabel = filterOptions.firstOrNull { it.first == filter }?.second ?: "",
+                    options = filterOptions.map { (status, label) -> status to "$label (${filterCounts[status] ?: 0})" },
                     onSelect = { filter = it },
-                    modifier = Modifier.fillMaxWidth()
+                    accessibleLabel = stringResource(R.string.filter_status_label),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("progress-filter-status")
                 )
             }
         }

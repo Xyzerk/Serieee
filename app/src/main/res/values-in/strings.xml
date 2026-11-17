@@ -33,6 +33,7 @@
     <string name="active_progress_subtitle">Lacak perkembangan episode dan jadwal tayang serial &amp; film</string>
     <string name="search_progress_placeholder">Cari progres serial atau film...</string>
     <string name="clear_search">Hapus pencarian</string>
+    <string name="filter_status_label">Status</string>
     <string name="filter_all">Semua</string>
     <string name="filter_watching">Sedang Ditonton</string>
     <string name="filter_completed">Selesai</string>
@@ -305,6 +306,7 @@
     <string name="debug_filter_errors">Error &amp; Crash</string>
 
     <!-- Urutan dan tag pustaka -->
+    <string name="sort_label">Urutkan</string>
     <string name="sort_recent">Terbaru</string>
     <string name="sort_title">Judul A–Z</string>
     <string name="sort_rating">Rating Tertinggi</string>
@@ -416,7 +418,6 @@
     <string name="back">Kembali</string>
 
     <!-- Header quick actions -->
-    <string name="search">Cari</string>
     <string name="schedule">Jadwal</string>
     <string name="nav_next_tab">Tab berikutnya</string>
     <string name="nav_previous_tab">Tab sebelumnya</string>
@@ -470,6 +471,7 @@
     <string name="empty_progress_hint">Tambah judul untuk mulai melacak episode dan tanggal tayang.</string>
     <string name="empty_library_title">Pustakamu kosong</string>
     <string name="empty_library_hint">Tambah serial atau film untuk memulai.</string>
+    <string name="empty_library_filters_hint">Coba kata kunci lain, atau hapus filter.</string>
     <string name="clear_filters">Hapus filter</string>
 
     <!-- Collection import -->

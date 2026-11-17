@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -99,7 +100,7 @@ fun LibraryScreen(
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
     var typeFilter by rememberSaveable { mutableIntStateOf(0) }
-    var statusFilter by rememberSaveable { mutableIntStateOf(0) }
+    var statusFilter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
     var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortBy by rememberSaveable { mutableStateOf(LibrarySort.RECENT) }
 
@@ -109,27 +110,13 @@ fun LibraryScreen(
         stringResource(R.string.type_movie)
     )
 
+    val statusOptions = statusFilters.map { (status, labelRes) -> status to stringResource(labelRes) }
     val statusCounts = remember(list) {
-        listOf(
-            list.size,
-            list.count { it.status == WatchStatus.Watching },
-            list.count { it.status == WatchStatus.Completed },
-            list.count { it.status == WatchStatus.PlanToWatch },
-            list.count { it.status == WatchStatus.ComingSoon },
-            list.count { it.status == WatchStatus.OnHold },
-            list.count { it.status == WatchStatus.Dropped }
-        )
+        statusFilters.associate { (status, _) -> status to list.countWithStatus(status) }
     }
+    val statusValueLabel = statusOptions.firstOrNull { it.first == statusFilter }?.second ?: ""
 
-    val statusChips = listOf(
-        Triple(stringResource(R.string.filter_all), null, statusCounts[0]),
-        Triple(stringResource(R.string.filter_watching), WatchStatus.Watching, statusCounts[1]),
-        Triple(stringResource(R.string.filter_completed), WatchStatus.Completed, statusCounts[2]),
-        Triple(stringResource(R.string.filter_plan_to_watch), WatchStatus.PlanToWatch, statusCounts[3]),
-        Triple(stringResource(R.string.filter_coming_soon), WatchStatus.ComingSoon, statusCounts[4]),
-        Triple(stringResource(R.string.filter_on_hold), WatchStatus.OnHold, statusCounts[5]),
-        Triple(stringResource(R.string.filter_dropped), WatchStatus.Dropped, statusCounts[6])
-    )
+    val sortOptions = LibrarySort.entries.map { it to stringResource(it.labelRes) }
 
     val availableTags = remember(list) {
         list.flatMap { it.tags }
@@ -141,7 +128,6 @@ fun LibraryScreen(
 
     val filtered by remember(list, query, typeFilter, statusFilter, tagFilter, sortBy) {
         derivedStateOf {
-            val status = statusChips.getOrNull(statusFilter)?.second
             val matched = list.filter { it.title.contains(query.trim(), ignoreCase = true) }
                 .filter {
                     when (typeFilter) {
@@ -150,7 +136,7 @@ fun LibraryScreen(
                         else -> true
                     }
                 }
-                .filter { status == null || it.status == status }
+                .filter { statusFilter == null || it.status == statusFilter }
                 .filter { tagFilter == null || it.tags.any { tag -> tag.equals(tagFilter, ignoreCase = true) } }
             val secondary: Comparator<MediaItem> = when (sortBy) {
                 LibrarySort.RECENT -> compareByDescending { it.updatedAt }
@@ -192,25 +178,40 @@ fun LibraryScreen(
                 } else null
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CompactDropdownField(
+                DropdownField(
+                    label = "",
                     valueLabel = typeLabels.getOrElse(typeFilter) { typeLabels.first() },
                     options = typeLabels.mapIndexed { i, s -> i to s },
                     onSelect = { typeFilter = it },
-                    modifier = Modifier.weight(1f)
+                    accessibleLabel = stringResource(R.string.type_label),
+                    dense = true,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("library-filter-type")
                 )
                 Spacer(Modifier.width(10.dp))
-                CompactDropdownField(
-                    valueLabel = statusChips.getOrNull(statusFilter)?.first ?: "",
-                    options = statusChips.mapIndexed { i, (label, _, count) -> i to "$label ($count)" },
+                DropdownField(
+                    label = "",
+                    valueLabel = statusValueLabel,
+                    options = statusOptions.map { (status, label) -> status to "$label (${statusCounts[status] ?: 0})" },
                     onSelect = { statusFilter = it },
-                    modifier = Modifier.weight(1f)
+                    accessibleLabel = stringResource(R.string.filter_status_label),
+                    dense = true,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("library-filter-status")
                 )
                 Spacer(Modifier.width(10.dp))
-                CompactDropdownField(
+                DropdownField(
+                    label = "",
                     valueLabel = stringResource(sortBy.labelRes),
-                    options = LibrarySort.entries.map { it to stringResource(it.labelRes) },
+                    options = sortOptions,
                     onSelect = { sortBy = it },
-                    modifier = Modifier.weight(1f)
+                    accessibleLabel = stringResource(R.string.sort_label),
+                    dense = true,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("library-filter-sort")
                 )
                 Spacer(Modifier.width(10.dp))
                 Row(
@@ -307,12 +308,18 @@ fun LibraryScreen(
                             } else {
                                 stringResource(R.string.no_library_items)
                             },
-                            hint = stringResource(R.string.empty_library_hint),
+                            hint = if (list.isEmpty()) {
+                                stringResource(R.string.empty_library_hint)
+                            } else {
+                                // Titles exist; they are only hidden by the
+                                // active search/type/status/tag filters.
+                                stringResource(R.string.empty_library_filters_hint)
+                            },
                             ctaLabel = stringResource(R.string.clear_filters),
                             onCta = {
                                 query = ""
                                 typeFilter = 0
-                                statusFilter = 0
+                                statusFilter = null
                                 tagFilter = null
                             }
                         )
