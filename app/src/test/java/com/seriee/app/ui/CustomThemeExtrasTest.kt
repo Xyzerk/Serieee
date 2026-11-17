@@ -53,7 +53,8 @@ class CustomThemeExtrasTest {
         )
 
         assertTrue(withImage.card.alpha < flat.card.alpha)
-        assertTrue(withImage.card.alpha <= 0.5f)
+        // Compose stores alpha in 10 bits, so 0.5 reads back as ~0.5005.
+        assertEquals(0.5f, withImage.card.alpha, 0.01f)
     }
 
     @Test
