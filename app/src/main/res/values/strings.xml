@@ -33,6 +33,7 @@
     <string name="active_progress_subtitle">Track episode progress and release schedules for series &amp; movies</string>
     <string name="search_progress_placeholder">Search series or movies...</string>
     <string name="clear_search">Clear search</string>
+    <string name="filter_status_label">Status</string>
     <string name="filter_all">All</string>
     <string name="filter_watching">Watching</string>
     <string name="filter_completed">Completed</string>
@@ -305,6 +306,7 @@
     <string name="debug_filter_errors">Errors &amp; Crashes</string>
 
     <!-- Library sorting and tags -->
+    <string name="sort_label">Sort</string>
     <string name="sort_recent">Recent</string>
     <string name="sort_title">Title A–Z</string>
     <string name="sort_rating">Top Rated</string>
@@ -432,7 +434,6 @@
     <string name="back">Back</string>
 
     <!-- Header quick actions -->
-    <string name="search">Search</string>
     <string name="schedule">Schedule</string>
     <string name="nav_next_tab">Next tab</string>
     <string name="nav_previous_tab">Previous tab</string>
@@ -491,6 +492,7 @@
     <string name="empty_progress_hint">Add a title to start tracking episodes and release dates.</string>
     <string name="empty_library_title">Your library is empty</string>
     <string name="empty_library_hint">Add a series or movie to get started.</string>
+    <string name="empty_library_filters_hint">Try a different search, or clear the filters.</string>
     <string name="clear_filters">Clear filters</string>
 
     <!-- Collection import -->

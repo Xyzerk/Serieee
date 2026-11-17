@@ -56,14 +56,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -375,42 +377,70 @@ fun SField(
     )
 }
 
+/**
+ * Select control used by the filter headers.
+ *
+ * @param label Optional visible label rendered above the field.
+ * @param accessibleLabel Name announced before the current value, for headers
+ * that stay visually unlabeled to save vertical space. Without it TalkBack
+ * reads a bare value such as "Watching (12)".
+ * @param dense Tighter padding and 12sp text, for fields that share a row with
+ * siblings. The value is always a single ellipsized line, so a long label can
+ * never change the row's height.
+ */
 @Composable
 fun <T> DropdownField(
     label: String,
     valueLabel: String,
     options: List<Pair<T, String>>,
     onSelect: (T) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    accessibleLabel: String? = null,
+    dense: Boolean = false
 ) {
     val p = LocalPalette.current
     var expanded by remember { mutableStateOf(false) }
-    val fieldShape = if (p.isNeoBrutalist) RoundedCornerShape(8.dp) else RoundedCornerShape(16.dp)
+    val fieldShape = if (p.isNeoBrutalist) {
+        RoundedCornerShape(8.dp)
+    } else {
+        RoundedCornerShape(if (dense) 14.dp else 16.dp)
+    }
+    val spokenLabel = if (accessibleLabel.isNullOrBlank()) valueLabel else "$accessibleLabel: $valueLabel"
+    val densePadding = PaddingValues(start = 10.dp, end = 4.dp, top = 12.dp, bottom = 12.dp)
     Column(modifier) {
         if (label.isNotEmpty()) FieldLabel(label)
         Box {
             if (p.isNeoBrutalist) {
                 NeoBrutalistBox(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = spokenLabel },
                     onClick = { expanded = true },
                     role = Role.DropdownList,
                     backgroundColor = p.surface,
                     borderColor = p.border,
                     shadowColor = NeoBrutalistColors.Black,
                     borderWidth = 2.5.dp,
-                    shadowOffset = 4.dp,
+                    shadowOffset = if (dense) 3.dp else 4.dp,
                     cornerRadius = 8.dp,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+                    contentPadding = if (dense) densePadding else PaddingValues(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = valueLabel,
                             color = p.text,
-                            fontSize = 13.sp,
+                            fontSize = if (dense) 12.sp else 13.sp,
                             fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = p.text)
+                        Icon(
+                            Icons.Filled.ArrowDropDown,
+                            contentDescription = null,
+                            tint = p.text,
+                            modifier = Modifier.size(if (dense) 20.dp else 24.dp)
+                        )
                     }
                 }
             } else {
@@ -427,17 +457,25 @@ fun <T> DropdownField(
                             refractionAmount = 12.dp,
                             chromaticAberration = false
                         )
-                        .clickable { expanded = true }
-                        .padding(horizontal = 14.dp, vertical = 13.dp),
+                        .clickable(role = Role.DropdownList) { expanded = true }
+                        .semantics { contentDescription = spokenLabel }
+                        .padding(if (dense) densePadding else PaddingValues(horizontal = 14.dp, vertical = 13.dp)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = valueLabel,
                         color = p.text,
-                        fontSize = 14.sp,
+                        fontSize = if (dense) 12.sp else 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = p.muted)
+                    Icon(
+                        Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        tint = p.muted,
+                        modifier = Modifier.size(if (dense) 20.dp else 24.dp)
+                    )
                 }
             }
             DropdownMenu(
@@ -464,115 +502,6 @@ fun <T> DropdownField(
                         }
                     )
                 }
-            }
-        }
-    }
-}
-
-/**
- * Small dropdown meant to sit side by side with siblings in a Row (give each
- * one Modifier.weight(1f)). The closed box shows only [valueLabel], single line
- * and ellipsized; the menu shows the full [options] text.
- */
-@Composable
-fun <T> CompactDropdownField(
-    valueLabel: String,
-    options: List<Pair<T, String>>,
-    onSelect: (T) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val p = LocalPalette.current
-    var expanded by remember { mutableStateOf(false) }
-    val fieldShape = if (p.isNeoBrutalist) RoundedCornerShape(8.dp) else RoundedCornerShape(14.dp)
-    Box(modifier) {
-        if (p.isNeoBrutalist) {
-            NeoBrutalistBox(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { expanded = true },
-                role = Role.DropdownList,
-                backgroundColor = p.surface,
-                borderColor = p.border,
-                shadowColor = NeoBrutalistColors.Black,
-                borderWidth = 2.5.dp,
-                shadowOffset = 3.dp,
-                cornerRadius = 8.dp,
-                contentPadding = PaddingValues(start = 10.dp, end = 4.dp, top = 12.dp, bottom = 12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = valueLabel,
-                        color = p.text,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        Icons.Filled.ArrowDropDown,
-                        contentDescription = null,
-                        tint = p.text,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .liquidGlass(
-                        shape = fieldShape,
-                        tint = if (p.isGlass) {
-                            if (p.isLight) Color.White.copy(alpha = 0.48f) else Color.White.copy(alpha = 0.10f)
-                        } else p.bg,
-                        blurRadius = 10.dp,
-                        refractionHeight = 8.dp,
-                        refractionAmount = 12.dp,
-                        chromaticAberration = false
-                    )
-                    .clickable { expanded = true }
-                    .padding(start = 10.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = valueLabel,
-                    color = p.text,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    Icons.Filled.ArrowDropDown,
-                    contentDescription = null,
-                    tint = p.muted,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = if (p.isNeoBrutalist) RoundedCornerShape(8.dp) else RoundedCornerShape(20.dp),
-            containerColor = if (p.isNeoBrutalist) p.surface else if (p.isGlass) p.elevated else p.surface,
-            tonalElevation = 0.dp,
-            shadowElevation = if (p.isNeoBrutalist) 0.dp else 8.dp,
-            border = if (p.isNeoBrutalist) BorderStroke(2.5.dp, p.border) else null
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            option.second,
-                            color = p.text,
-                            fontWeight = if (p.isNeoBrutalist) FontWeight.Bold else FontWeight.Normal
-                        )
-                    },
-                    onClick = {
-                        onSelect(option.first)
-                        expanded = false
-                    }
-                )
             }
         }
     }
