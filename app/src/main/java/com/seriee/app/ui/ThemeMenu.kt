@@ -70,7 +70,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -661,7 +661,7 @@ private fun CustomizePage(
         reduceTransparency = vm.reduceTransparency
     )
     val context = LocalContext.current
-    val clipboard = LocalClipboard.current
+    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var pickingArtwork by remember { mutableStateOf(false) }
     var codeMessage by remember { mutableStateOf<Int?>(null) }
