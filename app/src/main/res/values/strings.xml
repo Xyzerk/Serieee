@@ -539,4 +539,22 @@
     <string name="import_error_cancelled">Import cancelled</string>
     <string name="import_error_unknown">Import failed. Try again.</string>
     <string name="import_no_entries">No entries found in that list</string>
+
+    <!-- Welcome / onboarding -->
+    <string name="welcome_skip">Skip</string>
+    <string name="welcome_next">Next</string>
+    <string name="welcome_start">Get started</string>
+    <string name="welcome_page_of">Page %1$d of %2$d</string>
+    <string name="welcome_1_title">Welcome to Seriee</string>
+    <string name="welcome_1_desc">Your personal tracker for series, anime, and movies. Always know where you left off.</string>
+    <string name="welcome_2_title">Track your progress</string>
+    <string name="welcome_2_desc">Tap + to advance an episode. Follow every season, filter by status, and keep a daily watch streak going.</string>
+    <string name="welcome_3_title">Build your library</string>
+    <string name="welcome_3_desc">Search a title and the poster, genres, and details fill in automatically. Add ratings, favorites, and import your MyAnimeList or AniList.</string>
+    <string name="welcome_4_title">See your insights</string>
+    <string name="welcome_4_desc">Watch time, completion rate, top genres, and a weekly activity heatmap show how you really watch.</string>
+    <string name="welcome_5_title">Never miss a release</string>
+    <string name="welcome_5_desc">Set a release reminder with a countdown, and open your streaming link or local video straight from the app.</string>
+    <string name="welcome_6_title">Your data stays yours</string>
+    <string name="welcome_6_desc">No account, no ads, no tracking. Everything lives on your device, and you can back it up or restore it anytime.</string>
 </resources>
