@@ -99,7 +99,6 @@ import androidx.compose.ui.unit.sp
 import com.seriee.app.R
 import com.seriee.app.SerieeViewModel
 import com.seriee.app.debug.AppLogger
-import `import androidx`.compose.ui.input.nestedscroll.NestedScrollSource.Companion.UserInput
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
