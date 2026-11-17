@@ -192,14 +192,27 @@ fun LibraryScreen(
                 } else null
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                DropdownField(
-                    label = "",
+                CompactDropdownField(
                     valueLabel = typeLabels.getOrElse(typeFilter) { typeLabels.first() },
                     options = typeLabels.mapIndexed { i, s -> i to s },
                     onSelect = { typeFilter = it },
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(10.dp))
+                CompactDropdownField(
+                    valueLabel = statusChips.getOrNull(statusFilter)?.first ?: "",
+                    options = statusChips.mapIndexed { i, (label, _, count) -> i to "$label ($count)" },
+                    onSelect = { statusFilter = it },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(10.dp))
+                CompactDropdownField(
+                    valueLabel = stringResource(sortBy.labelRes),
+                    options = LibrarySort.entries.map { it to stringResource(it.labelRes) },
+                    onSelect = { sortBy = it },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(10.dp))
                 Row(
                     modifier = if (p.isNeoBrutalist) {
                         Modifier
@@ -233,30 +246,6 @@ fun LibraryScreen(
                         Icon(Icons.AutoMirrored.Filled.ViewList, contentDescription = stringResource(R.string.list), modifier = Modifier.size(18.dp), tint = it)
                     }
                 }
-            }
-
-            // Status filter + sort order, collapsed into two compact dropdowns
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                DropdownField(
-                    label = "",
-                    valueLabel = statusChips.getOrNull(statusFilter)
-                        ?.let { (label, _, count) -> "$label ($count)" }
-                        ?: "",
-                    options = statusChips.mapIndexed { i, (label, _, count) -> i to "$label ($count)" },
-                    onSelect = { statusFilter = it },
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(12.dp))
-                DropdownField(
-                    label = "",
-                    valueLabel = stringResource(sortBy.labelRes),
-                    options = LibrarySort.entries.map { it to stringResource(it.labelRes) },
-                    onSelect = { sortBy = it },
-                    modifier = Modifier.weight(1f)
-                )
             }
 
             // Tag filter, only when at least one tag exists
