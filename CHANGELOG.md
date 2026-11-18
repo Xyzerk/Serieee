@@ -39,6 +39,10 @@ dialog is generated from the `changelog_*` strings in
   to switch back to all episodes.
 - The six Neo-Brutalism tone swatches now have TalkBack names; unselected tones
   are no longer announced as unnamed radio buttons.
+- Theme Studio's accent and gradient swatches are named the same way, so TalkBack
+  announces "Blue", "Pink to violet", and so on instead of an unnamed radio button.
+- Editing any appearance setting now refreshes the home-screen widget right away
+  instead of waiting for the next library change or the midnight alarm.
 
 ## [0.5.0] — 2026-11-16
 

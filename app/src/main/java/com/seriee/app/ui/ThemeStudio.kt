@@ -70,6 +70,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -262,7 +264,10 @@ fun ThemeStudioDialog(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                gradientPresets.forEach { (start, end) ->
+                                gradientPresets.forEach { preset ->
+                                    val start = preset.start
+                                    val end = preset.end
+                                    val label = stringResource(preset.labelRes)
                                     val selected = start.value == vm.customBackgroundStart.value &&
                                         end.value == vm.customBackgroundEnd.value
                                     val shape = RoundedCornerShape(if (p.isNeoBrutalist) 6.dp else 9.dp)
@@ -276,6 +281,7 @@ fun ThemeStudioDialog(
                                                 if (selected) p.text else p.border,
                                                 shape
                                             )
+                                            .semantics { contentDescription = label }
                                             .selectable(selected = selected, role = Role.RadioButton) {
                                                 vm.setCustomGradient(true)
                                                 vm.setCustomBackground(start, end)
@@ -293,13 +299,14 @@ fun ThemeStudioDialog(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             accentPresets.forEach { preset ->
-                                val selected = preset.value == vm.customAccent.value
+                                val label = stringResource(preset.labelRes)
+                                val selected = preset.color.value == vm.customAccent.value
                                 val shape = if (p.isNeoBrutalist) RoundedCornerShape(6.dp) else CircleShape
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(shape)
-                                        .background(preset)
+                                        .background(preset.color)
                                         .border(
                                             2.dp,
                                             when {
@@ -309,8 +316,9 @@ fun ThemeStudioDialog(
                                             },
                                             shape
                                         )
+                                        .semantics { contentDescription = label }
                                         .selectable(selected = selected, role = Role.RadioButton) {
-                                            vm.setCustomAccent(preset)
+                                            vm.setCustomAccent(preset.color)
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -318,7 +326,7 @@ fun ThemeStudioDialog(
                                         Icon(
                                             Icons.Filled.Check,
                                             contentDescription = null,
-                                            tint = if (preset.luminance() > 0.6f) Color.Black else Color.White,
+                                            tint = if (preset.color.luminance() > 0.6f) Color.Black else Color.White,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
