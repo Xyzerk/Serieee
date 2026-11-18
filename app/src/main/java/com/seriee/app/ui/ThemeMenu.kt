@@ -75,6 +75,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -92,27 +94,44 @@ import kotlinx.coroutines.launch
 
 private enum class MenuPage { Root, Language }
 
+/** An accent preset plus the name screen readers announce for it. */
+internal data class AccentPreset(val color: Color, val labelRes: Int)
+
 /** Accent presets offered by the custom theme. */
 internal val accentPresets = listOf(
-    Color(0xFF3B82F6),
-    Color(0xFFF0559B),
-    Color(0xFF8B5CF6),
-    Color(0xFF10B981),
-    Color(0xFFF59E0B),
-    Color(0xFFEF4444),
-    Color(0xFF06B6D4),
-    Color(0xFFF8FAFC)
+    AccentPreset(Color(0xFF3B82F6), R.string.theme_accent_blue),
+    AccentPreset(Color(0xFFF0559B), R.string.theme_accent_pink),
+    AccentPreset(Color(0xFF8B5CF6), R.string.theme_accent_violet),
+    AccentPreset(Color(0xFF10B981), R.string.theme_accent_green),
+    AccentPreset(Color(0xFFF59E0B), R.string.theme_accent_amber),
+    AccentPreset(Color(0xFFEF4444), R.string.theme_accent_red),
+    AccentPreset(Color(0xFF06B6D4), R.string.theme_accent_cyan),
+    AccentPreset(Color(0xFFF8FAFC), R.string.theme_accent_white)
 )
+
+/** A two-stop background gradient plus the name screen readers announce. */
+internal data class GradientPreset(val start: Color, val end: Color, val labelRes: Int)
 
 /** Two-stop background gradients for the custom theme. */
 internal val gradientPresets = listOf(
-    Color(0xFF1D4ED8) to Color(0xFF7C2A64),
-    Color(0xFF0EA5E9) to Color(0xFF6366F1),
-    Color(0xFFF0559B) to Color(0xFF8B5CF6),
-    Color(0xFF10B981) to Color(0xFF06B6D4),
-    Color(0xFFF59E0B) to Color(0xFFEF4444),
-    Color(0xFF64748B) to Color(0xFF0F172A)
+    GradientPreset(Color(0xFF1D4ED8), Color(0xFF7C2A64), R.string.theme_gradient_blue_magenta),
+    GradientPreset(Color(0xFF0EA5E9), Color(0xFF6366F1), R.string.theme_gradient_sky_indigo),
+    GradientPreset(Color(0xFFF0559B), Color(0xFF8B5CF6), R.string.theme_gradient_pink_violet),
+    GradientPreset(Color(0xFF10B981), Color(0xFF06B6D4), R.string.theme_gradient_green_cyan),
+    GradientPreset(Color(0xFFF59E0B), Color(0xFFEF4444), R.string.theme_gradient_amber_red),
+    GradientPreset(Color(0xFF64748B), Color(0xFF0F172A), R.string.theme_gradient_slate_black)
 )
+
+/** Localised TalkBack name for each Neo-Brutalism tone swatch. */
+private val NeoTone.labelRes: Int
+    get() = when (this) {
+        NeoTone.Yellow -> R.string.theme_tone_yellow
+        NeoTone.Orange -> R.string.theme_tone_orange
+        NeoTone.Pink -> R.string.theme_tone_pink
+        NeoTone.Purple -> R.string.theme_tone_purple
+        NeoTone.Blue -> R.string.theme_tone_blue
+        NeoTone.Mint -> R.string.theme_tone_mint
+    }
 
 /**
  * Theme popup opened from its own top-bar button. [onOpenStudio] launches the
@@ -501,6 +520,7 @@ private fun ThemePage(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         NeoTone.entries.forEach { tone ->
                             val toneSelected = tone == vm.neoTone
+                            val toneLabel = stringResource(tone.labelRes)
                             val toneShape = RoundedCornerShape(6.dp)
                             Box(
                                 modifier = Modifier
@@ -514,6 +534,9 @@ private fun ThemePage(
                                         cornerRadius = 6.dp
                                     )
                                     .clip(toneShape)
+                                    // Unselected swatches have no visible text, so without
+                                    // this TalkBack announces a nameless radio button.
+                                    .semantics { contentDescription = toneLabel }
                                     .selectable(
                                         selected = toneSelected,
                                         role = Role.RadioButton
@@ -523,7 +546,7 @@ private fun ThemePage(
                                 if (toneSelected) {
                                     Icon(
                                         Icons.Filled.Check,
-                                        contentDescription = tone.name,
+                                        contentDescription = null,
                                         tint = NeoBrutalistColors.Black,
                                         modifier = Modifier.size(16.dp)
                                     )

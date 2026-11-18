@@ -119,6 +119,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile
     private var latestActivePosters: Set<String> = emptySet()
     private var maintenanceJob: Job? = null
+    private var widgetThemeJob: Job? = null
 
     private fun commit(newItems: List<MediaItem>) {
         val uniqueItems = newItems.distinctBy { it.id }
@@ -141,6 +142,20 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         maintenanceJob = viewModelScope.launch(Dispatchers.IO) {
             delay(200)
             PosterStore.pruneUnused(app, latestActivePosters)
+            SerieeWidgetProvider.notifyChanged(app)
+        }
+    }
+
+    /**
+     * The launcher widget mirrors the resolved palette. Theme edits arrive on
+     * every slider or picker move, so debounce the burst into a single rebuild;
+     * [SerieeWidgetProvider.notifyChanged] is a no-op when no widget is placed.
+     */
+    private fun scheduleWidgetThemeRefresh() {
+        widgetThemeJob?.cancel()
+        val app = getApplication<Application>()
+        widgetThemeJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(250)
             SerieeWidgetProvider.notifyChanged(app)
         }
     }
@@ -418,6 +433,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (_themeMode.value == value) return
         _themeMode.value = value
         repo.saveTheme(_themeMode.value, _themeStyle.value)
+        scheduleWidgetThemeRefresh()
     }
 
     /** Falls back to the app defaults after repeated crashes and clears the crash streak. */
@@ -435,6 +451,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (_themeStyle.value == value) return
         _themeStyle.value = value
         repo.saveTheme(_themeMode.value, _themeStyle.value)
+        scheduleWidgetThemeRefresh()
     }
 
     fun setNeoTone(value: NeoTone) {
@@ -442,12 +459,14 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _neoTone.value = value
         NeoBrutalistColors.setTone(value)
         repo.saveNeoTone(value.name)
+        scheduleWidgetThemeRefresh()
     }
 
     fun setCustomAccent(value: Color) {
         _customAccent.value = value
         repo.saveCustomAccent(value.toArgb())
         ensureCustomStyle()
+        scheduleWidgetThemeRefresh()
     }
 
     fun setCustomBackground(start: Color, end: Color) {
@@ -455,12 +474,14 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _customBackgroundEnd.value = end
         repo.saveCustomBackground(start.toArgb(), end.toArgb())
         ensureCustomStyle()
+        scheduleWidgetThemeRefresh()
     }
 
     fun setCustomGradient(value: Boolean) {
         _customGradient.value = value
         repo.saveCustomGradient(value)
         ensureCustomStyle()
+        scheduleWidgetThemeRefresh()
     }
 
     /** Glass and high contrast are two different surface treatments. */
@@ -472,6 +493,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             repo.saveCustomHighContrast(false)
         }
         ensureCustomStyle()
+        scheduleWidgetThemeRefresh()
     }
 
     /** Neo-Brutalist treatment; mutually exclusive with glass surfaces. */
@@ -483,6 +505,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             repo.saveCustomGlass(false)
         }
         ensureCustomStyle()
+        scheduleWidgetThemeRefresh()
     }
 
     /** Updates the fine-grained overrides (per-token colours, image tuning). */
@@ -491,6 +514,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _customExtras.value = next
         repo.saveCustomExtras(next)
         ensureCustomStyle()
+        scheduleWidgetThemeRefresh()
     }
 
     /**
@@ -561,6 +585,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     fun setReduceTransparency(value: Boolean) {
         _reduceTransparency.value = value
         repo.saveReduceTransparency(value)
+        scheduleWidgetThemeRefresh()
     }
 
     fun setBatterySaverAmoled(value: Boolean) {
@@ -619,6 +644,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             imageEnabled = current.imageEnabled
         )
         repo.saveCustomExtras(_customExtras.value)
+        scheduleWidgetThemeRefresh()
         return true
     }
 

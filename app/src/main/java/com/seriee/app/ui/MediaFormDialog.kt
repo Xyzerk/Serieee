@@ -92,6 +92,21 @@ private const val EPISODES_PAGE_SIZE = 50
 private const val BACK_CONFIRM_WINDOW_MS = 2000L
 private const val EPISODES_UNPAGED_LIMIT = 100
 
+/**
+ * Whether the "Missing only" chip should be offered for a season.
+ *
+ * The chip is only useful while some episodes are missing, but it must stay
+ * visible while the filter is active: filling the last gap (or shrinking the
+ * episode count) would otherwise hide the chip and leave the list filtered to
+ * nothing with no control to switch back to the full list.
+ */
+internal fun showMissingOnlyChip(
+    hasEpisodes: Boolean,
+    missingCount: Int,
+    total: Int,
+    filterActive: Boolean
+): Boolean = hasEpisodes && (filterActive || missingCount in 1..(total - 1))
+
 private data class SeasonDraft(
     val number: Int,
     val totalEpStr: String,
@@ -1346,7 +1361,7 @@ fun MediaFormDialog(
                                         fontWeight = FontWeight.Bold,
                                         color = p.text
                                     )
-                                    if (draft.episodes.isNotEmpty() && missingCount in 1..(total - 1)) {
+                                    if (showMissingOnlyChip(draft.episodes.isNotEmpty(), missingCount, total, showMissingOnly)) {
                                         val chipSelected = showMissingOnly
                                         if (p.isNeoBrutalist) {
                                             NeoBrutalistBox(
