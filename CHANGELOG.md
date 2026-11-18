@@ -31,6 +31,15 @@ dialog is generated from the `changelog_*` strings in
 - The top-bar fade over a custom background image uses the readability scrim
   instead of a solid band, and the palette honours the new colour overrides.
 
+### Fixed
+
+- The episode list's **Missing only** chip stays available after the last gap is
+  filled (or the episode count shrinks below the assigned episodes). It used to
+  hide itself while the filter was still on, leaving an empty list with no way
+  to switch back to all episodes.
+- The six Neo-Brutalism tone swatches now have TalkBack names; unselected tones
+  are no longer announced as unnamed radio buttons.
+
 ## [0.5.0] — 2026-11-16
 
 ### Added

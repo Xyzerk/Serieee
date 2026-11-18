@@ -415,6 +415,12 @@
     <string name="theme_style_neo_brutalism">Neo-Brutalism</string>
     <string name="theme_style_neo_brutalism_desc">High-contrast borders, pop colors, hard shadows</string>
     <string name="theme_neo_tone">Tone</string>
+    <string name="theme_tone_yellow">Yellow</string>
+    <string name="theme_tone_orange">Orange</string>
+    <string name="theme_tone_pink">Pink</string>
+    <string name="theme_tone_purple">Purple</string>
+    <string name="theme_tone_blue">Blue</string>
+    <string name="theme_tone_mint">Mint</string>
     <string name="theme_customize">Customize Theme…</string>
     <string name="customize_theme_title">Customize</string>
     <string name="accent">Accent</string>

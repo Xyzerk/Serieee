@@ -75,6 +75,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -113,6 +115,17 @@ internal val gradientPresets = listOf(
     Color(0xFFF59E0B) to Color(0xFFEF4444),
     Color(0xFF64748B) to Color(0xFF0F172A)
 )
+
+/** Localised TalkBack name for each Neo-Brutalism tone swatch. */
+private val NeoTone.labelRes: Int
+    get() = when (this) {
+        NeoTone.Yellow -> R.string.theme_tone_yellow
+        NeoTone.Orange -> R.string.theme_tone_orange
+        NeoTone.Pink -> R.string.theme_tone_pink
+        NeoTone.Purple -> R.string.theme_tone_purple
+        NeoTone.Blue -> R.string.theme_tone_blue
+        NeoTone.Mint -> R.string.theme_tone_mint
+    }
 
 /**
  * Theme popup opened from its own top-bar button. [onOpenStudio] launches the
@@ -501,6 +514,7 @@ private fun ThemePage(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         NeoTone.entries.forEach { tone ->
                             val toneSelected = tone == vm.neoTone
+                            val toneLabel = stringResource(tone.labelRes)
                             val toneShape = RoundedCornerShape(6.dp)
                             Box(
                                 modifier = Modifier
@@ -514,6 +528,9 @@ private fun ThemePage(
                                         cornerRadius = 6.dp
                                     )
                                     .clip(toneShape)
+                                    // Unselected swatches have no visible text, so without
+                                    // this TalkBack announces a nameless radio button.
+                                    .semantics { contentDescription = toneLabel }
                                     .selectable(
                                         selected = toneSelected,
                                         role = Role.RadioButton
@@ -523,7 +540,7 @@ private fun ThemePage(
                                 if (toneSelected) {
                                     Icon(
                                         Icons.Filled.Check,
-                                        contentDescription = tone.name,
+                                        contentDescription = null,
                                         tint = NeoBrutalistColors.Black,
                                         modifier = Modifier.size(16.dp)
                                     )
