@@ -355,6 +355,11 @@
     <string name="changelog_34">Sematkan widget layar utama Seriee untuk melihat hingga tiga tayangan aktif dan ketuk +1 tanpa membuka aplikasi</string>
     <string name="changelog_35">Pengingat cadangan kini muncul setelah menambah atau mengimpor judul, jadi ponsel hilang tidak berarti pustaka hilang</string>
     <string name="changelog_36">Layar crash yang lebih ramah menjaga aplikasi tetap terbuka, menyalin error, membagikan log, serta dapat mereset tema atau mengekspor cadangan</string>
+    <string name="changelog_37">Tur singkat kini menyambut pengguna baru, dan izin notifikasi baru diminta setelahnya</string>
+    <string name="changelog_38">Theme Studio menjadikan Kustom sebagai editor penuh: ubah warna setiap token, tambahkan foto latar dengan overlay dan blur, lalu bagikan sebagai kode tema</string>
+    <string name="changelog_39">Neo-Brutalism kini punya enam warna pop — kuning, oranye, merah muda, ungu, biru, atau mint — dan widget mengikuti pilihanmu</string>
+    <string name="changelog_40">Laporkan Bug di menu tambahan membungkus log aplikasi dan detail perangkat menjadi zip yang bisa dilampirkan ke issue</string>
+    <string name="changelog_41">Daftar episode mulai tertutup di formulir edit, dan tekan kembali dua kali melindungi judul baru dari terbuang tanpa sengaja</string>
 
     <!-- ViewModel messages -->
     <string name="reminder_test_message">Pengingat aktif untuk %1$s "%2$s"!</string>

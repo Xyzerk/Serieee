@@ -355,6 +355,11 @@
     <string name="changelog_34">Pin Seriee\'s home-screen widget to see up to three active shows and tap +1 without opening the app</string>
     <string name="changelog_35">Backup reminders now nudge you after adding or importing titles, so a lost phone no longer means a lost library</string>
     <string name="changelog_36">A friendlier crash screen keeps the app open, copies the error, shares logs, and can reset the theme or export a backup</string>
+    <string name="changelog_37">A short welcome tour now greets first-time users, with notification permission asked only after it finishes</string>
+    <string name="changelog_38">Theme Studio turns Custom into a full editor: recolor every token, add a background photo with overlay and blur, and share the result as a theme code</string>
+    <string name="changelog_39">Neo-Brutalism now comes in six pop tones — yellow, orange, pink, purple, blue, or mint — and the widget follows your choice</string>
+    <string name="changelog_40">Report Bug in the overflow menu bundles the app logs and device details into a zip you can attach to an issue</string>
+    <string name="changelog_41">Episode lists start collapsed in the edit form, and a second back press protects a new title from being discarded by accident</string>
 
     <!-- Current release, in display order. The What's New dialog and the
          release-notes generator in .github/workflows/build-apk.yml both read
@@ -370,6 +375,11 @@
         <item>@string/changelog_34</item>
         <item>@string/changelog_35</item>
         <item>@string/changelog_36</item>
+        <item>@string/changelog_37</item>
+        <item>@string/changelog_38</item>
+        <item>@string/changelog_39</item>
+        <item>@string/changelog_40</item>
+        <item>@string/changelog_41</item>
     </string-array>
 
     <!-- ViewModel messages -->

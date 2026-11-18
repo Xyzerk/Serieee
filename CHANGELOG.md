@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The in-app "What's New"
 dialog is generated from the `changelog_*` strings in
 `app/src/main/res/values/strings.xml`.
 
+## [Unreleased]
+
+### Added
+
+- **Theme Studio**, a full-screen editor opened from the Custom theme: live
+  preview, per-token colours (text, secondary text, cards, panels, borders,
+  success, warning, danger, info, reminder, stars), a background photo with
+  overlay, blur (Android 12+), and card-opacity controls, artwork-sampled
+  accents, and shareable theme codes.
+- Six selectable **Neo-Brutalism tones** (yellow, orange, pink, purple, blue,
+  mint). The choice is persisted and applied to the home-screen widget too.
+- First-run **welcome slides** (skippable, shown once), with notification
+  permission prompts deferred until onboarding finishes.
+- **Report Bug** in the overflow menu, which zips the in-app logs and device
+  details and opens the share sheet without including library data.
+- Add/edit form: episode lists start collapsed per season, and pressing back
+  twice within two seconds warns before discarding a new title.
+
+### Changed
+
+- The theme entry moved from the overflow menu to a palette button in the top
+  bar; **Custom** now opens Theme Studio instead of an in-menu colour page.
+- Theme codes now also carry per-token colours, image tuning, and the Neo tone.
+  The background image file itself stays device-local and is never shared.
+- The top-bar fade over a custom background image uses the readability scrim
+  instead of a solid band, and the palette honours the new colour overrides.
+
 ## [0.5.0] — 2026-11-16
 
 ### Added
@@ -29,6 +56,10 @@ dialog is generated from the `changelog_*` strings in
 
 - Episode `+` and manual episode jumps now log the watched season/episode;
   manual edits, collection imports, and backup-merge backfills do not.
+- Library and Progress filters are compact dropdowns backed by one shared
+  status list, with counts kept in the menu and long labels ellipsized. The
+  top-bar search shortcut was removed, and the calendar quick action now
+  selects **Coming Soon** directly.
 - `versionCode` is **15** (14 was already used by 0.4.2).
 
 ### Fixed

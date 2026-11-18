@@ -17,7 +17,7 @@ Seriee is free software under the [Apache License 2.0](LICENSE). It is local-fir
 
 **Progress** — episode cards with completion percentage across seasons; search and filters for **All / Watching / Completed / Plan to Watch / Coming Soon / On Hold / Dropped** with live counts; the **`+`** button advances an episode and marks the last one *Completed*; a daily streak with flame badge, 7-day strip, best record, and reset.
 
-**Library** — title search and type filter (**Series / Movie**), adaptive grid or list view with 2:3 posters, pinned favorites first, star ratings, and tag/genre badges.
+**Library** — title search plus type, status, and sort dropdowns (counts live in the menus), adaptive grid or list view with 2:3 posters, pinned favorites first, star ratings, and tag/genre badges.
 
 **Insights** — a third tab with episodes watched, estimated watch time (24 minutes per episode), completion rate, series/movie counts, and average rating; stacked status breakdown, star-rating bars, top genres, an accessible 12-week activity heatmap, and a recent watch timeline. Clearing history never touches the library, progress, or streak.
 
@@ -33,9 +33,11 @@ Seriee is free software under the [Apache License 2.0](LICENSE). It is local-fir
 
 **Collection import** — bring an existing list from **AniList** (public username, no token) or a **MyAnimeList** `.xml`/`.xml.gz` export. Preview new/updated/unchanged counts, merge without losing local edits, or replace after confirmation. Entries match by source ID, then normalized title and type; IDs use `anilist-…` / `mal-…`.
 
-**Themes & language** — two independent axes: appearance (**Follow system / Light / Dark**) and style (**Classic, AMOLED, Frost Glass, Liquid Glass, Material You on Android 12+, or Custom**). Every style has light and dark variants; Custom adds eight accent presets, artwork-sampled accents, gradient presets, and copy/paste theme codes. Extras include a **Reduce transparency** switch and an optional **AMOLED in battery saver** mode. Plus System default, English, and Bahasa Indonesia. Theme, accent, background, view mode, language, and API keys persist on-device.
+**Themes & language** — a palette button in the top bar offers appearance (**Follow system / Light / Dark**) and style (**Classic, AMOLED, Frost Glass, Liquid Glass, Material You on Android 12+, Neo-Brutalism, or Custom**). Custom opens the **Theme Studio**: per-token colours for text, cards, borders, and status accents; a background photo with overlay, blur (Android 12+), and card-opacity controls; solid or gradient backgrounds; eight accent presets and artwork-sampled accents; and copy/paste theme codes. Neo-Brutalism ships six pop tones. Extras include a **Reduce transparency** switch and an optional **AMOLED in battery saver** mode. Plus System default, English, and Bahasa Indonesia. Theme, accent, background, view mode, language, and API keys persist on-device.
 
-**Changelog & About** — a What's New dialog once per version (reopenable from the overflow menu), and an About screen with version, data-source credits, privacy policy, license, and repository links.
+**Onboarding** — six skippable welcome slides on first run; permission prompts wait until the slides finish, and the welcome is not shown again on later launches.
+
+**Changelog & About** — a What's New dialog once per version (reopenable from the overflow menu), an About screen with version, data-source credits, privacy policy, license, and repository links, and **Report Bug**, which shares a zip of the in-app logs and device details (never library data).
 
 ---
 
@@ -65,7 +67,7 @@ Android Studio (current stable) or a command-line SDK setup, JDK 17, Android SDK
 
 ## 📲 Install
 
-Signed builds are published on [GitHub Releases](https://github.com/eggBrainX/Seriee/releases/tag/stable-latest). Each release ships `Seriee-v<version>.apk`, `SHA256SUMS.txt`, and `signing-certificate.txt`:
+Signed builds are published on [GitHub Releases](https://github.com/eggBrainX/Seriee/releases/latest). Each release ships `Seriee-v<version>.apk`, `SHA256SUMS.txt`, and `signing-certificate.txt`:
 
 ```bash
 sha256sum -c SHA256SUMS.txt
@@ -126,12 +128,13 @@ Search tolerates partial failures; if every source fails, the app falls back to 
 
 | Data | Location |
 |---|---|
-| Library, theme, accent/background, view mode, language, streak, watch history | `SharedPreferences` file `seriee` (JSON values) |
+| Library, theme settings (mode/style, accent, gradient, per-token colours, Neo tone), background tuning, view mode, language, onboarding flag, streak, watch history | `SharedPreferences` file `seriee` (JSON values) |
+| Theme background image | `filesDir/theme/background-<timestamp>.jpg` (downscaled copy) |
 | TMDB / OMDb API keys | `SharedPreferences` file `seriee_secrets` (excluded from system backup) |
 | Uploaded posters | `filesDir/posters/` (`posters/<id>_<timestamp>.<ext>`) |
 | Remote posters | URLs loaded and cached by Coil |
 
-Backups are JSON (version 4) containing items, streak history, and the capped watch history (newest 500 events, 365-day retention). Older formats — a bare array, version 1–3 objects, or objects without streak/history fields — are still accepted, and imports are validated defensively. **Merge** unions watch history and de-duplicates exact events; **replace** uses the file's history (or clears it when the file has none). Local poster files are **not embedded**: `posters/…` paths will not resolve on a new device, so re-upload covers or use URLs. API keys are deliberately never exported.
+Backups are JSON (version 4) containing items, streak history, and the capped watch history (newest 500 events, 365-day retention). Older formats — a bare array, version 1–3 objects, or objects without streak/history fields — are still accepted, and imports are validated defensively. **Merge** unions watch history and de-duplicates exact events; **replace** uses the file's history (or clears it when the file has none). Local poster files and the Theme Studio background image are **not embedded**: `posters/…` and `theme/…` paths will not resolve on a new device, so re-upload covers or pick the photo again. API keys are deliberately never exported.
 
 Uninstalling removes private storage; export a backup first. Android Auto Backup is enabled (`android:allowBackup="true"`) but should not replace an explicit export.
 
@@ -145,7 +148,8 @@ MainActivity
         ├── ProgressScreen · LibraryScreen · InsightsScreen
         ├── MediaFormDialog · DetailDialog          (bottom sheets)
         ├── BackupRestoreDialog · ImportSheet       (bottom sheets)
-        ├── ThemeMenu · ChangelogDialog · AboutDialog
+        ├── ThemeMenu · ThemeStudio · WelcomeScreen
+        ├── ChangelogDialog · AboutDialog · DebugOverlay
               │ state + actions
               ▼
         SerieeViewModel (AndroidViewModel)
@@ -156,12 +160,15 @@ MainActivity
               ├── AniListListClient   → public collection import
               ├── MalXmlParser        → on-device MAL export import
               ├── PosterStore         → local poster files
+              ├── AppLogger           → log ring buffer + bug-report zip
               └── ReminderScheduler   → AlarmManager + notifications
 ```
 
 - **Single source of truth:** `SerieeViewModel.items` is a `mutableStateOf` list; every mutation commits to memory and persists immediately through `SerieeRepository`.
-- **Swipe tabs:** `SerieeApp` hosts a `HorizontalPager` with Progress, Library, and Insights; the nav pill interpolates `currentPage + currentPageOffsetFraction`, and filter chips use `FlowRow` so drags reach the pager.
-- **Concurrency:** metadata search and collection import are the only suspending work and run on `Dispatchers.IO`; there are no coroutines in the UI layer.
+- **Swipe tabs:** `SerieeApp` hosts a `HorizontalPager` with Progress, Library, and Insights; the nav pill interpolates `currentPage + currentPageOffsetFraction`, so drags reach the pager.
+- **Filters:** Library shows type, status, and sort as compact dropdowns beside the view toggle; Progress shows one status dropdown. Both read the shared `statusFilters` list from `StatusFilters.kt`, keep counts in the menu, and ellipsize long labels to a single line.
+- **Custom themes:** `CustomThemeExtras` stores optional per-token ARGB overrides plus background-image tuning. `ThemeBackdropImage` paints the imported copy behind the UI, and theme codes carry colours and tuning but never the image file.
+- **Concurrency:** metadata search, collection import, and background-image import are the only suspending work and run on `Dispatchers.IO`; there are no coroutines in the UI layer.
 - **Reminders:** stateless broadcasts — an `AlarmManager` alarm with a `PendingIntent` keyed by `item.id.hashCode()`, rebuilt on app start and after import.
 - **Import mapping is pure Kotlin:** `ImportMapper` handles mapping, previews, merge, and replace without Android APIs, so the full matrix runs as JVM tests.
 - **Movies vs series:** series count progress over seasons; a movie is one unit showing *Watched / Not watched*.
@@ -183,8 +190,9 @@ Seriee/
 │       │   └── java/com/seriee/app/
 │       │       ├── MainActivity.kt · SerieeViewModel.kt
 │       │       ├── data/         # models, repository, history, insights, metadata, import, posters
+│       │       ├── debug/        # log ring buffer, crash capture, bug-report zip
 │       │       ├── reminder/     # scheduler + receiver
-│       │       └── ui/           # screens, sheets, theme menu, design system
+│       │       └── ui/           # screens, sheets, theme menu/studio, onboarding, design system
 │       └── test/                 # JVM unit tests
 ├── gradle/wrapper/               # checked-in wrapper
 ├── docs/RELEASING.md             # maintainer release and repository guide
@@ -229,6 +237,8 @@ Every push and pull request to `main` runs lint, unit tests, a debug build, and 
 - **Reminders don't fire** — allow notifications (Android 13+), allow *Alarms & reminders* (Android 12+), exempt the app from OEM battery savers, and make sure the date is in the future with **Reminder Alarm** on. Verify with **Test Alarm Now**.
 - **Posters don't load** — remote posters need internet and an `https://` URL; cleartext `http://` is blocked. Locally uploaded files disappear if app data is cleared or the app is uninstalled.
 - **Restore lost local posters** — the JSON backup stores paths, not image bytes. Re-upload covers or use URLs.
+- **Theme background missing on a new device** — the background photo is copied into app storage, not into backups or theme codes; pick it again in **Theme Studio → Image**.
+- **Bug report won't attach** — **Report Bug** writes `seriee-bug-report-<timestamp>.zip` (logs plus device info, no library data) and opens the share sheet; install a file-capable share target if none is available.
 - **Metadata search finds nothing** — check the spelling; TMDB/OMDb need keys, AniList and TVmaze do not. Failed sources are skipped, so partial results are normal.
 - **"SDK location not found"** — set `sdk.dir` in `local.properties` or open the project once in Android Studio; install SDK Platform 36.
 - **`./gradlew` is not executable** — run `chmod +x gradlew`.

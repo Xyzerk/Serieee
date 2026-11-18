@@ -11,8 +11,8 @@ analytics, and the project does not receive your data.
   local poster files, streaming links, and episode file references).
 - Your watch history: a compact log of episode timestamps recorded when you
   advance or jump episodes.
-- App settings (theme, custom accent and background, view mode, language) and
-  streak history.
+- App settings (theme, custom colours, background image copy, view mode,
+  language, Neo-Brutalism tone) and streak history.
 - Optional TMDB and OMDb API keys that you enter yourself.
 
 This data is stored in the app's private storage using `SharedPreferences` and
@@ -66,6 +66,14 @@ storage access. Files you pick are accessed through Android's system picker.
   history, and settings, but the API-key preferences file is explicitly
   excluded. You can disable system backup in Android settings.
 
+## Bug reports
+
+**Report Bug** (overflow menu) creates a zip containing the in-app log buffer
+and basic device details (app version, Android version, device model, locale,
+log count). It never includes your library, watch history, API keys, or
+background image. The zip is written to app storage and handed to the system
+share sheet only when you choose where to send it.
+
 ## Children
 
 The app is not directed at children and collects no personal data.
@@ -73,9 +81,9 @@ The app is not directed at children and collects no personal data.
 ## Removing your data
 
 Uninstalling the app removes its private storage. Export a backup first if you
-want to keep it. Local poster files are also removed. You can delete watch
-history at any time from **Insights → Clear history**; this does not affect your
-library, progress, or streak.
+want to keep it. Local poster files and the Theme Studio background image are
+also removed. You can delete watch history at any time from **Insights → Clear
+history**; this does not affect your library, progress, or streak.
 
 ## Changes
 

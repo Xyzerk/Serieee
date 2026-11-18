@@ -155,7 +155,7 @@ class SerieeRepository(context: Context) {
         prefs.edit().putBoolean(KEY_CUSTOM_HIGH_CONTRAST, value).apply()
     }
 
-    /** Accessibility: collapse translucent glass surfaces to opaque ones. */
+    /** Per-token colour overrides, background image path, and image tuning. */
     fun loadCustomExtras(): CustomThemeExtras =
         CustomThemeExtras.fromJson(prefs.getString(KEY_CUSTOM_EXTRAS, null))
 
@@ -163,6 +163,7 @@ class SerieeRepository(context: Context) {
         prefs.edit().putString(KEY_CUSTOM_EXTRAS, extras.toJson()).apply()
     }
 
+    /** Accessibility: collapse translucent glass surfaces to opaque ones. */
     fun loadReduceTransparency(): Boolean = prefs.getBoolean(KEY_REDUCE_TRANSPARENCY, false)
 
     fun saveReduceTransparency(value: Boolean) {
