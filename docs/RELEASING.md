@@ -1,7 +1,7 @@
 # Releasing Seriee
 
 **Audience:** repository maintainers and admins. End users only need
-[README](../README.md) and [CONTRIBUTING](../CONTRIBUTING.md) covers day-to-day
+[README](../README.md); [CONTRIBUTING](../CONTRIBUTING.md) covers day-to-day
 development. Nothing here is needed to build or use the app.
 
 ---
