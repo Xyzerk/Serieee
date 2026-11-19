@@ -101,7 +101,7 @@ data class MediaItem(
     val status: WatchStatus,
     val poster: String,
     val season: Int = 1,
-    val currentEp: Int = 1,
+    val currentEp: Int = 0,
     val totalEp: Int = 1,
     val pinned: Boolean = false,
     val streamUrl: String = "",
@@ -115,7 +115,13 @@ data class MediaItem(
     val seasons: List<Season> = emptyList(),
     val description: String = "",
     val source: String = "",
-    val sourceId: String = ""
+    val sourceId: String = "",
+    /**
+     * Alternate names from the metadata source (romaji / native / synonyms).
+     * Never shown in the UI; used to recognise episode files whose name carries
+     * a translated or romanised show title.
+     */
+    val altTitles: List<String> = emptyList()
 ) {
     val effectiveSeasons: List<Season>
         get() = if (seasons.isNotEmpty()) seasons else {

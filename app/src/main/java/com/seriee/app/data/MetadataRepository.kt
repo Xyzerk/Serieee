@@ -60,7 +60,13 @@ data class MetadataResult(
     /** Epoch millis of the first air time when the source exposes it (e.g. AniList `airingAt`). */
     val releaseAt: Long? = null,
     /** Source says the title has not aired yet (e.g. AniList status NOT_YET_RELEASED). */
-    val upcoming: Boolean = false
+    val upcoming: Boolean = false,
+    /**
+     * Alternate titles (romaji / native / synonyms / original title). Kept off
+     * the UI and stored on the saved item so file matching can fall back to
+     * them when a folder is named after a translation.
+     */
+    val altTitles: List<String> = emptyList()
 )
 
 class MetadataRepository {
@@ -96,7 +102,7 @@ class MetadataRepository {
             put("query", """
                 query (${'$'}search: String) {
                   Media(search: ${'$'}search, type: ANIME) {
-                    id title { english romaji }
+                    id title { english romaji native } synonyms
                     coverImage { large } description genres episodes format
                     status
                     startDate { year month day }
@@ -110,8 +116,15 @@ class MetadataRepository {
         val json = postJson("https://graphql.anilist.co", body)
         val media = json.optJSONObject("data")?.optJSONObject("Media") ?: return emptyList()
         val titleObj = media.optJSONObject("title")
-        val title = titleObj?.optString("english")?.takeIf { it.isNotBlank() }
-            ?: titleObj?.optString("romaji") ?: ""
+        val english = titleObj?.optString("english").orEmpty()
+        val romaji = titleObj?.optString("romaji").orEmpty()
+        val native = titleObj?.optString("native").orEmpty()
+        val title = english.takeIf { it.isNotBlank() } ?: romaji
+        val altTitles = mutableListOf<String>()
+        listOf(english, romaji, native).forEach { addAltTitle(altTitles, it) }
+        media.optJSONArray("synonyms")?.let { arr ->
+            for (i in 0 until arr.length()) addAltTitle(altTitles, arr.optString(i))
+        }
         val poster = media.optJSONObject("coverImage")?.optString("large") ?: ""
         val descRaw = media.optString("description")
         val desc = stripHtml(descRaw)
@@ -176,9 +189,18 @@ class MetadataRepository {
                 type = mediaType,
                 seasonNumbers = seasonNumbers,
                 releaseAt = releaseAt,
-                upcoming = upcoming
+                upcoming = upcoming,
+                altTitles = altTitles
             )
         )
+    }
+
+    /** Adds a non-blank, non-duplicate alternate title (case-insensitive). */
+    private fun addAltTitle(target: MutableList<String>, raw: String?) {
+        val value = raw?.trim().orEmpty()
+        if (value.isBlank()) return
+        if (target.any { it.equals(value, ignoreCase = true) }) return
+        target.add(value)
     }
 
     private fun startDateMillis(date: JSONObject?): Long? {
@@ -315,6 +337,8 @@ class MetadataRepository {
                 val releaseAt = parseIsoDateMillis(item.optString("release_date"))
                 val year = (item.optString("release_date").take(4))
                 val providers = fetchTmdbProviders(key, "movie", id, region)
+                val altTitles = mutableListOf<String>()
+                addAltTitle(altTitles, item.optString("original_title"))
                 list.add(
                     MetadataResult(
                         source = "TMDB",
@@ -329,7 +353,8 @@ class MetadataRepository {
                         type = MediaType.Movie,
                         seasonNumbers = listOf(1),
                         releaseAt = releaseAt,
-                        upcoming = releaseAt != null && releaseAt > System.currentTimeMillis()
+                        upcoming = releaseAt != null && releaseAt > System.currentTimeMillis(),
+                        altTitles = altTitles
                     )
                 )
             }
@@ -357,6 +382,8 @@ class MetadataRepository {
                     allSeasons.filter { it.first == wantedSeason }
                 } else allSeasons
                 val providers = fetchTmdbProviders(key, "tv", id, region)
+                val altTitles = mutableListOf<String>()
+                addAltTitle(altTitles, item.optString("original_name"))
                 list.add(
                     MetadataResult(
                         source = "TMDB",
@@ -371,7 +398,8 @@ class MetadataRepository {
                         type = MediaType.Series,
                         seasonNumbers = pickedSeasons.map { it.first },
                         releaseAt = releaseAt,
-                        upcoming = releaseAt != null && releaseAt > System.currentTimeMillis()
+                        upcoming = releaseAt != null && releaseAt > System.currentTimeMillis(),
+                        altTitles = altTitles
                     )
                 )
             }

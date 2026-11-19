@@ -21,6 +21,11 @@ dialog is generated from the `changelog_*` strings in
   details and opens the share sheet without including library data.
 - Add/edit form: episode lists start collapsed per season, and pressing back
   twice within two seconds warns before discarding a new title.
+- Hidden alternate titles (romaji, native, synonyms, original title) are stored
+  when metadata is fetched from AniList/TMDB and used to recognise episode files
+  whose name carries a translated title. Release-group names such as
+  `CHFY--01.mkv` or `[Group] Show - 07 (1080p)` now resolve by their last safe
+  number, and unnumbered files fall back to natural-sorted order.
 
 ### Changed
 
@@ -33,6 +38,9 @@ dialog is generated from the `changelog_*` strings in
 
 ### Fixed
 
+- Newly fetched or manually added series start at episode 0, so episode 1 is no
+  longer counted in Insights before it is watched and the first `+` records
+  episode 1 in history instead of jumping to episode 2.
 - The episode list's **Missing only** chip stays available after the last gap is
   filled (or the episode count shrinks below the assigned episodes). It used to
   hide itself while the filter was still on, leaving an empty list with no way

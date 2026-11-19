@@ -127,6 +127,8 @@ fun MediaFormDialog(
     val scope = rememberCoroutineScope()
 
     var title by remember { mutableStateOf(initial?.title ?: "") }
+    // Hidden names from the metadata source (romaji / native / synonyms).
+    var altTitles by remember { mutableStateOf(initial?.altTitles ?: emptyList()) }
     var type by remember { mutableStateOf(initial?.type ?: MediaType.Series) }
     var status by remember { mutableStateOf(initial?.status ?: WatchStatus.Watching) }
     var poster by remember { mutableStateOf(initial?.poster ?: "") }
@@ -156,7 +158,7 @@ fun MediaFormDialog(
                         s.episodes.forEach { map[it.number] = it }
                         SeasonDraft(s.number, s.totalEp.toString(), s.currentEp.toString(), map)
                     }.toMutableList()
-                } else mutableListOf(SeasonDraft(1, (initial?.totalEp ?: 12).toString(), (initial?.currentEp ?: 1).toString(), mutableMapOf()))
+                } else mutableListOf(SeasonDraft(1, (initial?.totalEp ?: 12).toString(), (initial?.currentEp ?: 0).toString(), mutableMapOf()))
             }
         )
     }
@@ -198,6 +200,7 @@ fun MediaFormDialog(
     // can and must take its own persistable grant.
     fun mergePicked(files: List<Uri>, targetSeasonIdx: Int = 0, persistTreeUri: Uri? = null) {
         if (files.isEmpty()) return
+        val knownTitles = (listOf(title) + altTitles).filter { it.isNotBlank() }
         // 100s/1000s of files: resolver queries + permission grants are IPC — keep off main thread.
         scope.launch {
             val parsed = withContext(Dispatchers.IO) {
@@ -208,9 +211,11 @@ fun MediaFormDialog(
                         } catch (_: Exception) {}
                     }
                     val name = displayName(context, uri) ?: uri.lastPathSegment ?: "video"
-                    Triple(uri.toString(), name, EpisodeFileParser.parseSeasonEpisode(name) to EpisodeFileParser.parseEpisode(name))
+                    val sx = EpisodeFileParser.parseSeasonEpisode(name)
+                    val ep = sx?.second ?: EpisodeFileParser.parseEpisode(name, knownTitles)
+                    Triple(uri.toString(), name, sx to ep)
                 }
-            }
+            }.sortedWith(Comparator { a, b -> naturalFileOrder(a.second, b.second) })
             // Apply on main using latest drafts (user may have edited while parsing).
             val newDrafts = seasonsDraft.toMutableList()
             fun ensureIndex(num: Int): Int {
@@ -231,7 +236,11 @@ fun MediaFormDialog(
                 } else {
                     val idx = newDrafts.getOrNull(targetSeasonIdx)?.let { targetSeasonIdx } ?: ensureIndex(1)
                     val d = newDrafts[idx]
-                    val eNum = epParsed ?: (d.episodes.keys.maxOrNull()?.plus(1) ?: 1)
+                    // Files whose name carries no usable number fall back to a
+                    // natural-sorted sequential slot so `CHFY--01`, `CHFY--02`…
+                    // never collide with an already assigned episode.
+                    var eNum = epParsed ?: (d.episodes.keys.maxOrNull()?.plus(1) ?: 1)
+                    while (d.episodes.containsKey(eNum)) eNum++
                     newDrafts[idx] = d.copy(episodes = d.episodes + (eNum to EpisodeFile(eNum, uriStr, name)))
                 }
             }
@@ -348,6 +357,12 @@ fun MediaFormDialog(
         description = r.description
         source = r.source
         sourceId = r.sourceId
+        if (r.altTitles.isNotEmpty()) {
+            altTitles = (altTitles + r.altTitles)
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinctBy { it.lowercase() }
+        }
         if (r.tags.isNotEmpty()) tags = r.tags
         // Use the source's real air time instead of a guessed date, so Coming Soon
         // countdowns match AniList/TMDB. AniList's `airingAt` is exact (episode 1).
@@ -1678,7 +1693,7 @@ fun MediaFormDialog(
                                 .coerceAtLeast(1)
                         val legacyCurrent =
                             if (type == MediaType.Movie) (initial?.currentEp
-                                ?: 1) else builtSeasons.sumOf { it.currentEp }
+                                ?: 0) else builtSeasons.sumOf { it.currentEp }
                                 .coerceAtLeast(0)
                         val firstFileUri =
                             builtSeasons.flatMap { it.episodes }.firstOrNull()?.uri
@@ -1706,6 +1721,10 @@ fun MediaFormDialog(
                                 reminderEnabled = reminderEnabled && (releaseDate != null),
                                 tags = tags,
                                 rating = rating,
+                                altTitles = altTitles
+                                    .map { it.trim() }
+                                    .filter { it.isNotBlank() }
+                                    .distinctBy { it.lowercase() },
                                 updatedAt = System.currentTimeMillis()
                             )
                         )

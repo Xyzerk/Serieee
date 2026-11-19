@@ -286,6 +286,9 @@ class SerieeRepository(context: Context) {
         put("description", m.description)
         put("source", m.source)
         put("sourceId", m.sourceId)
+        val altTitlesArr = JSONArray()
+        m.altTitles.forEach { altTitlesArr.put(it) }
+        put("altTitles", altTitlesArr)
         val seasonsArr = JSONArray()
         m.seasons.forEach { s ->
             val sj = JSONObject()
@@ -319,6 +322,12 @@ class SerieeRepository(context: Context) {
             else emptyList()
         }
         val parsedRating = o.optInt("rating", 0).coerceIn(0, 5)
+        val altTitlesArr = o.optJSONArray("altTitles")
+        val parsedAltTitles = if (altTitlesArr != null) {
+            (0 until altTitlesArr.length()).mapNotNull { i ->
+                altTitlesArr.optString(i).trim().takeIf { it.isNotEmpty() }
+            }.distinctBy { it.lowercase() }
+        } else emptyList()
         val parsedSeasons: List<Season> = runCatching {
             val arr = o.optJSONArray("seasons") ?: return@runCatching emptyList()
             (0 until arr.length()).map { i ->
@@ -346,7 +355,7 @@ class SerieeRepository(context: Context) {
         val rawId = o.optString("id").trim()
         val safeId = rawId.ifEmpty { UUID.randomUUID().toString() }
         val safeTotalEp = o.optInt("totalEp", 1).coerceAtLeast(1)
-        val safeCurrentEp = o.optInt("currentEp", 1).coerceAtLeast(0)
+        val safeCurrentEp = o.optInt("currentEp", 0).coerceAtLeast(0)
 
         return MediaItem(
             id = safeId,
@@ -369,7 +378,8 @@ class SerieeRepository(context: Context) {
             seasons = parsedSeasons,
             description = o.optString("description"),
             source = o.optString("source"),
-            sourceId = o.optString("sourceId")
+            sourceId = o.optString("sourceId"),
+            altTitles = parsedAltTitles
         )
     }
 

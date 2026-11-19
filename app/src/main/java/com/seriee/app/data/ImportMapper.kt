@@ -171,6 +171,7 @@ object ImportMapper {
             poster = local.poster.ifBlank { imported.poster },
             source = local.source.ifBlank { imported.source },
             sourceId = local.sourceId.ifBlank { imported.sourceId },
+            altTitles = (local.altTitles + imported.altTitles).distinctBy { it.lowercase() },
             updatedAt = now
         )
 

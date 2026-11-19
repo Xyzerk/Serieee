@@ -45,7 +45,7 @@ object InsightsCalculator {
     ): Insights {
         val series = items.count { it.type == MediaType.Series }
         val movies = items.count { it.type == MediaType.Movie }
-        // Titles that have not started yet keep their default episode 1 (a
+        // Titles that have not started yet keep their default episode 0 (a
         // freshly fetched multi-season show often lands in Coming Soon while a
         // new season airs), so they must not look watched in the hero stats.
         val watchedEpisodes = items
