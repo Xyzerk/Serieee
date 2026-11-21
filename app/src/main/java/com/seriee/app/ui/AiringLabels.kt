@@ -5,6 +5,7 @@ import com.seriee.app.R
 import com.seriee.app.data.AiringRules
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MetadataResult
+import com.seriee.app.data.WatchStatus
 import com.seriee.app.reminder.ReminderScheduler
 
 /**
@@ -57,6 +58,19 @@ internal fun airingFullLabel(context: Context, item: MediaItem, now: Long): Stri
     else -> null
 }
 
-/** The small automatic label on a card badge; null when the countdown is enough. */
-internal fun airingBadgeLabel(context: Context, item: MediaItem): String? =
-    if (AiringRules.isOngoing(item)) context.getString(R.string.filter_ongoing) else null
+/** Short label for the 68 dp Progress poster: `Ep 9`, or `Ongoing` when TBA. */
+fun progressBadgeLabel(context: Context, item: MediaItem, now: Long): String? {
+    val suffix = airingSuffixFor(item, now) ?: return null
+    return if (suffix.episode != null) {
+        context.getString(R.string.airing_episode_only, suffix.episode)
+    } else {
+        context.getString(R.string.filter_ongoing)
+    }
+}
+
+/** Full `Ep 9 · 27 Nov 21:00` label for the larger Library grid poster. */
+fun libraryBadgeLabel(context: Context, item: MediaItem, now: Long): String? =
+    airingSuffixFor(item, now)?.let { formatAiringSuffix(context, it) }
+
+/** The bottom countdown strip belongs to premieres, never to airing episodes. */
+fun showCountdownStrip(item: MediaItem): Boolean = item.status == WatchStatus.ComingSoon

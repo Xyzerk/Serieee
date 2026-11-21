@@ -6,7 +6,9 @@ import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
 import com.seriee.app.data.WatchStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -24,6 +26,9 @@ class AiringLabelsTest {
 
     private val NOW = 1_793_000_000_000L
     private val AT: Long = OffsetDateTime.parse("2026-11-27T05:00:00+07:00").toInstant().toEpochMilli()
+    private val context: Context = ApplicationProvider.getApplicationContext()
+    private val expectedShortTime: String
+        get() = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault()).format(Date(AT))
 
     private fun ongoing(nextEpisode: Int? = 9, nextAirAt: Long? = AT): MediaItem =
         MediaItem(
@@ -75,8 +80,35 @@ class AiringLabelsTest {
 
     @Test
     fun `coming soon full label renders`() {
-        val context: Context = ApplicationProvider.getApplicationContext()
         val expectedTime = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(AT))
         assertEquals("Coming Soon · $expectedTime", airingFullLabel(context, comingSoonItem(AT), NOW))
+    }
+
+    @Test
+    fun `progress badge is a short episode label`() =
+        assertEquals("Ep 9", progressBadgeLabel(context, ongoing(9, AT), NOW))
+
+    @Test
+    fun `no badge once the airtime has passed on either surface`() {
+        val stale = ongoing(9, NOW - 1)
+        assertNull(progressBadgeLabel(context, stale, NOW))
+        assertNull(libraryBadgeLabel(context, stale, NOW))
+    }
+
+    @Test
+    fun `no badge when the airing date is unknown`() {
+        val tba = ongoing(9, null)
+        assertNull(progressBadgeLabel(context, tba, NOW))
+        assertNull(libraryBadgeLabel(context, tba, NOW))
+    }
+
+    @Test
+    fun `library badge keeps the full episode and date label`() =
+        assertEquals("Ep 9 · $expectedShortTime", libraryBadgeLabel(context, ongoing(9, AT), NOW))
+
+    @Test
+    fun `countdown strip is only for coming soon`() {
+        assertTrue(showCountdownStrip(comingSoonItem(AT)))
+        assertFalse(showCountdownStrip(ongoing(9, AT)))
     }
 }

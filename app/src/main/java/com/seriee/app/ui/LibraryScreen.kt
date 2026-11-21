@@ -78,7 +78,6 @@ import com.seriee.app.R
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
 import com.seriee.app.data.WatchStatus
-import com.seriee.app.data.AiringRules
 import com.seriee.app.reminder.ReminderScheduler
 
 private enum class LibrarySort(val labelRes: Int) {
@@ -435,15 +434,13 @@ private fun GridItem(
     val gradientBrush = remember {
         Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)))
     }
-    val badgeShort = remember(item.releaseDate) { ReminderScheduler.countdownShortBadge(context, item.releaseDate) }
-    val badgeText = remember(item.releaseDate) { ReminderScheduler.countdownBadgeText(context, item.releaseDate) }
-    val isOngoingItem = AiringRules.isOngoing(item)
-    val now = System.currentTimeMillis()
-    val airLabel = if (isOngoingItem) airingSuffix(context, item, now) else null
-    val showBadge = item.status == WatchStatus.ComingSoon || isOngoingItem
-    val badgeLine = if (item.status == WatchStatus.ComingSoon) badgeShort
-        else (airLabel ?: airingBadgeLabel(context, item) ?: "")
-    val badgeColor = if (item.status == WatchStatus.ComingSoon) p.reminder else p.info
+    val now = rememberNow()
+    val badgeShort = remember(item.releaseDate, now) { ReminderScheduler.countdownShortBadge(context, item.releaseDate, now) }
+    val badgeText = remember(item.releaseDate, now) { ReminderScheduler.countdownBadgeText(context, item.releaseDate, now) }
+    val airLabel = libraryBadgeLabel(context, item, now)
+    val badgeLine = airLabel ?: badgeShort.takeIf { it.isNotBlank() }.orEmpty()
+    val showTopBadge = badgeLine.isNotEmpty()
+    val badgeColor = if (airLabel != null) p.info else p.reminder
 
     val posterOverlay: @Composable () -> Unit = {
         val posterShape = RoundedCornerShape(if (p.isNeoBrutalist) 8.dp else 18.dp)
@@ -457,7 +454,7 @@ private fun GridItem(
                 )
         ) {
             Poster(item.poster, Modifier.fillMaxSize(), posterShape)
-            if (showBadge) {
+            if (showTopBadge) {
                 val badgeShape = RoundedCornerShape(6.dp)
                 Box(
                     modifier = Modifier
@@ -481,18 +478,18 @@ private fun GridItem(
                             )
                             Spacer(Modifier.width(2.dp))
                         }
-                        if (badgeLine.isNotEmpty()) {
-                            Text(
-                                badgeLine,
-                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor)
-                            )
-                        }
+                        Text(
+                            badgeLine,
+                            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 2,
+                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor)
+                        )
                     }
                 }
 
+                if (showCountdownStrip(item)) {
                 // Bottom Countdown Overlay Strip
                 if (p.isNeoBrutalist) {
                     Box(
@@ -559,6 +556,7 @@ private fun GridItem(
                             )
                         }
                     }
+                }
                 }
             }
             if (item.rating > 0) {
@@ -720,13 +718,14 @@ private fun ListItem(
     val p = LocalPalette.current
     val context = LocalContext.current
     val shape = remember { RoundedCornerShape(22.dp) }
-    val detailedCountdown = remember(item.releaseDate) {
-        ReminderScheduler.countdownDetailedText(context, item.releaseDate)
+    val now = rememberNow()
+    val detailedCountdown = remember(item.releaseDate, now) {
+        ReminderScheduler.countdownDetailedText(context, item.releaseDate, now)
     }
-    val shortBadge = remember(item.releaseDate) {
-        ReminderScheduler.countdownShortBadge(context, item.releaseDate)
+    val shortBadge = remember(item.releaseDate, now) {
+        ReminderScheduler.countdownShortBadge(context, item.releaseDate, now)
     }
-    val airLabel = airingSuffix(context, item, System.currentTimeMillis())
+    val airLabel = libraryBadgeLabel(context, item, now)
 
     val rowContent: @Composable () -> Unit = {
         Row(

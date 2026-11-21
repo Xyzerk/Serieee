@@ -64,7 +64,6 @@ import com.seriee.app.R
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
 import com.seriee.app.data.WatchStatus
-import com.seriee.app.data.AiringRules
 import com.seriee.app.reminder.ReminderScheduler
 
 @Composable
@@ -232,24 +231,23 @@ private fun ProgressCard(
     val p = LocalPalette.current
     val context = LocalContext.current
     val shape = remember { RoundedCornerShape(22.dp) }
+    val now = rememberNow()
     // Memoize date-derived strings (they call SimpleDateFormat etc.)
-    val badgeText = remember(item.releaseDate, item.status) {
-        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownShortBadge(context, item.releaseDate) else ""
+    val badgeText = remember(item.releaseDate, item.status, now) {
+        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownShortBadge(context, item.releaseDate, now) else ""
     }
-    val badgeLong = remember(item.releaseDate, item.status) {
-        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownBadgeText(context, item.releaseDate) else ""
+    val badgeLong = remember(item.releaseDate, item.status, now) {
+        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownBadgeText(context, item.releaseDate, now) else ""
     }
-    val detailedText = remember(item.releaseDate, item.status) {
-        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownDetailedText(context, item.releaseDate) else ""
+    val detailedText = remember(item.releaseDate, item.status, now) {
+        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownDetailedText(context, item.releaseDate, now) else ""
     }
-    val isOngoingItem = AiringRules.isOngoing(item)
-    val now = System.currentTimeMillis()
-    val airLabel = if (isOngoingItem) airingSuffix(context, item, now) else null
-    val showBadge = item.status == WatchStatus.ComingSoon || isOngoingItem
-    val badgeColor = if (item.status == WatchStatus.ComingSoon) p.reminder else p.info
+    // Airing episodes get the short pill; premieres keep their countdown badge.
+    val airingBadge = progressBadgeLabel(context, item, now)
+    val premiereBadge = badgeText.takeIf { it.isNotBlank() }
     val relTime = remember(item.updatedAt) { relativeTime(context, item.updatedAt) }
-    val visualProgress = remember(item.releaseDate) {
-        val daysLeft = ReminderScheduler.daysUntilRelease(item.releaseDate)
+    val visualProgress = remember(item.releaseDate, now) {
+        val daysLeft = ReminderScheduler.daysUntilRelease(item.releaseDate, now)
         ((30 - daysLeft).coerceIn(1, 30) / 30f)
     }
 
@@ -260,26 +258,40 @@ private fun ProgressCard(
         ) {
             Box(modifier = Modifier.size(width = 68.dp, height = 86.dp)) {
                 Poster(item.poster, Modifier.fillMaxSize())
-                if (showBadge) {
+                val badgeLabel = airingBadge ?: premiereBadge
+                if (badgeLabel != null) {
+                    val isAiring = airingBadge != null
                     val badgeShape = RoundedCornerShape(if (p.isNeoBrutalist) 6.dp else 4.dp)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(3.dp)
                             .clip(badgeShape)
-                            .background(if (p.isNeoBrutalist && item.status == WatchStatus.ComingSoon) NeoBrutalistColors.Yellow else badgeColor)
+                            .background(
+                                when {
+                                    isAiring -> Color.Black.copy(alpha = 0.55f)
+                                    p.isNeoBrutalist -> NeoBrutalistColors.Yellow
+                                    else -> p.reminder
+                                }
+                            )
                             .then(
-                                if (p.isNeoBrutalist) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
+                                if (p.isNeoBrutalist && !isAiring) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
                                 else Modifier
                             )
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     ) {
                         Text(
-                            badgeText.ifBlank { airLabel ?: "" },
+                            badgeLabel,
                             fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor)
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = when {
+                                isAiring -> Color.White
+                                p.isNeoBrutalist -> NeoBrutalistColors.Black
+                                else -> contrastOn(p.reminder)
+                            }
                         )
                     }
                 }
