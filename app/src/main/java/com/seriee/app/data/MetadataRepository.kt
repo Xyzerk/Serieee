@@ -178,6 +178,65 @@ internal fun mapAniListMedia(media: JSONObject, query: String): MetadataResult? 
  * - `NOT_YET_RELEASED`: has not aired; use the advertised airtime or season start.
  * - Anything else: has aired (finished / cancelled / hiatus); no projecting forward.
  */
+internal data class TvmazeSchedule(
+    val seasonEpisodeCounts: List<Pair<Int, Int>>,
+    val airedCount: Int,
+    val nextEpisode: Int?,
+    val nextEpisodeSeason: Int?,
+    val nextAirAt: Long?,
+)
+
+/**
+ * Pure schedule parsing of a TVMaze `GET /shows/{id}/episodes` payload.
+ * - Episodes with `season <= 0` (specials) do not count toward season counts.
+ * - An episode is **aired** when its `airstamp` parses and is `<= now`;
+ *   `nextAirAt` is the smallest future airtime, with its season/number.
+ */
+internal fun parseTvmazeSchedule(episodes: JSONArray, now: Long): TvmazeSchedule {
+    val bySeason = mutableMapOf<Int, Int>()
+    var nextAirAt: Long? = null
+    var nextEpisode: Int? = null
+    var nextSeason: Int? = null
+    var airedCount = 0
+    for (i in 0 until episodes.length()) {
+        val ep = episodes.optJSONObject(i) ?: continue
+        val season = ep.optInt("season", 0)
+        if (season > 0) bySeason[season] = (bySeason[season] ?: 0) + 1
+        val air = parseAirstampMillis(ep.optString("airstamp"))
+        if (air == null) continue
+        if (air <= now) airedCount++
+        else if (nextAirAt == null || air < nextAirAt!!) {
+            nextAirAt = air
+            nextEpisode = ep.optInt("number", 0).takeIf { it > 0 }
+            nextSeason = season
+        }
+    }
+    return TvmazeSchedule(
+        seasonEpisodeCounts = bySeason.toList().sortedBy { it.first },
+        airedCount = airedCount,
+        nextEpisode = nextEpisode,
+        nextEpisodeSeason = nextSeason,
+        nextAirAt = nextAirAt,
+    )
+}
+
+/**
+ * TVmaze status → airing facts. A running show with aired episodes is
+ * **Ongoing** (previous bug: it was tagged "Coming Soon"). A running show
+ * with nothing aired yet is **upcoming**.
+ */
+internal fun tvmazeAiring(status: String, schedule: TvmazeSchedule): AiringInfo {
+    val hasNext = schedule.nextAirAt != null
+    val running = status.equals("Running", ignoreCase = true)
+    return AiringInfo(
+        airing = running,
+        airingStarted = schedule.airedCount > 0,
+        nextEpisode = if (running && hasNext) schedule.nextEpisode else null,
+        nextEpisodeSeason = if (running && hasNext) schedule.nextEpisodeSeason else null,
+        nextAirAt = if (running && hasNext) schedule.nextAirAt else null,
+    )
+}
+
 internal fun airingFromAniList(
     status: String,
     nextEpisode: Int?,
@@ -207,6 +266,13 @@ private fun addAltTitle(target: MutableList<String>, raw: String?) {
     if (value.isBlank()) return
     if (target.any { it.equals(value, ignoreCase = true) }) return
     target.add(value)
+}
+
+/** TVMaze airstamp is ISO-8601 with offset, e.g. 2027-01-17T15:00:00+00:00. */
+private fun parseAirstampMillis(text: String): Long? {
+    return runCatching {
+        java.time.OffsetDateTime.parse(text.trim()).toInstant().toEpochMilli()
+    }.getOrNull()
 }
 
 private fun startDateMillis(date: JSONObject?): Long? {
@@ -326,12 +392,13 @@ class MetadataRepository {
             val premiered = show.optString("premiered")
             val year = if (premiered.length >= 4) premiered.take(4) else ""
 
-            // Episodes give both season structure and the next airtime.
-            val (seasonCounts, nextAir) = fetchTvmazeEpisodes(id)
+            // Episodes give season structure and the schedule (next future episode).
+            val schedule = fetchTvmazeEpisodes(id)
+            val info = tvmazeAiring(status, schedule)
+            val seasonCounts = schedule.seasonEpisodeCounts
             val seasonEpisodeCounts = if (seasonCounts.isEmpty()) listOf(1) else seasonCounts.map { it.second }
             val seasonNumbers = if (seasonCounts.isEmpty()) listOf(1) else seasonCounts.map { it.first }
-            val upcoming = status.equals("Running", ignoreCase = true) &&
-                nextAir != null && nextAir > System.currentTimeMillis()
+            val upcoming = !info.airingStarted && info.nextAirAt != null
 
             list.add(
                 MetadataResult(
@@ -346,44 +413,24 @@ class MetadataRepository {
                     year = year,
                     type = MediaType.Series,
                     seasonNumbers = seasonNumbers,
-                    releaseAt = nextAir,
-                    upcoming = upcoming
+                    releaseAt = if (upcoming) info.nextAirAt else null,
+                    upcoming = upcoming,
+                    airing = info.airing,
+                    airingStarted = info.airingStarted,
+                    nextEpisode = info.nextEpisode,
+                    nextEpisodeSeason = info.nextEpisodeSeason,
+                    nextAirAt = info.nextAirAt,
                 )
             )
         }
         return list
     }
 
-    /** Returns ((season, episodeCount) sorted, next future airstamp millis or null). */
-    private fun fetchTvmazeEpisodes(showId: String): Pair<List<Pair<Int, Int>>, Long?> {
-        return try {
-            val arr = getJsonArray("https://api.tvmaze.com/shows/$showId/episodes")
-            val bySeason = mutableMapOf<Int, Int>()
-            var nextAir: Long? = null
-            val now = System.currentTimeMillis()
-            for (i in 0 until arr.length()) {
-                val ep = arr.optJSONObject(i) ?: continue
-                val season = ep.optInt("season", 0)
-                // season 0 = specials; skip so Pick Folder targets regular seasons.
-                if (season > 0) bySeason[season] = (bySeason[season] ?: 0) + 1
-                val airstamp = ep.optString("airstamp")
-                if (airstamp.isNotBlank()) {
-                    val air = parseAirstampMillis(airstamp)
-                    if (air != null && air > now && (nextAir == null || air < nextAir)) nextAir = air
-                }
-            }
-            Pair(bySeason.toList().sortedBy { it.first }, nextAir)
-        } catch (_: Exception) {
-            Pair(emptyList(), null)
-        }
-    }
-
-    /** TVMaze airstamp is ISO-8601 with offset, e.g. 2027-01-17T15:00:00+00:00. */
-    private fun parseAirstampMillis(text: String): Long? {
-        return runCatching {
-            java.time.OffsetDateTime.parse(text.trim()).toInstant().toEpochMilli()
-        }.getOrNull()
-    }
+    private fun fetchTvmazeEpisodes(showId: String): TvmazeSchedule =
+        parseTvmazeSchedule(
+            getJsonArray("https://api.tvmaze.com/shows/$showId/episodes"),
+            System.currentTimeMillis(),
+        )
 
     private fun searchTmdb(query: String, key: String, region: String): List<MetadataResult> {
         val encoded = URLEncoder.encode(query, "UTF-8")
