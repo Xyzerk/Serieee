@@ -307,6 +307,12 @@ class SerieeRepository(context: Context) {
             seasonsArr.put(sj)
         }
         put("seasons", seasonsArr)
+        put("airing", m.airing)
+        put("airingStarted", m.airingStarted)
+        put("nextEpisode", m.nextEpisode ?: -1)
+        put("nextEpisodeSeason", m.nextEpisodeSeason ?: -1)
+        put("nextAirAt", m.nextAirAt ?: -1L)
+        put("airingCheckedAt", m.airingCheckedAt)
     }
 
     private fun fromJson(o: JSONObject): MediaItem {
@@ -379,7 +385,13 @@ class SerieeRepository(context: Context) {
             description = o.optString("description"),
             source = o.optString("source"),
             sourceId = o.optString("sourceId"),
-            altTitles = parsedAltTitles
+            altTitles = parsedAltTitles,
+            airing = o.optBoolean("airing", false),
+            airingStarted = o.optBoolean("airingStarted", false),
+            nextEpisode = o.optInt("nextEpisode", -1).takeIf { it > 0 },
+            nextEpisodeSeason = o.optInt("nextEpisodeSeason", -1).takeIf { it > 0 },
+            nextAirAt = o.optLong("nextAirAt", -1L).takeIf { it > 0L },
+            airingCheckedAt = o.optLong("airingCheckedAt", 0L)
         )
     }
 
@@ -442,7 +454,7 @@ class SerieeRepository(context: Context) {
             val arr = JSONArray(json)
             return BackupPayload(
                 items = (0 until arr.length())
-                    .map { fromJson(arr.getJSONObject(it)) }
+                    .map { fromJson(arr.getJSONObject(it)).copy(airingCheckedAt = 0L) }
                     .distinctBy { it.id },
                 history = null
             )
@@ -474,7 +486,7 @@ class SerieeRepository(context: Context) {
         }
         val itemsArray = root.optJSONArray("items") ?: JSONArray()
         val items = (0 until itemsArray.length())
-            .map { fromJson(itemsArray.getJSONObject(it)) }
+            .map { fromJson(itemsArray.getJSONObject(it)).copy(airingCheckedAt = 0L) }
             .distinctBy { it.id }
         return BackupPayload(items = items, history = history)
     }
