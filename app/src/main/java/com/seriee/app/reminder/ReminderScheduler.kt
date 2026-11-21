@@ -187,13 +187,17 @@ object ReminderScheduler {
         return sdf.format(ts)
     }
 
-    fun timeUntilRelease(context: Context, ts: Long?): String {
+    fun timeUntilRelease(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.no_schedule)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.already_aired)
-        val minutes = diff / (60 * 1000)
-        val hours = minutes / 60
-        val days = hours / 24
+        val minutes = CountdownRules.minutesFloor(now, ts)
+        val hours = CountdownRules.hoursFloor(now, ts)
+        val days = CountdownRules.daysCeil(now, ts)
 
         return when {
             days > 0 -> context.getString(R.string.airs_in_days, days)
@@ -203,49 +207,57 @@ object ReminderScheduler {
         }
     }
 
-    fun daysUntilRelease(ts: Long?): Int {
-        if (ts == null || ts <= 0) return 0
-        val diff = ts - System.currentTimeMillis()
-        if (diff <= 0) return 0
-        return ((diff + 86400000L - 1) / 86400000L).toInt()
-    }
+    fun daysUntilRelease(ts: Long?, now: Long = System.currentTimeMillis()): Int =
+        CountdownRules.daysCeil(now, ts)
 
-    fun countdownShortBadge(context: Context, ts: Long?): String {
+    fun countdownShortBadge(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.badge_soon)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.badge_today)
-        val days = diff / (86400 * 1000)
+        val days = CountdownRules.daysCeil(now, ts)
         return when {
             days > 0 -> context.getString(R.string.badge_d_days, days)
             else -> {
-                val hours = (diff / (3600 * 1000)).coerceAtLeast(1)
+                val hours = CountdownRules.hoursFloor(now, ts).coerceAtLeast(1)
                 context.getString(R.string.badge_hours_left, hours)
             }
         }
     }
 
-    fun countdownBadgeText(context: Context, ts: Long?): String {
+    fun countdownBadgeText(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.status_coming_soon)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.countdown_today)
-        val days = diff / (86400 * 1000)
-        val hours = (diff / (3600 * 1000))
+        val days = CountdownRules.daysCeil(now, ts)
+        val hours = CountdownRules.hoursFloor(now, ts)
         return when {
             days > 1 -> context.getString(R.string.countdown_days, days)
-            days == 1L -> context.getString(R.string.countdown_one_day)
+            days == 1 -> context.getString(R.string.countdown_one_day)
             hours > 0 -> context.getString(R.string.countdown_hours, hours)
             else -> context.getString(R.string.countdown_under_hour)
         }
     }
 
-    fun countdownDetailedText(context: Context, ts: Long?): String {
+    fun countdownDetailedText(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.schedule_not_set)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.released_today)
-        val totalHours = diff / (3600 * 1000)
-        val days = diff / (86400 * 1000)
+        val totalHours = CountdownRules.hoursFloor(now, ts)
+        val days = CountdownRules.daysCeil(now, ts)
         val remainingHours = totalHours % 24
-        val minutes = (diff / (60 * 1000)) % 60
+        val minutes = ((diff / (60 * 1000)) % 60).toInt()
 
         return when {
             days > 0 -> if (remainingHours > 0) context.getString(R.string.detailed_days_hours, days, remainingHours)
