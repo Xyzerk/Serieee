@@ -303,6 +303,63 @@ private fun stripHtml(html: String): String {
 
 class MetadataRepository {
 
+    /**
+     * One AniList `Page` request for an already-collected `id_in` list:
+     * `{id -> AiringInfo}`. Non-numeric ids are skipped before the call.
+     */
+    suspend fun fetchAiring(sourceIds: List<String>): Map<String, AiringInfo> = withContext(Dispatchers.IO) {
+        if (sourceIds.isEmpty()) return@withContext emptyMap()
+        val ids = sourceIds.mapNotNull { it.trim().toIntOrNull() }.distinct()
+        if (ids.isEmpty()) return@withContext emptyMap()
+        val body = JSONObject().apply {
+            put("query", """
+                query (${'$'}ids: [Int]) {
+                  Page(page: 1, perPage: 50) {
+                    media(id_in: $ids, type: ANIME) {
+                      id status
+                      nextAiringEpisode { episode airingAt }
+                    }
+                  }
+                }
+            """.trimIndent())
+            put("variables", JSONObject().put("ids", JSONArray(ids)))
+        }
+        val json = postJson("https://graphql.anilist.co", body)
+        val mediaArr = json.optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("media")
+        if (mediaArr == null) return@withContext emptyMap()
+        val out = LinkedHashMap<String, AiringInfo>()
+        for (i in 0 until mediaArr.length()) {
+            val m = mediaArr.optJSONObject(i) ?: continue
+            val id = m.optString("id").trim().takeIf { it.isNotEmpty() } ?: continue
+            val nextEp = m.optJSONObject("nextAiringEpisode")
+            out[id] = airingFromAniList(
+                status = m.optString("status"),
+                nextEpisode = nextEp?.optInt("episode", 0)?.takeIf { it > 0 },
+                nextAiringAtMillis = nextEp?.optLong("airingAt", 0L)?.takeIf { it > 0 }?.times(1000L),
+                startAtMillis = null,
+            )
+        }
+        out
+    }
+
+    /**
+     * TVMaze status + episode schedule for one show, via
+     * `GET /shows/{id}` and `GET /shows/{id}/episodes`. Null on failure so the
+     * refresher retries next open instead of clearing stored values.
+     */
+    suspend fun fetchTvmazeAiring(showId: String): AiringInfo? = withContext(Dispatchers.IO) {
+        try {
+            val show = getJson("https://api.tvmaze.com/shows/$showId")
+            val schedule = parseTvmazeSchedule(
+                getJsonArray("https://api.tvmaze.com/shows/$showId/episodes"),
+                System.currentTimeMillis(),
+            )
+            tvmazeAiring(show.optString("status"), schedule)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun search(query: String, tmdbKey: String? = null, omdbKey: String? = null, region: String = "ID"): Result<List<MetadataResult>> =
         withContext(Dispatchers.IO) {
             val trimmed = query.trim()

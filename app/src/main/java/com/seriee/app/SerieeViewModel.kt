@@ -14,6 +14,8 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.seriee.app.data.AniListListClient
+import com.seriee.app.data.AiringApply
+import com.seriee.app.data.AiringRefresher
 import com.seriee.app.data.AppLanguage
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
@@ -29,6 +31,7 @@ import com.seriee.app.data.ImportSource
 import com.seriee.app.data.ImportUiState
 import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
+import com.seriee.app.data.MetadataRepository
 import com.seriee.app.data.PosterStore
 import com.seriee.app.data.SerieeRepository
 import com.seriee.app.data.StreakRules
@@ -107,6 +110,11 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     private val aniListClient = AniListListClient()
+    private val metadataRepo = MetadataRepository()
+    private val refresher = AiringRefresher(metadataRepo::fetchAiring, metadataRepo::fetchTvmazeAiring)
+
+    @Volatile
+    private var airingRefreshStarted = false
     private var importJob: Job? = null
     private val _importState = mutableStateOf(ImportUiState())
     val importState: ImportUiState get() = _importState.value
@@ -211,6 +219,28 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         items.forEach { item ->
             if (item.reminderEnabled && item.releaseDate != null && item.releaseDate > System.currentTimeMillis()) {
                 com.seriee.app.reminder.ReminderScheduler.scheduleReminder(app, item)
+            }
+        }
+        startAiringRefresh()
+    }
+
+    /**
+     * One airing refresh per app open, batched across sources (AniList
+     * `id_in`, TVmaze on stale items). Merges updates onto the latest list;
+     * repaired items get their pending alarms cancelled.
+     */
+    private fun startAiringRefresh() {
+        if (airingRefreshStarted) return
+        airingRefreshStarted = true
+        if (items.isEmpty()) return
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = runCatching { refresher.refresh(items) }.getOrNull() ?: return@launch
+            withContext(Dispatchers.Main) {
+                val applied = AiringApply.apply(items, result)
+                if (!applied.changed) return@withContext
+                commit(applied.items)
+                applied.repairedIds.forEach { com.seriee.app.reminder.ReminderScheduler.cancelReminder(app, it) }
             }
         }
     }
