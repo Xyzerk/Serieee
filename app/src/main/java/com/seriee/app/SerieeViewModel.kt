@@ -215,9 +215,9 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (!_showWelcome.value && lastSeen < currentVersionCode) {
             _showChangelog.value = true
         }
-        // Refresh alarms for any pending items
+        // Refresh alarms for any pending items (the scheduler picks the target)
         items.forEach { item ->
-            if (item.reminderEnabled && item.releaseDate != null && item.releaseDate > System.currentTimeMillis()) {
+            if (item.reminderEnabled) {
                 com.seriee.app.reminder.ReminderScheduler.scheduleReminder(app, item)
             }
         }
@@ -240,6 +240,11 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
                 val applied = AiringApply.apply(items, result)
                 if (!applied.changed) return@withContext
                 commit(applied.items)
+                applied.items.forEach { item ->
+                    if (item.reminderEnabled && result.updates.containsKey(item.id)) {
+                        com.seriee.app.reminder.ReminderScheduler.scheduleReminder(app, item)
+                    }
+                }
                 applied.repairedIds.forEach { com.seriee.app.reminder.ReminderScheduler.cancelReminder(app, it) }
             }
         }
@@ -375,7 +380,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             if (m.id == id) {
                 val newStatus = !m.reminderEnabled
                 val updated = m.copy(reminderEnabled = newStatus)
-                if (newStatus && updated.releaseDate != null && updated.releaseDate > System.currentTimeMillis()) {
+                if (newStatus) {
                     com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), updated)
                 } else {
                     com.seriee.app.reminder.ReminderScheduler.cancelReminder(getApplication(), id)
@@ -413,7 +418,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             maybeTriggerBackupReminder(items.size)
         }
 
-        if (synced.reminderEnabled && synced.releaseDate != null && synced.releaseDate > System.currentTimeMillis()) {
+        if (synced.reminderEnabled) {
             com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), synced)
         } else {
             com.seriee.app.reminder.ReminderScheduler.cancelReminder(getApplication(), synced.id)
@@ -799,6 +804,11 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             preview = null,
             result = result
         )
+        items.forEach { item ->
+            if (item.reminderEnabled) {
+                com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), item)
+            }
+        }
         maybeTriggerBackupReminder(items.size, importedDelta = result.added)
     }
 
@@ -854,7 +864,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
 
             // Reschedule active reminders
             finalItems.forEach { item ->
-                if (item.reminderEnabled && item.releaseDate != null && item.releaseDate > System.currentTimeMillis()) {
+                if (item.reminderEnabled) {
                     com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), item)
                 }
             }

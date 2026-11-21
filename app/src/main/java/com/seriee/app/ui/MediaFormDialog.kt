@@ -826,7 +826,8 @@ fun MediaFormDialog(
 
                 TagInputField(tags = tags, onTagsChanged = { tags = it })
 
-                val showReminderSection = status == WatchStatus.ComingSoon || status == WatchStatus.PlanToWatch || releaseDate != null
+                val showReminderSection = status == WatchStatus.ComingSoon || status == WatchStatus.PlanToWatch ||
+                    releaseDate != null || (airing && airingStarted)
                 if (showReminderSection) {
                     val reminderCardModifier = if (p.isNeoBrutalist) {
                         Modifier
@@ -1734,7 +1735,7 @@ fun MediaFormDialog(
                                 videoPath = firstFilePath.trim(),
                                 videoUri = firstFileUri,
                                 releaseDate = if (status == WatchStatus.ComingSoon || reminderEnabled) releaseDate else null,
-                                reminderEnabled = reminderEnabled && (releaseDate != null),
+                                reminderEnabled = reminderEnabled && (releaseDate != null || (airing && airingStarted)),
                                 airing = airing,
                                 airingStarted = airingStarted,
                                 nextEpisode = nextEpisode,
