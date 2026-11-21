@@ -57,17 +57,183 @@ data class MetadataResult(
     val type: MediaType = MediaType.Series,
     /** Season number per entry in [seasonEpisodeCounts] (parallel list). Empty = [1]. */
     val seasonNumbers: List<Int> = emptyList(),
-    /** Epoch millis of the first air time when the source exposes it (e.g. AniList `airingAt`). */
+    /** Epoch millis of the first air time when the source exposes it. */
     val releaseAt: Long? = null,
-    /** Source says the title has not aired yet (e.g. AniList status NOT_YET_RELEASED). */
+    /** Nothing has aired yet (exactly `!airingStarted` for AniList/TVmaze). */
     val upcoming: Boolean = false,
-    /**
-     * Alternate titles (romaji / native / synonyms / original title). Kept off
-     * the UI and stored on the saved item so file matching can fall back to
-     * them when a folder is named after a translation.
-     */
-    val altTitles: List<String> = emptyList()
+    /** Alternate titles; not shown in the UI, persisted on the item for file matching. */
+    val altTitles: List<String> = emptyList(),
+    /** Source says the show is still airing. */
+    val airing: Boolean = false,
+    /** Source reports at least one episode aired. */
+    val airingStarted: Boolean = false,
+    /** Next episode number when the source knows it. */
+    val nextEpisode: Int? = null,
+    /** Season that the next episode belongs to. */
+    val nextEpisodeSeason: Int? = null,
+    /** Epoch millis of the next airing episode. */
+    val nextAirAt: Long? = null,
 )
+
+/**
+ * AniList publishes each season as a separate entry, so search must return
+ * every match instead of the single `Media(search:)` hit.
+ */
+internal fun parseAniListPage(json: JSONObject, query: String): List<MetadataResult> {
+    val out = mutableListOf<MetadataResult>()
+    val mediaArr = json.optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("media")
+    if (mediaArr != null) {
+        for (i in 0 until mediaArr.length()) {
+            val r = mapAniListMedia(mediaArr.optJSONObject(i) ?: continue, query)
+            if (r != null) out.add(r)
+        }
+    }
+    return out
+}
+
+internal fun mapAniListMedia(media: JSONObject, query: String): MetadataResult? {
+    val id = media.optString("id").trim().takeIf { it.isNotEmpty() } ?: return null
+    val titleObj = media.optJSONObject("title")
+    val english = titleObj?.optString("english").orEmpty()
+    val romaji = titleObj?.optString("romaji").orEmpty()
+    val native = titleObj?.optString("native").orEmpty()
+    val title = english.takeIf { it.isNotBlank() } ?: romaji
+    val altTitles = mutableListOf<String>()
+    listOf(english, romaji, native).forEach { addAltTitle(altTitles, it) }
+    media.optJSONArray("synonyms")?.let { arr ->
+        for (i in 0 until arr.length()) addAltTitle(altTitles, arr.optString(i))
+    }
+    val poster = media.optJSONObject("coverImage")?.optString("large") ?: ""
+    val descRaw = media.optString("description")
+    val desc = stripHtml(descRaw)
+    val tags = mutableListOf<String>()
+    val genres = media.optJSONArray("genres")
+    if (genres != null) for (i in 0 until genres.length()) tags.add(genres.optString(i))
+    val total = media.optInt("episodes", 0)
+    val isMovie = media.optString("format").equals("MOVIE", ignoreCase = true)
+    val mediaType = if (isMovie) MediaType.Movie else MediaType.Series
+    // AniList models each season as its own entry ("…Season 4"). Its `season`
+    // field is the release season (WINTER/SPRING…), not the sequel number,
+    // so the number comes from the entry's title (then the search query).
+    val detectedSeason = if (isMovie) null
+        else parseSeasonNumberFromText(title) ?: parseSeasonNumberFromText(query)
+    val seasons = when {
+        isMovie -> listOf(1)
+        total > 0 -> listOf(total)
+        else -> emptyList()
+    }
+    val seasonNumbers = when {
+        isMovie -> listOf(1)
+        seasons.isNotEmpty() -> listOf(detectedSeason ?: 1)
+        else -> emptyList()
+    }
+    val streams = mutableListOf<StreamCandidate>()
+    val links = media.optJSONArray("externalLinks")
+    if (links != null) for (i in 0 until links.length()) {
+        val link = links.optJSONObject(i) ?: continue
+        val site = link.optString("site")
+        val url = link.optString("url")
+        // AniList ExternalLinkType: INFO | STREAMING | SOCIAL.
+        // Only STREAMING links are playback candidates — INFO (wiki/official sites)
+        // or SOCIAL links must not become the item's streamUrl via applyFetch.
+        val linkType = link.optString("type")
+        if (!linkType.equals("STREAMING", ignoreCase = true)) continue
+        if (url.isNotBlank()) streams.add(StreamCandidate(site.ifBlank { "Official" }, url))
+    }
+    val year = media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }?.toString() ?: ""
+    val startAt = startDateMillis(media.optJSONObject("startDate"))
+    val info = airingFromAniList(
+        status = media.optString("status"),
+        nextEpisode = media.optJSONObject("nextAiringEpisode")?.optInt("episode", 0)?.takeIf { it > 0 },
+        nextAiringAtMillis = media.optJSONObject("nextAiringEpisode")?.optLong("airingAt", 0L)?.takeIf { it > 0 }?.times(1000L),
+        startAtMillis = startAt,
+        nextEpisodeSeason = detectedSeason,
+    )
+    return MetadataResult(
+        source = "AniList",
+        sourceId = id,
+        title = title,
+        posterUrl = poster,
+        description = desc,
+        tags = tags,
+        seasonEpisodeCounts = seasons,
+        streamCandidates = streams,
+        year = year,
+        type = mediaType,
+        seasonNumbers = seasonNumbers,
+        releaseAt = if (info.airingStarted) null else info.nextAirAt ?: startAt,
+        upcoming = !info.airingStarted,
+        altTitles = altTitles,
+        airing = info.airing,
+        airingStarted = info.airingStarted,
+        nextEpisode = info.nextEpisode,
+        nextEpisodeSeason = info.nextEpisodeSeason ?: 1,
+        nextAirAt = info.nextAirAt,
+    )
+}
+
+/**
+ * AniList status → airing facts:
+ * - `RELEASING`: still airing; episode N is the next one (`airingStarted` when N > 1).
+ * - `NOT_YET_RELEASED`: has not aired; use the advertised airtime or season start.
+ * - Anything else: has aired (finished / cancelled / hiatus); no projecting forward.
+ */
+internal fun airingFromAniList(
+    status: String,
+    nextEpisode: Int?,
+    nextAiringAtMillis: Long?,
+    startAtMillis: Long?,
+    nextEpisodeSeason: Int? = null,
+): AiringInfo = when {
+    status.equals("RELEASING", ignoreCase = true) -> AiringInfo(
+        airing = true,
+        airingStarted = (nextEpisode ?: 1) > 1,
+        nextEpisode = nextEpisode,
+        nextEpisodeSeason = nextEpisodeSeason,
+        nextAirAt = nextAiringAtMillis,
+    )
+    status.equals("NOT_YET_RELEASED", ignoreCase = true) -> AiringInfo(
+        airing = false,
+        airingStarted = false,
+        nextEpisode = nextEpisode,
+        nextEpisodeSeason = nextEpisodeSeason,
+        nextAirAt = nextAiringAtMillis ?: startAtMillis,
+    )
+    else -> AiringInfo(airing = false, airingStarted = true, nextEpisodeSeason = nextEpisodeSeason)
+}
+
+private fun addAltTitle(target: MutableList<String>, raw: String?) {
+    val value = raw?.trim().orEmpty()
+    if (value.isBlank()) return
+    if (target.any { it.equals(value, ignoreCase = true) }) return
+    target.add(value)
+}
+
+private fun startDateMillis(date: JSONObject?): Long? {
+    if (date == null) return null
+    val year = date.optInt("year", 0)
+    val month = date.optInt("month", 0)
+    val day = date.optInt("day", 0)
+    if (year <= 0 || month !in 1..12 || day !in 1..31) return null
+    return runCatching {
+        java.time.LocalDate.of(year, month, day)
+            .atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }.getOrNull()
+}
+
+private fun stripHtml(html: String): String {
+    if (html.isBlank()) return ""
+    return html
+        .replace(Regex("<[^>]*>"), "")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#039;", "'")
+        .trim()
+}
 
 class MetadataRepository {
 
@@ -101,120 +267,20 @@ class MetadataRepository {
         val body = JSONObject().apply {
             put("query", """
                 query (${'$'}search: String) {
-                  Media(search: ${'$'}search, type: ANIME) {
-                    id title { english romaji native } synonyms
-                    coverImage { large } description genres episodes format
-                    status
-                    startDate { year month day }
-                    nextAiringEpisode { airingAt episode }
-                    externalLinks { url site type }
+                  Page(page: 1, perPage: 10) {
+                    media(search: ${'$'}search, type: ANIME, sort: SEARCH_MATCH) {
+                      id title { english romaji native } synonyms
+                      coverImage { large } description genres episodes format status
+                      startDate { year month day }
+                      nextAiringEpisode { airingAt episode }
+                      externalLinks { url site type }
+                    }
                   }
                 }
             """.trimIndent())
             put("variables", JSONObject().put("search", query))
         }
-        val json = postJson("https://graphql.anilist.co", body)
-        val media = json.optJSONObject("data")?.optJSONObject("Media") ?: return emptyList()
-        val titleObj = media.optJSONObject("title")
-        val english = titleObj?.optString("english").orEmpty()
-        val romaji = titleObj?.optString("romaji").orEmpty()
-        val native = titleObj?.optString("native").orEmpty()
-        val title = english.takeIf { it.isNotBlank() } ?: romaji
-        val altTitles = mutableListOf<String>()
-        listOf(english, romaji, native).forEach { addAltTitle(altTitles, it) }
-        media.optJSONArray("synonyms")?.let { arr ->
-            for (i in 0 until arr.length()) addAltTitle(altTitles, arr.optString(i))
-        }
-        val poster = media.optJSONObject("coverImage")?.optString("large") ?: ""
-        val descRaw = media.optString("description")
-        val desc = stripHtml(descRaw)
-        val tags = mutableListOf<String>()
-        val genres = media.optJSONArray("genres")
-        if (genres != null) for (i in 0 until genres.length()) tags.add(genres.optString(i))
-        val total = media.optInt("episodes", 0)
-        val isMovie = media.optString("format").equals("MOVIE", ignoreCase = true)
-        val mediaType = if (isMovie) MediaType.Movie else MediaType.Series
-        // AniList models each season as its own entry ("…Season 4"). Its `season`
-        // field is the release season (WINTER/SPRING…), not the sequel number,
-        // so the number comes from the entry's title (then the search query).
-        val detectedSeason = if (isMovie) null
-            else parseSeasonNumberFromText(title) ?: parseSeasonNumberFromText(query)
-        val seasons = when {
-            isMovie -> listOf(1)
-            total > 0 -> listOf(total)
-            else -> emptyList()
-        }
-        val seasonNumbers = when {
-            isMovie -> listOf(1)
-            seasons.isNotEmpty() -> listOf(detectedSeason ?: 1)
-            else -> emptyList()
-        }
-        val streams = mutableListOf<StreamCandidate>()
-        val links = media.optJSONArray("externalLinks")
-        if (links != null) for (i in 0 until links.length()) {
-            val link = links.optJSONObject(i) ?: continue
-            val site = link.optString("site")
-            val url = link.optString("url")
-            // AniList ExternalLinkType: INFO | STREAMING | SOCIAL.
-            // Only STREAMING links are playback candidates — INFO (wiki/official sites)
-            // or SOCIAL links must not become the item's streamUrl via applyFetch.
-            val linkType = link.optString("type")
-            if (!linkType.equals("STREAMING", ignoreCase = true)) continue
-            if (url.isNotBlank()) streams.add(StreamCandidate(site.ifBlank { "Official" }, url))
-        }
-        val year = media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }?.toString() ?: ""
-        // AniList knows the real schedule: `nextAiringEpisode.airingAt` is the exact
-        // epoch timestamp of the upcoming episode (episode 1 for a not-yet-released
-        // title). Only use it for unreleased entries — once a show is airing it points
-        // at a later episode, not at its release date.
-        val sourceStatus = media.optString("status")
-        val upcoming = sourceStatus.equals("NOT_YET_RELEASED", ignoreCase = true)
-        val nextAirAt = media.optJSONObject("nextAiringEpisode")
-            ?.optLong("airingAt", 0L)
-            ?.takeIf { it > 0L }
-            ?.times(1000L)
-        val startAt = startDateMillis(media.optJSONObject("startDate"))
-        val releaseAt = if (upcoming) nextAirAt ?: startAt else null
-        return listOf(
-            MetadataResult(
-                source = "AniList",
-                sourceId = media.optString("id"),
-                title = title,
-                posterUrl = poster,
-                description = desc,
-                tags = tags,
-                seasonEpisodeCounts = seasons,
-                streamCandidates = streams,
-                year = year,
-                type = mediaType,
-                seasonNumbers = seasonNumbers,
-                releaseAt = releaseAt,
-                upcoming = upcoming,
-                altTitles = altTitles
-            )
-        )
-    }
-
-    /** Adds a non-blank, non-duplicate alternate title (case-insensitive). */
-    private fun addAltTitle(target: MutableList<String>, raw: String?) {
-        val value = raw?.trim().orEmpty()
-        if (value.isBlank()) return
-        if (target.any { it.equals(value, ignoreCase = true) }) return
-        target.add(value)
-    }
-
-    private fun startDateMillis(date: JSONObject?): Long? {
-        if (date == null) return null
-        val year = date.optInt("year", 0)
-        val month = date.optInt("month", 0)
-        val day = date.optInt("day", 0)
-        if (year <= 0 || month !in 1..12 || day !in 1..31) return null
-        return runCatching {
-            java.time.LocalDate.of(year, month, day)
-                .atStartOfDay(java.time.ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli()
-        }.getOrNull()
+        return parseAniListPage(postJson("https://graphql.anilist.co", body), query)
     }
 
     private fun parseIsoDateMillis(text: String?): Long? {
@@ -582,17 +648,5 @@ class MetadataRepository {
         conn.disconnect()
         if (code !in 200..299) throw IllegalStateException("HTTP $code: $text")
         return JSONObject(text)
-    }
-
-    private fun stripHtml(html: String): String {
-        if (html.isBlank()) return ""
-        return html
-            .replace(Regex("<[^>]*>"), "")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&#039;", "'")
-            .trim()
     }
 }
