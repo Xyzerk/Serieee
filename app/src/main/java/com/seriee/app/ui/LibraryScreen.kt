@@ -454,7 +454,8 @@ private fun GridItem(
         ) {
             Poster(item.poster, Modifier.fillMaxSize(), posterShape)
             if (showTopBadge) {
-                val badgeShape = RoundedCornerShape(6.dp)
+                val isAiring = airLabel != null
+                val badgeShape = RoundedCornerShape(if (isAiring) 4.dp else 6.dp)
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -464,10 +465,14 @@ private fun GridItem(
                         .clip(badgeShape)
                         .background(if (p.isNeoBrutalist && item.status == WatchStatus.ComingSoon) NeoBrutalistColors.Yellow else badgeColor)
                         .then(
-                            if (p.isNeoBrutalist) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
-                            else Modifier
+                            if (p.isNeoBrutalist) {
+                                Modifier.border(if (isAiring) 1.dp else 1.5.dp, NeoBrutalistColors.Black, badgeShape)
+                            } else Modifier
                         )
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(
+                            horizontal = if (isAiring) 4.dp else 6.dp,
+                            vertical = if (isAiring) 1.dp else 2.dp
+                        )
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (item.reminderEnabled) {
@@ -475,14 +480,14 @@ private fun GridItem(
                                 Icons.Filled.NotificationsActive,
                                 null,
                                 tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor),
-                                modifier = Modifier.size(10.dp)
+                                modifier = Modifier.size(if (isAiring) 8.dp else 10.dp)
                             )
                             Spacer(Modifier.width(2.dp))
                         }
                         Text(
                             badgeLine,
                             fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                            fontSize = 9.sp,
+                            fontSize = if (isAiring) 8.sp else 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
