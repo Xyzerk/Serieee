@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
 import com.seriee.app.data.EpisodeFile
+import com.seriee.app.data.FetchScheduleRules
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
 import com.seriee.app.data.MetadataRepository
@@ -143,6 +144,14 @@ fun MediaFormDialog(
     var reminderEnabled by remember {
         mutableStateOf(initial?.reminderEnabled ?: (initial?.status == WatchStatus.ComingSoon))
     }
+    // Airing schedule facts from the metadata source (kept in sync on fetch,
+    // persisted on save so the Ongoing badge can render even without new data).
+    var airing by remember { mutableStateOf(initial?.airing ?: false) }
+    var airingStarted by remember { mutableStateOf(initial?.airingStarted ?: false) }
+    var nextEpisode by remember { mutableStateOf(initial?.nextEpisode) }
+    var nextEpisodeSeason by remember { mutableStateOf(initial?.nextEpisodeSeason) }
+    var nextAirAt by remember { mutableStateOf(initial?.nextAirAt) }
+    var airingCheckedAt by remember { mutableStateOf(initial?.airingCheckedAt ?: 0L) }
     var tags by remember { mutableStateOf(initial?.tags ?: emptyList()) }
     var rating by remember { mutableStateOf(initial?.rating ?: 0) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -364,14 +373,21 @@ fun MediaFormDialog(
                 .distinctBy { it.lowercase() }
         }
         if (r.tags.isNotEmpty()) tags = r.tags
-        // Use the source's real air time instead of a guessed date, so Coming Soon
-        // countdowns match AniList/TMDB. AniList's `airingAt` is exact (episode 1).
-        val upcomingAir = r.releaseAt?.takeIf { it > System.currentTimeMillis() }
-        if (r.upcoming) status = WatchStatus.ComingSoon
-        if (upcomingAir != null) {
-            releaseDate = upcomingAir
-            reminderEnabled = true
+        // Schedule comes from the pure rule (`FetchScheduleRules`): an upcoming
+        // result re-tags the title Coming Soon with the source's future date; an
+        // already-airing result repairs a wrongly-tagged item back to Watching.
+        val fs = FetchScheduleRules.resolve(status, r, System.currentTimeMillis())
+        if (fs.status != null) {
+            status = fs.status
+            releaseDate = fs.releaseDate
+            reminderEnabled = fs.reminderEnabled ?: false
         }
+        airing = r.airing
+        airingStarted = r.airingStarted
+        nextEpisode = r.nextEpisode
+        nextEpisodeSeason = r.nextEpisodeSeason
+        nextAirAt = r.nextAirAt ?: if (r.upcoming) r.releaseAt else null
+        airingCheckedAt = System.currentTimeMillis()
         // Season comes from the source result (AniList entry / TMDB season numbers),
         // falling back to parsing the fetched title. This keeps "…Season 4" from
         // saving as a Season 1 card — so Pick Folder targets Season 4.
@@ -599,8 +615,8 @@ fun MediaFormDialog(
                             ?: parseSeasonNumberFromText(r.title)
                         val seasonLabel = if (r.type == MediaType.Series && resultSeason != null && resultSeason > 1)
                             " · " + stringResource(R.string.season_format, resultSeason) else ""
-                        val airLabel = r.releaseAt?.takeIf { it > System.currentTimeMillis() }
-                            ?.let { " · " + ReminderScheduler.formatShortDate(context, it) } ?: ""
+                        val now = System.currentTimeMillis()
+                        val airLabel = metAiringSuffix(r, now)?.let { " · " + formatAiringSuffix(context, it) } ?: ""
 
                         if (p.isNeoBrutalist) {
                             NeoBrutalistBox(
@@ -1719,6 +1735,12 @@ fun MediaFormDialog(
                                 videoUri = firstFileUri,
                                 releaseDate = if (status == WatchStatus.ComingSoon || reminderEnabled) releaseDate else null,
                                 reminderEnabled = reminderEnabled && (releaseDate != null),
+                                airing = airing,
+                                airingStarted = airingStarted,
+                                nextEpisode = nextEpisode,
+                                nextEpisodeSeason = nextEpisodeSeason,
+                                nextAirAt = nextAirAt,
+                                airingCheckedAt = airingCheckedAt,
                                 tags = tags,
                                 rating = rating,
                                 altTitles = altTitles

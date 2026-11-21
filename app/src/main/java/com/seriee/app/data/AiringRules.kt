@@ -51,7 +51,6 @@ object AiringRules {
         nextAirAt = info.nextAirAt,
         airingCheckedAt = checkedAt,
     )
-
     /**
      * Repairs a stale [WatchStatus.ComingSoon] that the refreshed source now
      * reports as **currently airing**: the stored date is missing, past, or
@@ -68,12 +67,52 @@ object AiringRules {
         val releaseDate = item.releaseDate
         val stale = releaseDate == null ||
             releaseDate <= now ||
-            (item.nextAirAt != null && abs(releaseDate!! - item.nextAirAt) <= 60_000)
+            (item.nextAirAt != null && releaseDate != null && abs(releaseDate - item.nextAirAt!!) <= 60_000)
         if (!stale) return null
         return item.copy(
             status = WatchStatus.Watching,
             releaseDate = null,
             reminderEnabled = false,
         )
+    }
+}
+
+/**
+ * Result of deciding how a metadata result should change the form's
+ * schedule fields. All-null means "leave the user's state as is".
+ */
+data class FetchSchedule(
+    val status: WatchStatus? = null,        // null = leave the user's status alone
+    val releaseDate: Long? = null,
+    val reminderEnabled: Boolean? = null,
+)
+
+/**
+ * Decides how a [MetadataResult] should rewrite the form's schedule fields.
+ *
+ * - `result.upcoming` → Coming Soon with the source's future flash date,
+ *   reminder on when there is one.
+ * - `result.airingStarted && currentStatus == ComingSoon` → back to Watching
+ *   (the show has already aired: no premiere, no reminder).
+ * - Anything else → all null (no change).
+ */
+object FetchScheduleRules {
+    fun resolve(currentStatus: WatchStatus, result: MetadataResult, now: Long): FetchSchedule {
+        if (result.upcoming) {
+            val releaseDate = result.releaseAt?.takeIf { it > now }
+            return FetchSchedule(
+                status = WatchStatus.ComingSoon,
+                releaseDate = releaseDate,
+                reminderEnabled = releaseDate != null,
+            )
+        }
+        if (result.airingStarted && currentStatus == WatchStatus.ComingSoon) {
+            return FetchSchedule(
+                status = WatchStatus.Watching,
+                releaseDate = null,
+                reminderEnabled = false,
+            )
+        }
+        return FetchSchedule()
     }
 }
