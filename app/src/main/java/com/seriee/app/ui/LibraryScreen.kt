@@ -78,6 +78,7 @@ import com.seriee.app.R
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
 import com.seriee.app.data.WatchStatus
+import com.seriee.app.data.AiringRules
 import com.seriee.app.reminder.ReminderScheduler
 
 private enum class LibrarySort(val labelRes: Int) {
@@ -436,6 +437,13 @@ private fun GridItem(
     }
     val badgeShort = remember(item.releaseDate) { ReminderScheduler.countdownShortBadge(context, item.releaseDate) }
     val badgeText = remember(item.releaseDate) { ReminderScheduler.countdownBadgeText(context, item.releaseDate) }
+    val isOngoingItem = AiringRules.isOngoing(item)
+    val now = System.currentTimeMillis()
+    val airLabel = if (isOngoingItem) airingSuffix(context, item, now) else null
+    val showBadge = item.status == WatchStatus.ComingSoon || isOngoingItem
+    val badgeLine = if (item.status == WatchStatus.ComingSoon) badgeShort
+        else (airLabel ?: airingBadgeLabel(context, item) ?: "")
+    val badgeColor = if (item.status == WatchStatus.ComingSoon) p.reminder else p.info
 
     val posterOverlay: @Composable () -> Unit = {
         val posterShape = RoundedCornerShape(if (p.isNeoBrutalist) 8.dp else 18.dp)
@@ -449,14 +457,14 @@ private fun GridItem(
                 )
         ) {
             Poster(item.poster, Modifier.fillMaxSize(), posterShape)
-            if (item.status == WatchStatus.ComingSoon) {
+            if (showBadge) {
                 val badgeShape = RoundedCornerShape(6.dp)
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp)
                         .clip(badgeShape)
-                        .background(if (p.isNeoBrutalist) NeoBrutalistColors.Yellow else p.reminder)
+                        .background(if (p.isNeoBrutalist && item.status == WatchStatus.ComingSoon) NeoBrutalistColors.Yellow else badgeColor)
                         .then(
                             if (p.isNeoBrutalist) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
                             else Modifier
@@ -468,18 +476,20 @@ private fun GridItem(
                             Icon(
                                 Icons.Filled.NotificationsActive,
                                 null,
-                                tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(p.reminder),
+                                tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor),
                                 modifier = Modifier.size(10.dp)
                             )
                             Spacer(Modifier.width(2.dp))
                         }
-                        Text(
-                            badgeShort,
-                            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(p.reminder)
-                        )
+                        if (badgeLine.isNotEmpty()) {
+                            Text(
+                                badgeLine,
+                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor)
+                            )
+                        }
                     }
                 }
 
@@ -716,6 +726,7 @@ private fun ListItem(
     val shortBadge = remember(item.releaseDate) {
         ReminderScheduler.countdownShortBadge(context, item.releaseDate)
     }
+    val airLabel = airingSuffix(context, item, System.currentTimeMillis())
 
     val rowContent: @Composable () -> Unit = {
         Row(
@@ -785,7 +796,7 @@ private fun ListItem(
                         stringResource(R.string.episode_progress, item.watchedEpisodes, item.totalEpisodes)
                     }
                     Text(
-                        "${stringResource(item.type.labelRes)} • $progressLabel",
+                        "${stringResource(item.type.labelRes)} • $progressLabel${airLabel?.let { " · $it" } ?: ""}",
                         fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                         fontSize = 12.sp,
                         fontWeight = if (p.isNeoBrutalist) FontWeight.Bold else FontWeight.Normal,

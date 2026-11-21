@@ -270,6 +270,11 @@
     <string name="widget_description">Active Watching progress and quick +1 episode tracker</string>
     <string name="widget_empty">No active Watching titles yet</string>
     <string name="widget_watching_count">%1$d watching</string>
+    <string name="airing_episode_short">Ep %1$d · %2$s</string>
+    <string name="airing_ongoing_full">Ongoing · Ep %1$d airs %2$s</string>
+    <string name="airing_ongoing_tba">Ongoing · next episode TBA</string>
+    <string name="airing_coming_soon_full">Coming Soon · %1$s</string>
+
     <string name="widget_increment">+1</string>
     <string name="widget_increment_description">Add one episode to %1$s</string>
     <string name="widget_series_progress">S%1$d · %2$d/%3$d</string>

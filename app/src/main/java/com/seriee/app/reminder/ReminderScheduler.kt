@@ -173,6 +173,20 @@ object ReminderScheduler {
         return sdf.format(ts)
     }
 
+    /** Same as [formatShortDate] but with a time component ("dd MMM yyyy, HH:mm"). */
+    fun formatShortDateTime(context: Context, ts: Long?): String {
+        if (ts == null || ts <= 0) return ""
+        val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+        return sdf.format(ts)
+    }
+
+    /** "dd MMM HH:mm" — the card/widget suffix shape (no year). */
+    fun formatShortDateSuffix(context: Context, ts: Long?): String {
+        if (ts == null || ts <= 0) return ""
+        val sdf = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
+        return sdf.format(ts)
+    }
+
     fun timeUntilRelease(context: Context, ts: Long?): String {
         if (ts == null || ts <= 0) return context.getString(R.string.no_schedule)
         val diff = ts - System.currentTimeMillis()

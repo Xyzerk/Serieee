@@ -65,7 +65,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="S2 · 18/24"
+                android:text="S3 · 8/12 · Ep 9 · 27 Nov 05:00"
                 android:textColor="@color/widget_text_muted"
                 android:textSize="11sp" />
         </LinearLayout>

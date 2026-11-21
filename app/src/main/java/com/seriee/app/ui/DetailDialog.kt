@@ -226,6 +226,16 @@ fun DetailDialog(
                             }
                             Spacer(Modifier.width(8.dp))
                             StatusBadge(item.status)
+                            airingFullLabel(context, item, System.currentTimeMillis())?.let { label ->
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    label,
+                                    fontSize = 12.sp,
+                                    color = p.info,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                         Spacer(Modifier.height(10.dp))
                         Text(

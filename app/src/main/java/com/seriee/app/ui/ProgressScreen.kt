@@ -64,6 +64,7 @@ import com.seriee.app.R
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
 import com.seriee.app.data.WatchStatus
+import com.seriee.app.data.AiringRules
 import com.seriee.app.reminder.ReminderScheduler
 
 @Composable
@@ -241,6 +242,11 @@ private fun ProgressCard(
     val detailedText = remember(item.releaseDate, item.status) {
         if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownDetailedText(context, item.releaseDate) else ""
     }
+    val isOngoingItem = AiringRules.isOngoing(item)
+    val now = System.currentTimeMillis()
+    val airLabel = if (isOngoingItem) airingSuffix(context, item, now) else null
+    val showBadge = item.status == WatchStatus.ComingSoon || isOngoingItem
+    val badgeColor = if (item.status == WatchStatus.ComingSoon) p.reminder else p.info
     val relTime = remember(item.updatedAt) { relativeTime(context, item.updatedAt) }
     val visualProgress = remember(item.releaseDate) {
         val daysLeft = ReminderScheduler.daysUntilRelease(item.releaseDate)
@@ -254,14 +260,14 @@ private fun ProgressCard(
         ) {
             Box(modifier = Modifier.size(width = 68.dp, height = 86.dp)) {
                 Poster(item.poster, Modifier.fillMaxSize())
-                if (item.status == WatchStatus.ComingSoon) {
+                if (showBadge) {
                     val badgeShape = RoundedCornerShape(if (p.isNeoBrutalist) 6.dp else 4.dp)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(3.dp)
                             .clip(badgeShape)
-                            .background(if (p.isNeoBrutalist) NeoBrutalistColors.Yellow else p.reminder)
+                            .background(if (p.isNeoBrutalist && item.status == WatchStatus.ComingSoon) NeoBrutalistColors.Yellow else badgeColor)
                             .then(
                                 if (p.isNeoBrutalist) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
                                 else Modifier
@@ -269,11 +275,11 @@ private fun ProgressCard(
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     ) {
                         Text(
-                            badgeText,
+                            badgeText.ifBlank { airLabel ?: "" },
                             fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(p.reminder)
+                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor)
                         )
                     }
                 }

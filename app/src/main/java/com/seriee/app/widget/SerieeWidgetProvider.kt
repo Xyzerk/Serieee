@@ -27,6 +27,7 @@ import com.seriee.app.data.WatchHistoryRules
 import com.seriee.app.data.WatchStatus
 import com.seriee.app.debug.AppLogger
 import com.seriee.app.ui.SeriePalette
+import com.seriee.app.ui.airingSuffix
 import java.util.Calendar
 import java.util.concurrent.Executors
 import android.graphics.Color as AndroidColor
@@ -270,15 +271,19 @@ class SerieeWidgetProvider : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
-        private fun subtitleFor(context: Context, item: MediaItem): String = when {
-            item.type == MediaType.Movie -> context.getString(R.string.type_movie)
-            item.seasons.isNotEmpty() -> context.getString(
-                R.string.widget_series_progress,
-                item.season,
-                item.watchedEpisodes,
-                item.totalEpisodes,
-            )
-            else -> context.getString(R.string.episode_progress, item.watchedEpisodes, item.totalEpisodes)
+        private fun subtitleFor(context: Context, item: MediaItem): String {
+            val base = when {
+                item.type == MediaType.Movie -> context.getString(R.string.type_movie)
+                item.seasons.isNotEmpty() -> context.getString(
+                    R.string.widget_series_progress,
+                    item.season,
+                    item.watchedEpisodes,
+                    item.totalEpisodes,
+                )
+                else -> context.getString(R.string.episode_progress, item.watchedEpisodes, item.totalEpisodes)
+            }
+            val suffix = airingSuffix(context, item, System.currentTimeMillis())
+            return if (suffix != null) "$base · $suffix" else base
         }
 
         /**
