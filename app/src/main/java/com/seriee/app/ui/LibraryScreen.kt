@@ -458,7 +458,9 @@ private fun GridItem(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(6.dp)
+                        // Leave room for the TopEnd pin button so a full airing
+                        // label can never run underneath it.
+                        .padding(start = 6.dp, top = 6.dp, end = 44.dp)
                         .clip(badgeShape)
                         .background(if (p.isNeoBrutalist && item.status == WatchStatus.ComingSoon) NeoBrutalistColors.Yellow else badgeColor)
                         .then(
@@ -483,6 +485,7 @@ private fun GridItem(
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                             color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor)
                         )
                     }
