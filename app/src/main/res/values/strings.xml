@@ -146,6 +146,8 @@
     <string name="reminder_title_prefix">🔔 Reminder: %1$s</string>
     <string name="airing_today_title">🔔 %1$s Airing Today!</string>
     <string name="airing_today_body">%1$s "%2$s" is now airing. Open Seriee to start watching!</string>
+    <string name="airing_episode_today_title">🔔 Ep %1$d airs today!</string>
+    <string name="airing_episode_today_body">%1$s "%2$s" has a new episode.</string>
     <string name="default_series_title">Series Airing</string>
     <string name="date_not_set">Not set</string>
     <string name="no_schedule">No schedule</string>

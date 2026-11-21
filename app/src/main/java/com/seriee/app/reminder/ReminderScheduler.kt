@@ -14,10 +14,21 @@ import androidx.core.app.NotificationManagerCompat
 import com.seriee.app.MainActivity
 import com.seriee.app.R
 import com.seriee.app.data.MediaItem
+import com.seriee.app.data.WatchStatus
 import com.seriee.app.debug.AppLogger
 import com.seriee.app.ui.findActivity
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+/** The single future timestamp an item's alarm should use, if any. */
+internal fun reminderTarget(item: MediaItem, now: Long): Long? {
+    val target = if (item.status == WatchStatus.ComingSoon) {
+        item.releaseDate
+    } else {
+        listOfNotNull(item.releaseDate, item.nextAirAt).minOrNull()
+    }
+    return target?.takeIf { it > now }
+}
 
 object ReminderScheduler {
     const val CHANNEL_ID = "seriee_reminders"
@@ -59,8 +70,11 @@ object ReminderScheduler {
     }
 
     fun scheduleReminder(context: Context, item: MediaItem) {
-        val release = item.releaseDate ?: return
-        if (release <= System.currentTimeMillis() || !item.reminderEnabled) return
+        if (!item.reminderEnabled) return
+        // Re-arming drops the old time first, so a refreshed air date or a
+        // source that reports "finished" cannot leave a stale alarm behind.
+        cancelReminder(context, item.id)
+        val target = reminderTarget(item, System.currentTimeMillis()) ?: return
 
         createNotificationChannel(context)
 
@@ -70,6 +84,9 @@ object ReminderScheduler {
             putExtra(ReminderReceiver.EXTRA_ID, item.id)
             putExtra(ReminderReceiver.EXTRA_TITLE, item.title)
             putExtra(ReminderReceiver.EXTRA_TYPE, item.type.name)
+            if (item.status != WatchStatus.ComingSoon && target == item.nextAirAt && item.nextEpisode != null) {
+                putExtra(ReminderReceiver.EXTRA_EPISODE, item.nextEpisode)
+            }
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -81,15 +98,15 @@ object ReminderScheduler {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, pendingIntent)
                 } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, pendingIntent)
                 }
             } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, pendingIntent)
             }
         } catch (e: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, target, pendingIntent)
         }
     }
 
