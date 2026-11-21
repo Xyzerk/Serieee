@@ -47,16 +47,9 @@ internal fun formatAiringSuffix(context: Context, suffix: AiringSuffix): String 
 internal fun airingSuffix(context: Context, item: MediaItem, now: Long): String? =
     airingSuffixFor(item, now)?.let { formatAiringSuffix(context, it) }
 
-/** The detail-sheet line; null when the item has nothing to say. */
-internal fun airingFullLabel(context: Context, item: MediaItem, now: Long): String? = when {
-    AiringRules.isOngoing(item) && item.nextEpisode != null && item.nextAirAt != null && item.nextAirAt > now ->
-        context.getString(R.string.airing_ongoing_full, item.nextEpisode, ReminderScheduler.formatShortDateTime(context, item.nextAirAt))
-    AiringRules.isOngoing(item) -> context.getString(R.string.airing_ongoing_tba)
-    AiringRules.isComingSoon(item) && item.nextAirAt != null && item.nextAirAt > now ->
-        context.getString(R.string.airing_coming_soon_full, ReminderScheduler.formatShortDateTime(context, item.nextAirAt))
-    AiringRules.isComingSoon(item) -> context.getString(R.string.status_coming_soon)
-    else -> null
-}
+/** The schedule card owns the date now, so it shows whenever one is relevant. */
+fun showScheduleCard(item: MediaItem): Boolean =
+    item.status == WatchStatus.ComingSoon || item.releaseDate != null || AiringRules.isOngoing(item)
 
 /** Short label for the 68 dp Progress poster: `Ep 9`, or `Ongoing` when TBA. */
 fun progressBadgeLabel(context: Context, item: MediaItem, now: Long): String? {

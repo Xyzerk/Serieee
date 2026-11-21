@@ -81,11 +81,12 @@ import androidx.lifecycle.LifecycleOwner
 import com.seriee.app.R
 import com.seriee.app.data.MediaItem
 import com.seriee.app.data.MediaType
+import com.seriee.app.data.AiringRules
 import com.seriee.app.data.Season
 import com.seriee.app.data.WatchStatus
 import com.seriee.app.reminder.ReminderScheduler
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DetailDialog(
     item: MediaItem,
@@ -202,7 +203,11 @@ fun DetailDialog(
                             color = p.text
                         )
                         Spacer(Modifier.height(6.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Box(
                                 Modifier
                                     .clip(RoundedCornerShape(6.dp))
@@ -224,17 +229,21 @@ fun DetailDialog(
                                     color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else p.primary
                                 )
                             }
-                            Spacer(Modifier.width(8.dp))
                             StatusBadge(item.status)
-                            airingFullLabel(context, item, System.currentTimeMillis())?.let { label ->
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    label,
-                                    fontSize = 12.sp,
-                                    color = p.info,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                            if (AiringRules.isOngoing(item)) {
+                                Box(
+                                    Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(p.info.copy(alpha = 0.22f))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.filter_ongoing),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = p.info
+                                    )
+                                }
                             }
                         }
                         Spacer(Modifier.height(10.dp))
@@ -359,7 +368,8 @@ fun DetailDialog(
                     }
                 }
 
-                if (item.status == WatchStatus.ComingSoon || item.releaseDate != null) {
+                if (showScheduleCard(item)) {
+                    val scheduleNow = rememberNow()
                     Spacer(Modifier.height(16.dp))
                     SectionTitle(stringResource(R.string.schedule_and_reminder))
                     val scheduleCardModifier = if (p.isNeoBrutalist) {
@@ -438,7 +448,11 @@ fun DetailDialog(
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Text(
-                                    ReminderScheduler.timeUntilRelease(context, item.releaseDate),
+                                    ReminderScheduler.timeUntilRelease(
+                                        context,
+                                        if (AiringRules.isOngoing(item)) item.nextAirAt else item.releaseDate,
+                                        scheduleNow
+                                    ),
                                     fontSize = 11.sp,
                                     fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                                     fontWeight = FontWeight.ExtraBold,
@@ -447,7 +461,42 @@ fun DetailDialog(
                             }
                         }
 
-                        if (p.isNeoBrutalist) {
+                        if (AiringRules.isOngoing(item)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(p.chip)
+                                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Filled.CalendarMonth,
+                                    contentDescription = stringResource(R.string.calendar),
+                                    tint = p.reminder,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        if (item.nextAirAt != null) ReminderScheduler.formatReleaseDate(context, item.nextAirAt)
+                                        else stringResource(R.string.airing_date_tba),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = p.text
+                                    )
+                                    Text(
+                                        if (item.nextAirAt != null && item.nextEpisode != null) {
+                                            stringResource(R.string.airing_episode_from_schedule, item.nextEpisode)
+                                        } else {
+                                            stringResource(R.string.airing_alarm_when_known)
+                                        },
+                                        fontSize = 10.sp,
+                                        color = p.muted
+                                    )
+                                }
+                            }
+                        } else if (p.isNeoBrutalist) {
                             NeoBrutalistBox(
                                 onClick = {
                                     ReminderScheduler.showDateTimePicker(context, item.releaseDate) { newDate ->

@@ -79,12 +79,6 @@ class AiringLabelsTest {
     }
 
     @Test
-    fun `coming soon full label renders`() {
-        val expectedTime = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(AT))
-        assertEquals("Coming Soon · $expectedTime", airingFullLabel(context, comingSoonItem(AT), NOW))
-    }
-
-    @Test
     fun `progress badge is a short episode label`() =
         assertEquals("Ep 9", progressBadgeLabel(context, ongoing(9, AT), NOW))
 
@@ -111,4 +105,15 @@ class AiringLabelsTest {
         assertTrue(showCountdownStrip(comingSoonItem(AT)))
         assertFalse(showCountdownStrip(ongoing(9, AT)))
     }
+
+    @Test
+    fun `schedule card shows for upcoming and ongoing items`() {
+        assertTrue(showScheduleCard(ongoing(9, AT)))
+        assertTrue(showScheduleCard(ongoing(9, null)))
+        assertTrue(showScheduleCard(comingSoonItem(AT)))
+    }
+
+    @Test
+    fun `schedule card hidden for a finished show`() =
+        assertFalse(showScheduleCard(finished()))
 }
