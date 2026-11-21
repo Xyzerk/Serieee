@@ -101,11 +101,24 @@ object MalXmlParser {
             .replace("&apos;", "'")
             .replace("&amp;", "&")
         out = Regex("&#x([0-9a-fA-F]+);").replace(out) { match ->
-            match.groupValues[1].toIntOrNull(16)?.let { String(Character.toChars(it)) } ?: match.value
+            match.groupValues[1].toIntOrNull(16)?.let(::codePointOrNull) ?: match.value
         }
         out = Regex("&#(\\d+);").replace(out) { match ->
-            match.groupValues[1].toIntOrNull()?.let { String(Character.toChars(it)) } ?: match.value
+            match.groupValues[1].toIntOrNull()?.let(::codePointOrNull) ?: match.value
         }
         return out
     }
+
+    /**
+     * Decodes a numeric entity only when it is a valid, non-surrogate code
+     * point. `Character.toChars` throws on out-of-range values, and lone
+     * surrogates cannot be encoded as UTF-8, so malformed exports would
+     * otherwise crash the import.
+     */
+    private fun codePointOrNull(value: Int): String? =
+        if (Character.isValidCodePoint(value) && value !in 0xD800..0xDFFF) {
+            String(Character.toChars(value))
+        } else {
+            null
+        }
 }

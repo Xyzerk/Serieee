@@ -31,10 +31,17 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val episode = intent.getIntExtra(EXTRA_EPISODE, 0)
         val notification = NotificationCompat.Builder(context, ReminderScheduler.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(context.getString(R.string.airing_today_title, title))
-            .setContentText(context.getString(R.string.airing_today_body, typeLabel, title))
+            .setContentTitle(
+                if (episode > 0) context.getString(R.string.airing_episode_today_title, episode)
+                else context.getString(R.string.airing_today_title, title)
+            )
+            .setContentText(
+                if (episode > 0) context.getString(R.string.airing_episode_today_body, typeLabel, title)
+                else context.getString(R.string.airing_today_body, typeLabel, title)
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
@@ -52,5 +59,6 @@ class ReminderReceiver : BroadcastReceiver() {
         const val EXTRA_ID = "extra_media_id"
         const val EXTRA_TITLE = "extra_media_title"
         const val EXTRA_TYPE = "extra_media_type"
+        const val EXTRA_EPISODE = "extra_episode"
     }
 }

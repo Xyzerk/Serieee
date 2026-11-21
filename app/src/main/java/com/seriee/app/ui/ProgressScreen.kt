@@ -81,26 +81,26 @@ fun ProgressScreen(
 ) {
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
+    var filter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
 
     // The tick is a one-shot request from the top bar. Consume it so that
     // returning to Progress later keeps whatever filter the user left.
     LaunchedEffect(comingSoonTick) {
         if (comingSoonTick > 0) {
-            filter = WatchStatus.ComingSoon
+            filter = LibraryFilter.ComingSoon
             onComingSoonHandled()
         }
     }
 
-    val filterOptions = statusFilters.map { (status, labelRes) -> status to stringResource(labelRes) }
+    val filterOptions = libraryFilters.map { it to stringResource(it.labelRes) }
     val filterCounts = remember(list) {
-        statusFilters.associate { (status, _) -> status to list.countWithStatus(status) }
+        libraryFilters.associate { it to list.countMatching(it) }
     }
 
     val filtered by remember(list, query, filter) {
         derivedStateOf {
             list.filter { it.title.contains(query.trim(), ignoreCase = true) }
-                .filter { filter == null || it.status == filter }
+                .filter { filter.matches(it) }
         }
     }
 
@@ -167,7 +167,7 @@ fun ProgressScreen(
                 DropdownField(
                     label = "",
                     valueLabel = filterOptions.firstOrNull { it.first == filter }?.second ?: "",
-                    options = filterOptions.map { (status, label) -> status to "$label (${filterCounts[status] ?: 0})" },
+                    options = filterOptions.map { (filter, label) -> filter to "$label (${filterCounts[filter] ?: 0})" },
                     onSelect = { filter = it },
                     accessibleLabel = stringResource(R.string.filter_status_label),
                     modifier = Modifier
@@ -231,19 +231,23 @@ private fun ProgressCard(
     val p = LocalPalette.current
     val context = LocalContext.current
     val shape = remember { RoundedCornerShape(22.dp) }
+    val now = rememberNow()
     // Memoize date-derived strings (they call SimpleDateFormat etc.)
-    val badgeText = remember(item.releaseDate, item.status) {
-        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownShortBadge(context, item.releaseDate) else ""
+    val badgeText = remember(item.releaseDate, item.status, now) {
+        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownShortBadge(context, item.releaseDate, now) else ""
     }
-    val badgeLong = remember(item.releaseDate, item.status) {
-        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownBadgeText(context, item.releaseDate) else ""
+    val badgeLong = remember(item.releaseDate, item.status, now) {
+        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownBadgeText(context, item.releaseDate, now) else ""
     }
-    val detailedText = remember(item.releaseDate, item.status) {
-        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownDetailedText(context, item.releaseDate) else ""
+    val detailedText = remember(item.releaseDate, item.status, now) {
+        if (item.status == WatchStatus.ComingSoon) ReminderScheduler.countdownDetailedText(context, item.releaseDate, now) else ""
     }
+    // Airing episodes get the short pill; premieres keep their countdown badge.
+    val airingBadge = progressBadgeLabel(context, item, now)
+    val premiereBadge = badgeText.takeIf { it.isNotBlank() }
     val relTime = remember(item.updatedAt) { relativeTime(context, item.updatedAt) }
-    val visualProgress = remember(item.releaseDate) {
-        val daysLeft = ReminderScheduler.daysUntilRelease(item.releaseDate)
+    val visualProgress = remember(item.releaseDate, now) {
+        val daysLeft = ReminderScheduler.daysUntilRelease(item.releaseDate, now)
         ((30 - daysLeft).coerceIn(1, 30) / 30f)
     }
 
@@ -254,26 +258,40 @@ private fun ProgressCard(
         ) {
             Box(modifier = Modifier.size(width = 68.dp, height = 86.dp)) {
                 Poster(item.poster, Modifier.fillMaxSize())
-                if (item.status == WatchStatus.ComingSoon) {
+                val badgeLabel = airingBadge ?: premiereBadge
+                if (badgeLabel != null) {
+                    val isAiring = airingBadge != null
                     val badgeShape = RoundedCornerShape(if (p.isNeoBrutalist) 6.dp else 4.dp)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(3.dp)
                             .clip(badgeShape)
-                            .background(if (p.isNeoBrutalist) NeoBrutalistColors.Yellow else p.reminder)
+                            .background(
+                                when {
+                                    isAiring -> Color.Black.copy(alpha = 0.55f)
+                                    p.isNeoBrutalist -> NeoBrutalistColors.Yellow
+                                    else -> p.reminder
+                                }
+                            )
                             .then(
-                                if (p.isNeoBrutalist) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
+                                if (p.isNeoBrutalist && !isAiring) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
                                 else Modifier
                             )
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     ) {
                         Text(
-                            badgeText,
+                            badgeLabel,
                             fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(p.reminder)
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = when {
+                                isAiring -> Color.White
+                                p.isNeoBrutalist -> NeoBrutalistColors.Black
+                                else -> contrastOn(p.reminder)
+                            }
                         )
                     }
                 }

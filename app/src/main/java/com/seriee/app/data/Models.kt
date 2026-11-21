@@ -121,7 +121,19 @@ data class MediaItem(
      * Never shown in the UI; used to recognise episode files whose name carries
      * a translated or romanised show title.
      */
-    val altTitles: List<String> = emptyList()
+    val altTitles: List<String> = emptyList(),
+    /** Source says the show is still airing. */
+    val airing: Boolean = false,
+    /** At least one episode has aired (a finished/cancelled show also sets this). */
+    val airingStarted: Boolean = false,
+    /** Next episode number, when the source knows it. */
+    val nextEpisode: Int? = null,
+    /** Season the next episode belongs to (e.g. 3 for "The Apothecary Diaries Season 3"). */
+    val nextEpisodeSeason: Int? = null,
+    /** Epoch millis of the next airing episode. */
+    val nextAirAt: Long? = null,
+    /** When the airing fields were last refreshed from a metadata source. */
+    val airingCheckedAt: Long = 0L
 ) {
     val effectiveSeasons: List<Season>
         get() = if (seasons.isNotEmpty()) seasons else {

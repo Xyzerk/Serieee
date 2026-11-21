@@ -38,6 +38,7 @@
     <string name="filter_watching">Watching</string>
     <string name="filter_completed">Completed</string>
     <string name="filter_coming_soon">Coming Soon</string>
+    <string name="filter_ongoing">Ongoing</string>
     <string name="filter_plan_to_watch">Plan to Watch</string>
     <string name="no_search_results">No results for "%1$s"</string>
     <string name="no_shows">No shows.</string>
@@ -145,6 +146,8 @@
     <string name="reminder_title_prefix">🔔 Reminder: %1$s</string>
     <string name="airing_today_title">🔔 %1$s Airing Today!</string>
     <string name="airing_today_body">%1$s "%2$s" is now airing. Open Seriee to start watching!</string>
+    <string name="airing_episode_today_title">🔔 Ep %1$d airs today!</string>
+    <string name="airing_episode_today_body">%1$s "%2$s" has a new episode.</string>
     <string name="default_series_title">Series Airing</string>
     <string name="date_not_set">Not set</string>
     <string name="no_schedule">No schedule</string>
@@ -269,6 +272,12 @@
     <string name="widget_description">Active Watching progress and quick +1 episode tracker</string>
     <string name="widget_empty">No active Watching titles yet</string>
     <string name="widget_watching_count">%1$d watching</string>
+    <string name="airing_episode_short">Ep %1$d · %2$s</string>
+    <string name="airing_episode_only">Ep %1$d</string>
+    <string name="airing_episode_from_schedule">Ep %1$d · from the airing schedule</string>
+    <string name="airing_date_tba">Next episode date not announced</string>
+    <string name="airing_alarm_when_known">Alarm will be set when the date is known</string>
+
     <string name="widget_increment">+1</string>
     <string name="widget_increment_description">Add one episode to %1$s</string>
     <string name="widget_series_progress">S%1$d · %2$d/%3$d</string>

@@ -100,7 +100,7 @@ fun LibraryScreen(
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
     var typeFilter by rememberSaveable { mutableIntStateOf(0) }
-    var statusFilter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
+    var statusFilter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
     var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortBy by rememberSaveable { mutableStateOf(LibrarySort.RECENT) }
 
@@ -110,9 +110,9 @@ fun LibraryScreen(
         stringResource(R.string.type_movie)
     )
 
-    val statusOptions = statusFilters.map { (status, labelRes) -> status to stringResource(labelRes) }
+    val statusOptions = libraryFilters.map { it to stringResource(it.labelRes) }
     val statusCounts = remember(list) {
-        statusFilters.associate { (status, _) -> status to list.countWithStatus(status) }
+        libraryFilters.associate { it to list.countMatching(it) }
     }
     val statusValueLabel = statusOptions.firstOrNull { it.first == statusFilter }?.second ?: ""
 
@@ -136,7 +136,7 @@ fun LibraryScreen(
                         else -> true
                     }
                 }
-                .filter { statusFilter == null || it.status == statusFilter }
+                .filter { statusFilter.matches(it) }
                 .filter { tagFilter == null || it.tags.any { tag -> tag.equals(tagFilter, ignoreCase = true) } }
             val secondary: Comparator<MediaItem> = when (sortBy) {
                 LibrarySort.RECENT -> compareByDescending { it.updatedAt }
@@ -193,7 +193,7 @@ fun LibraryScreen(
                 DropdownField(
                     label = "",
                     valueLabel = statusValueLabel,
-                    options = statusOptions.map { (status, label) -> status to "$label (${statusCounts[status] ?: 0})" },
+                    options = statusOptions.map { (filter, label) -> filter to "$label (${statusCounts[filter] ?: 0})" },
                     onSelect = { statusFilter = it },
                     accessibleLabel = stringResource(R.string.filter_status_label),
                     dense = true,
@@ -319,7 +319,7 @@ fun LibraryScreen(
                             onCta = {
                                 query = ""
                                 typeFilter = 0
-                                statusFilter = null
+                                statusFilter = LibraryFilter.All
                                 tagFilter = null
                             }
                         )
@@ -434,8 +434,12 @@ private fun GridItem(
     val gradientBrush = remember {
         Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)))
     }
-    val badgeShort = remember(item.releaseDate) { ReminderScheduler.countdownShortBadge(context, item.releaseDate) }
-    val badgeText = remember(item.releaseDate) { ReminderScheduler.countdownBadgeText(context, item.releaseDate) }
+    val now = rememberNow()
+    val badgeText = remember(item.releaseDate, now) { ReminderScheduler.countdownBadgeText(context, item.releaseDate, now) }
+    val airLabel = libraryBadgeLabel(context, item, now)
+    val badgeLine = libraryBadgeLine(context, item, now).orEmpty()
+    val showTopBadge = badgeLine.isNotEmpty()
+    val badgeColor = if (airLabel != null) p.info else p.reminder
 
     val posterOverlay: @Composable () -> Unit = {
         val posterShape = RoundedCornerShape(if (p.isNeoBrutalist) 8.dp else 18.dp)
@@ -449,40 +453,50 @@ private fun GridItem(
                 )
         ) {
             Poster(item.poster, Modifier.fillMaxSize(), posterShape)
-            if (item.status == WatchStatus.ComingSoon) {
-                val badgeShape = RoundedCornerShape(6.dp)
+            if (showTopBadge) {
+                val isAiring = airLabel != null
+                val badgeShape = RoundedCornerShape(if (isAiring) 4.dp else 6.dp)
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(6.dp)
+                        // Leave room for the TopEnd pin button so a full airing
+                        // label can never run underneath it.
+                        .padding(start = 6.dp, top = 6.dp, end = 44.dp)
                         .clip(badgeShape)
-                        .background(if (p.isNeoBrutalist) NeoBrutalistColors.Yellow else p.reminder)
+                        .background(if (p.isNeoBrutalist && item.status == WatchStatus.ComingSoon) NeoBrutalistColors.Yellow else badgeColor)
                         .then(
-                            if (p.isNeoBrutalist) Modifier.border(1.5.dp, NeoBrutalistColors.Black, badgeShape)
-                            else Modifier
+                            if (p.isNeoBrutalist) {
+                                Modifier.border(if (isAiring) 1.dp else 1.5.dp, NeoBrutalistColors.Black, badgeShape)
+                            } else Modifier
                         )
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(
+                            horizontal = if (isAiring) 4.dp else 6.dp,
+                            vertical = if (isAiring) 1.dp else 2.dp
+                        )
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (item.reminderEnabled) {
                             Icon(
                                 Icons.Filled.NotificationsActive,
                                 null,
-                                tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(p.reminder),
-                                modifier = Modifier.size(10.dp)
+                                tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor),
+                                modifier = Modifier.size(if (isAiring) 8.dp else 10.dp)
                             )
                             Spacer(Modifier.width(2.dp))
                         }
                         Text(
-                            badgeShort,
+                            badgeLine,
                             fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                            fontSize = 9.sp,
+                            fontSize = if (isAiring) 8.sp else 9.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(p.reminder)
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else contrastOn(badgeColor)
                         )
                     }
                 }
 
+                if (showCountdownStrip(item)) {
                 // Bottom Countdown Overlay Strip
                 if (p.isNeoBrutalist) {
                     Box(
@@ -549,6 +563,7 @@ private fun GridItem(
                             )
                         }
                     }
+                }
                 }
             }
             if (item.rating > 0) {
@@ -710,12 +725,14 @@ private fun ListItem(
     val p = LocalPalette.current
     val context = LocalContext.current
     val shape = remember { RoundedCornerShape(22.dp) }
-    val detailedCountdown = remember(item.releaseDate) {
-        ReminderScheduler.countdownDetailedText(context, item.releaseDate)
+    val now = rememberNow()
+    val detailedCountdown = remember(item.releaseDate, now) {
+        ReminderScheduler.countdownDetailedText(context, item.releaseDate, now)
     }
-    val shortBadge = remember(item.releaseDate) {
-        ReminderScheduler.countdownShortBadge(context, item.releaseDate)
+    val shortBadge = remember(item.releaseDate, now) {
+        ReminderScheduler.countdownShortBadge(context, item.releaseDate, now)
     }
+    val airLabel = libraryBadgeLabel(context, item, now)
 
     val rowContent: @Composable () -> Unit = {
         Row(
@@ -785,7 +802,7 @@ private fun ListItem(
                         stringResource(R.string.episode_progress, item.watchedEpisodes, item.totalEpisodes)
                     }
                     Text(
-                        "${stringResource(item.type.labelRes)} • $progressLabel",
+                        "${stringResource(item.type.labelRes)} • $progressLabel${airLabel?.let { " · $it" } ?: ""}",
                         fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                         fontSize = 12.sp,
                         fontWeight = if (p.isNeoBrutalist) FontWeight.Bold else FontWeight.Normal,

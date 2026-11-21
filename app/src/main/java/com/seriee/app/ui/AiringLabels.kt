@@ -1,0 +1,82 @@
+package com.seriee.app.ui
+
+import android.content.Context
+import com.seriee.app.R
+import com.seriee.app.data.AiringRules
+import com.seriee.app.data.MediaItem
+import com.seriee.app.data.MetadataResult
+import com.seriee.app.data.WatchStatus
+import com.seriee.app.reminder.ReminderScheduler
+
+/**
+ * Shared suffix text for the metadata search results, cards, widget rows,
+ * and the detail sheet. Returns null when there is nothing to show.
+ */
+internal data class AiringSuffix(val episode: Int?, val airAt: Long)
+
+/**
+ * Pure decision: does this item have something on screen worth showing?
+ * - [AiringSuffix.episode] is non-null for Ongoing items with a known next
+ *   episode; Coming Soon shows the date only (the countdown lives on).
+ * - Null once [MediaItem.nextAirAt] has passed or is unknown.
+ */
+internal fun airingSuffixFor(item: MediaItem, now: Long): AiringSuffix? {
+    val ongoing = AiringRules.isOngoing(item)
+    val comingSoon = AiringRules.isComingSoon(item)
+    if (!ongoing && !comingSoon) return null
+    val at = item.nextAirAt ?: return null
+    if (at <= now) return null
+    return AiringSuffix(episode = if (ongoing) item.nextEpisode else null, airAt = at)
+}
+
+/** The suffix for a search-row [MetadataResult] (not yet persisted). */
+internal fun metAiringSuffix(result: MetadataResult, now: Long): AiringSuffix? {
+    val at = if (result.upcoming) result.releaseAt ?: result.nextAirAt else result.nextAirAt
+    if (at == null || at <= now) return null
+    return AiringSuffix(episode = if (!result.upcoming && result.airingStarted) result.nextEpisode else null, airAt = at)
+}
+
+internal fun formatAiringSuffix(context: Context, suffix: AiringSuffix): String =
+    if (suffix.episode != null) {
+        context.getString(R.string.airing_episode_short, suffix.episode, ReminderScheduler.formatShortDateSuffix(context, suffix.airAt))
+    } else {
+        ReminderScheduler.formatShortDateSuffix(context, suffix.airAt)
+    }
+
+/** The card/widget suffix ("Ep 9 · 27 Nov 05:00" or "27 Nov 05:00"); null hides it. */
+internal fun airingSuffix(context: Context, item: MediaItem, now: Long): String? =
+    airingSuffixFor(item, now)?.let { formatAiringSuffix(context, it) }
+
+/** The schedule card owns the date now, so it shows whenever one is relevant. */
+fun showScheduleCard(item: MediaItem): Boolean =
+    item.status == WatchStatus.ComingSoon || item.releaseDate != null || AiringRules.isOngoing(item)
+
+/** Short label for the 68 dp Progress poster: `Ep 9`, or `Ongoing` when TBA. */
+fun progressBadgeLabel(context: Context, item: MediaItem, now: Long): String? {
+    val suffix = airingSuffixFor(item, now) ?: return null
+    return if (suffix.episode != null) {
+        context.getString(R.string.airing_episode_only, suffix.episode)
+    } else {
+        context.getString(R.string.filter_ongoing)
+    }
+}
+
+/** Full `Ep 9 · 27 Nov 21:00` label for the larger Library grid poster. */
+fun libraryBadgeLabel(context: Context, item: MediaItem, now: Long): String? =
+    airingSuffixFor(item, now)?.let { formatAiringSuffix(context, it) }
+
+/**
+ * Library grid badge: the airing label when there is one, otherwise the
+ * premiere countdown — and nothing at all for a Watching/Ongoing show with no
+ * future air date. `countdownShortBadge` falls back to "SOON" for a null date,
+ * so it must never be used as a generic fallback.
+ */
+fun libraryBadgeLine(context: Context, item: MediaItem, now: Long): String? {
+    libraryBadgeLabel(context, item, now)?.let { return it }
+    if (item.status != WatchStatus.ComingSoon) return null
+    return ReminderScheduler.countdownShortBadge(context, item.releaseDate, now)
+        .takeIf { it.isNotBlank() }
+}
+
+/** The bottom countdown strip belongs to premieres, never to airing episodes. */
+fun showCountdownStrip(item: MediaItem): Boolean = item.status == WatchStatus.ComingSoon

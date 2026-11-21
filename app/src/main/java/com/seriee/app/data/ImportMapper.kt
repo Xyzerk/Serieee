@@ -208,7 +208,9 @@ object ImportMapper {
 
     private fun stableId(source: String, sourceId: String, title: String): String {
         val prefix = if (source == SOURCE_ANILIST) "anilist" else "mal"
-        val key = sourceId.trim().ifBlank { abs(title.lowercase().hashCode()).toString() }
+        // abs(Int.MIN_VALUE) is still negative, so widen before taking the
+        // absolute value; otherwise one title would yield a "-" id.
+        val key = sourceId.trim().ifBlank { abs(title.lowercase().hashCode().toLong()).toString() }
         return "$prefix-$key"
     }
 

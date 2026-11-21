@@ -14,10 +14,21 @@ import androidx.core.app.NotificationManagerCompat
 import com.seriee.app.MainActivity
 import com.seriee.app.R
 import com.seriee.app.data.MediaItem
+import com.seriee.app.data.WatchStatus
 import com.seriee.app.debug.AppLogger
 import com.seriee.app.ui.findActivity
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+/** The single future timestamp an item's alarm should use, if any. */
+internal fun reminderTarget(item: MediaItem, now: Long): Long? {
+    val target = if (item.status == WatchStatus.ComingSoon) {
+        item.releaseDate
+    } else {
+        listOfNotNull(item.releaseDate, item.nextAirAt).minOrNull()
+    }
+    return target?.takeIf { it > now }
+}
 
 object ReminderScheduler {
     const val CHANNEL_ID = "seriee_reminders"
@@ -59,8 +70,11 @@ object ReminderScheduler {
     }
 
     fun scheduleReminder(context: Context, item: MediaItem) {
-        val release = item.releaseDate ?: return
-        if (release <= System.currentTimeMillis() || !item.reminderEnabled) return
+        if (!item.reminderEnabled) return
+        // Re-arming drops the old time first, so a refreshed air date or a
+        // source that reports "finished" cannot leave a stale alarm behind.
+        cancelReminder(context, item.id)
+        val target = reminderTarget(item, System.currentTimeMillis()) ?: return
 
         createNotificationChannel(context)
 
@@ -70,6 +84,9 @@ object ReminderScheduler {
             putExtra(ReminderReceiver.EXTRA_ID, item.id)
             putExtra(ReminderReceiver.EXTRA_TITLE, item.title)
             putExtra(ReminderReceiver.EXTRA_TYPE, item.type.name)
+            if (item.status != WatchStatus.ComingSoon && target == item.nextAirAt && item.nextEpisode != null) {
+                putExtra(ReminderReceiver.EXTRA_EPISODE, item.nextEpisode)
+            }
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -81,15 +98,15 @@ object ReminderScheduler {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, pendingIntent)
                 } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, pendingIntent)
                 }
             } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, target, pendingIntent)
             }
         } catch (e: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, release, pendingIntent)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, target, pendingIntent)
         }
     }
 
@@ -173,13 +190,31 @@ object ReminderScheduler {
         return sdf.format(ts)
     }
 
-    fun timeUntilRelease(context: Context, ts: Long?): String {
+    /** Same as [formatShortDate] but with a time component ("dd MMM yyyy, HH:mm"). */
+    fun formatShortDateTime(context: Context, ts: Long?): String {
+        if (ts == null || ts <= 0) return ""
+        val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+        return sdf.format(ts)
+    }
+
+    /** "dd MMM HH:mm" — the card/widget suffix shape (no year). */
+    fun formatShortDateSuffix(context: Context, ts: Long?): String {
+        if (ts == null || ts <= 0) return ""
+        val sdf = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
+        return sdf.format(ts)
+    }
+
+    fun timeUntilRelease(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.no_schedule)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.already_aired)
-        val minutes = diff / (60 * 1000)
-        val hours = minutes / 60
-        val days = hours / 24
+        val minutes = CountdownRules.minutesFloor(now, ts)
+        val hours = CountdownRules.hoursFloor(now, ts)
+        val days = CountdownRules.daysCeil(now, ts)
 
         return when {
             days > 0 -> context.getString(R.string.airs_in_days, days)
@@ -189,49 +224,57 @@ object ReminderScheduler {
         }
     }
 
-    fun daysUntilRelease(ts: Long?): Int {
-        if (ts == null || ts <= 0) return 0
-        val diff = ts - System.currentTimeMillis()
-        if (diff <= 0) return 0
-        return ((diff + 86400000L - 1) / 86400000L).toInt()
-    }
+    fun daysUntilRelease(ts: Long?, now: Long = System.currentTimeMillis()): Int =
+        CountdownRules.daysCeil(now, ts)
 
-    fun countdownShortBadge(context: Context, ts: Long?): String {
+    fun countdownShortBadge(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.badge_soon)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.badge_today)
-        val days = diff / (86400 * 1000)
+        val days = CountdownRules.daysCeil(now, ts)
         return when {
             days > 0 -> context.getString(R.string.badge_d_days, days)
             else -> {
-                val hours = (diff / (3600 * 1000)).coerceAtLeast(1)
+                val hours = CountdownRules.hoursFloor(now, ts).coerceAtLeast(1)
                 context.getString(R.string.badge_hours_left, hours)
             }
         }
     }
 
-    fun countdownBadgeText(context: Context, ts: Long?): String {
+    fun countdownBadgeText(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.status_coming_soon)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.countdown_today)
-        val days = diff / (86400 * 1000)
-        val hours = (diff / (3600 * 1000))
+        val days = CountdownRules.daysCeil(now, ts)
+        val hours = CountdownRules.hoursFloor(now, ts)
         return when {
             days > 1 -> context.getString(R.string.countdown_days, days)
-            days == 1L -> context.getString(R.string.countdown_one_day)
+            days == 1 -> context.getString(R.string.countdown_one_day)
             hours > 0 -> context.getString(R.string.countdown_hours, hours)
             else -> context.getString(R.string.countdown_under_hour)
         }
     }
 
-    fun countdownDetailedText(context: Context, ts: Long?): String {
+    fun countdownDetailedText(
+        context: Context,
+        ts: Long?,
+        now: Long = System.currentTimeMillis()
+    ): String {
         if (ts == null || ts <= 0) return context.getString(R.string.schedule_not_set)
-        val diff = ts - System.currentTimeMillis()
+        val diff = ts - now
         if (diff <= 0) return context.getString(R.string.released_today)
-        val totalHours = diff / (3600 * 1000)
-        val days = diff / (86400 * 1000)
+        val totalHours = CountdownRules.hoursFloor(now, ts)
+        val days = CountdownRules.daysCeil(now, ts)
         val remainingHours = totalHours % 24
-        val minutes = (diff / (60 * 1000)) % 60
+        val minutes = ((diff / (60 * 1000)) % 60).toInt()
 
         return when {
             days > 0 -> if (remainingHours > 0) context.getString(R.string.detailed_days_hours, days, remainingHours)

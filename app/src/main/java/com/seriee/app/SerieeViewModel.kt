@@ -14,6 +14,8 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.seriee.app.data.AniListListClient
+import com.seriee.app.data.AiringApply
+import com.seriee.app.data.AiringRefresher
 import com.seriee.app.data.AppLanguage
 import com.seriee.app.data.AppThemeMode
 import com.seriee.app.data.AppThemeStyle
@@ -29,6 +31,7 @@ import com.seriee.app.data.ImportSource
 import com.seriee.app.data.ImportUiState
 import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
+import com.seriee.app.data.MetadataRepository
 import com.seriee.app.data.PosterStore
 import com.seriee.app.data.SerieeRepository
 import com.seriee.app.data.StreakRules
@@ -107,6 +110,11 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     private val aniListClient = AniListListClient()
+    private val metadataRepo = MetadataRepository()
+    private val refresher = AiringRefresher(metadataRepo::fetchAiring, metadataRepo::fetchTvmazeAiring)
+
+    @Volatile
+    private var airingRefreshStarted = false
     private var importJob: Job? = null
     private val _importState = mutableStateOf(ImportUiState())
     val importState: ImportUiState get() = _importState.value
@@ -207,10 +215,37 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (!_showWelcome.value && lastSeen < currentVersionCode) {
             _showChangelog.value = true
         }
-        // Refresh alarms for any pending items
+        // Refresh alarms for any pending items (the scheduler picks the target)
         items.forEach { item ->
-            if (item.reminderEnabled && item.releaseDate != null && item.releaseDate > System.currentTimeMillis()) {
+            if (item.reminderEnabled) {
                 com.seriee.app.reminder.ReminderScheduler.scheduleReminder(app, item)
+            }
+        }
+        startAiringRefresh()
+    }
+
+    /**
+     * One airing refresh per app open, batched across sources (AniList
+     * `id_in`, TVmaze on stale items). Merges updates onto the latest list;
+     * repaired items get their pending alarms cancelled.
+     */
+    private fun startAiringRefresh() {
+        if (airingRefreshStarted) return
+        airingRefreshStarted = true
+        if (items.isEmpty()) return
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = runCatching { refresher.refresh(items) }.getOrNull() ?: return@launch
+            withContext(Dispatchers.Main) {
+                val applied = AiringApply.apply(items, result)
+                if (!applied.changed) return@withContext
+                commit(applied.items)
+                applied.items.forEach { item ->
+                    if (item.reminderEnabled && result.updates.containsKey(item.id)) {
+                        com.seriee.app.reminder.ReminderScheduler.scheduleReminder(app, item)
+                    }
+                }
+                applied.repairedIds.forEach { com.seriee.app.reminder.ReminderScheduler.cancelReminder(app, it) }
             }
         }
     }
@@ -345,7 +380,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             if (m.id == id) {
                 val newStatus = !m.reminderEnabled
                 val updated = m.copy(reminderEnabled = newStatus)
-                if (newStatus && updated.releaseDate != null && updated.releaseDate > System.currentTimeMillis()) {
+                if (newStatus) {
                     com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), updated)
                 } else {
                     com.seriee.app.reminder.ReminderScheduler.cancelReminder(getApplication(), id)
@@ -383,7 +418,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             maybeTriggerBackupReminder(items.size)
         }
 
-        if (synced.reminderEnabled && synced.releaseDate != null && synced.releaseDate > System.currentTimeMillis()) {
+        if (synced.reminderEnabled) {
             com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), synced)
         } else {
             com.seriee.app.reminder.ReminderScheduler.cancelReminder(getApplication(), synced.id)
@@ -769,6 +804,11 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             preview = null,
             result = result
         )
+        items.forEach { item ->
+            if (item.reminderEnabled) {
+                com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), item)
+            }
+        }
         maybeTriggerBackupReminder(items.size, importedDelta = result.added)
     }
 
@@ -824,7 +864,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
 
             // Reschedule active reminders
             finalItems.forEach { item ->
-                if (item.reminderEnabled && item.releaseDate != null && item.releaseDate > System.currentTimeMillis()) {
+                if (item.reminderEnabled) {
                     com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), item)
                 }
             }
