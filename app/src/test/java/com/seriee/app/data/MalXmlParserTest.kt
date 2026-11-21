@@ -95,6 +95,24 @@ class MalXmlParserTest {
     }
 
     @Test
+    fun `keeps malformed numeric entities instead of crashing`() {
+        val xml = """
+            <myanimelist><anime><entry>
+              <series_animedb_id>1</series_animedb_id>
+              <series_title>Bad &#xD800; and &#x110000; and &#99999999999;</series_title>
+              <series_type>TV</series_type>
+              <series_episodes>10</series_episodes>
+              <my_watched_episodes>1</my_watched_episodes>
+              <my_score>0</my_score>
+              <my_status>Watching</my_status>
+            </entry></anime></myanimelist>
+        """.trimIndent()
+
+        val title = MalXmlParser.parseBytes(xml.toByteArray()).single().title
+        assertEquals("Bad &#xD800; and &#x110000; and &#99999999999;", title)
+    }
+
+    @Test
     fun `rejects files that are not MAL exports`() {
         val error = runCatching {
             MalXmlParser.parseBytes("just some text".toByteArray())

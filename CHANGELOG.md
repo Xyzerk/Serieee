@@ -51,6 +51,12 @@ dialog is generated from the `changelog_*` strings in
   announces "Blue", "Pink to violet", and so on instead of an unnamed radio button.
 - Editing any appearance setting now refreshes the home-screen widget right away
   instead of waiting for the next library change or the midnight alarm.
+- Importing a MyAnimeList export with a malformed numeric entity no longer
+  crashes with an invalid code point; the entity is left as written instead.
+- Posters picked from a document provider get a validated image extension, so an
+  unexpected MIME type or file name can no longer shape the stored file name.
+- Imported entries without a source id get a stable positive id even when the
+  title hash is `Int.MIN_VALUE`.
 
 ## [0.5.0] — 2026-11-16
 

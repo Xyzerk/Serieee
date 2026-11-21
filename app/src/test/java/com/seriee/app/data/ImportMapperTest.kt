@@ -206,4 +206,28 @@ class ImportMapperTest {
         assertEquals("", ImportMapper.stripHtml(null))
         assertTrue(ImportMapper.normalize("Some: Show!!").startsWith("some show"))
     }
+
+    @Test
+    fun `synthesised id stays positive when the title hash is Int MIN_VALUE`() {
+        // "polygenelubricants".hashCode() == Int.MIN_VALUE; abs() of that is
+        // still negative, which used to produce an id like "mal--2147483648".
+        val item = ImportMapper.fromMal(
+            listOf(
+                MalEntry(
+                    id = "",
+                    title = "Polygenelubricants",
+                    type = "TV",
+                    totalEpisodes = 12,
+                    watchedEpisodes = 0,
+                    score = 0,
+                    status = "Plan to Watch",
+                    image = "",
+                    tags = emptyList(),
+                    comments = ""
+                )
+            )
+        ).single()
+
+        assertEquals("mal-2147483648", item.id)
+    }
 }
