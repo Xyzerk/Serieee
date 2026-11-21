@@ -26,6 +26,10 @@ dialog is generated from the `changelog_*` strings in
   whose name carries a translated title. Release-group names such as
   `CHFY--01.mkv` or `[Group] Show - 07 (1080p)` now resolve by their last safe
   number, and unnumbered files fall back to natural-sorted order.
+- **Next-episode reminders**: ongoing titles can arm an alarm for their next
+  airing date, with the episode number in the notification. The alarm is
+  re-armed whenever the airing schedule refreshes and cancelled once the source
+  reports the show has finished.
 
 ### Changed
 
@@ -57,6 +61,14 @@ dialog is generated from the `changelog_*` strings in
   unexpected MIME type or file name can no longer shape the stored file name.
 - Imported entries without a source id get a stable positive id even when the
   title hash is `Int.MIN_VALUE`.
+- The Ongoing badge no longer wraps across the small Progress poster or collides
+  with the pin button in the Library grid, and it disappears once the source
+  reports the show has finished.
+- Ongoing cards in the Library no longer show a contradictory "Coming Soon"
+  strip; that countdown belongs only to unreleased titles.
+- Countdown labels agree on calendar days: a title three days away now reads
+  "Airing in 3 days" everywhere instead of "2 days", and on-screen text keeps
+  up with the clock instead of freezing at composition time.
 
 ## [0.5.0] — 2026-11-16
 
