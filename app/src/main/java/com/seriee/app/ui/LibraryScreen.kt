@@ -435,10 +435,9 @@ private fun GridItem(
         Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)))
     }
     val now = rememberNow()
-    val badgeShort = remember(item.releaseDate, now) { ReminderScheduler.countdownShortBadge(context, item.releaseDate, now) }
     val badgeText = remember(item.releaseDate, now) { ReminderScheduler.countdownBadgeText(context, item.releaseDate, now) }
     val airLabel = libraryBadgeLabel(context, item, now)
-    val badgeLine = airLabel ?: badgeShort.takeIf { it.isNotBlank() }.orEmpty()
+    val badgeLine = libraryBadgeLine(context, item, now).orEmpty()
     val showTopBadge = badgeLine.isNotEmpty()
     val badgeColor = if (airLabel != null) p.info else p.reminder
 

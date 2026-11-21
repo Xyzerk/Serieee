@@ -65,5 +65,18 @@ fun progressBadgeLabel(context: Context, item: MediaItem, now: Long): String? {
 fun libraryBadgeLabel(context: Context, item: MediaItem, now: Long): String? =
     airingSuffixFor(item, now)?.let { formatAiringSuffix(context, it) }
 
+/**
+ * Library grid badge: the airing label when there is one, otherwise the
+ * premiere countdown — and nothing at all for a Watching/Ongoing show with no
+ * future air date. `countdownShortBadge` falls back to "SOON" for a null date,
+ * so it must never be used as a generic fallback.
+ */
+fun libraryBadgeLine(context: Context, item: MediaItem, now: Long): String? {
+    libraryBadgeLabel(context, item, now)?.let { return it }
+    if (item.status != WatchStatus.ComingSoon) return null
+    return ReminderScheduler.countdownShortBadge(context, item.releaseDate, now)
+        .takeIf { it.isNotBlank() }
+}
+
 /** The bottom countdown strip belongs to premieres, never to airing episodes. */
 fun showCountdownStrip(item: MediaItem): Boolean = item.status == WatchStatus.ComingSoon

@@ -116,4 +116,18 @@ class AiringLabelsTest {
     @Test
     fun `schedule card hidden for a finished show`() =
         assertFalse(showScheduleCard(finished()))
+
+    @Test
+    fun `library badge line hides for a TBA ongoing show`() =
+        assertNull(libraryBadgeLine(context, ongoing(9, null), NOW))
+
+    @Test
+    fun `library badge line hides for a stale ongoing show`() =
+        assertNull(libraryBadgeLine(context, ongoing(9, NOW - 1), NOW))
+
+    @Test
+    fun `library badge line falls back to the countdown for coming soon`() {
+        val manual = MediaItem(id = "x", title = "T", type = MediaType.Series, status = WatchStatus.ComingSoon, poster = "")
+        assertEquals(context.getString(com.seriee.app.R.string.badge_soon), libraryBadgeLine(context, manual, NOW))
+    }
 }
