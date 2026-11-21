@@ -81,26 +81,26 @@ fun ProgressScreen(
 ) {
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
+    var filter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
 
     // The tick is a one-shot request from the top bar. Consume it so that
     // returning to Progress later keeps whatever filter the user left.
     LaunchedEffect(comingSoonTick) {
         if (comingSoonTick > 0) {
-            filter = WatchStatus.ComingSoon
+            filter = LibraryFilter.ComingSoon
             onComingSoonHandled()
         }
     }
 
-    val filterOptions = statusFilters.map { (status, labelRes) -> status to stringResource(labelRes) }
+    val filterOptions = libraryFilters.map { it to stringResource(it.labelRes) }
     val filterCounts = remember(list) {
-        statusFilters.associate { (status, _) -> status to list.countWithStatus(status) }
+        libraryFilters.associate { it to list.countMatching(it) }
     }
 
     val filtered by remember(list, query, filter) {
         derivedStateOf {
             list.filter { it.title.contains(query.trim(), ignoreCase = true) }
-                .filter { filter == null || it.status == filter }
+                .filter { filter.matches(it) }
         }
     }
 
@@ -167,7 +167,7 @@ fun ProgressScreen(
                 DropdownField(
                     label = "",
                     valueLabel = filterOptions.firstOrNull { it.first == filter }?.second ?: "",
-                    options = filterOptions.map { (status, label) -> status to "$label (${filterCounts[status] ?: 0})" },
+                    options = filterOptions.map { (filter, label) -> filter to "$label (${filterCounts[filter] ?: 0})" },
                     onSelect = { filter = it },
                     accessibleLabel = stringResource(R.string.filter_status_label),
                     modifier = Modifier

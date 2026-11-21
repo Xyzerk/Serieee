@@ -100,7 +100,7 @@ fun LibraryScreen(
     val p = LocalPalette.current
     var query by rememberSaveable { mutableStateOf("") }
     var typeFilter by rememberSaveable { mutableIntStateOf(0) }
-    var statusFilter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
+    var statusFilter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
     var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortBy by rememberSaveable { mutableStateOf(LibrarySort.RECENT) }
 
@@ -110,9 +110,9 @@ fun LibraryScreen(
         stringResource(R.string.type_movie)
     )
 
-    val statusOptions = statusFilters.map { (status, labelRes) -> status to stringResource(labelRes) }
+    val statusOptions = libraryFilters.map { it to stringResource(it.labelRes) }
     val statusCounts = remember(list) {
-        statusFilters.associate { (status, _) -> status to list.countWithStatus(status) }
+        libraryFilters.associate { it to list.countMatching(it) }
     }
     val statusValueLabel = statusOptions.firstOrNull { it.first == statusFilter }?.second ?: ""
 
@@ -136,7 +136,7 @@ fun LibraryScreen(
                         else -> true
                     }
                 }
-                .filter { statusFilter == null || it.status == statusFilter }
+                .filter { statusFilter.matches(it) }
                 .filter { tagFilter == null || it.tags.any { tag -> tag.equals(tagFilter, ignoreCase = true) } }
             val secondary: Comparator<MediaItem> = when (sortBy) {
                 LibrarySort.RECENT -> compareByDescending { it.updatedAt }
@@ -193,7 +193,7 @@ fun LibraryScreen(
                 DropdownField(
                     label = "",
                     valueLabel = statusValueLabel,
-                    options = statusOptions.map { (status, label) -> status to "$label (${statusCounts[status] ?: 0})" },
+                    options = statusOptions.map { (filter, label) -> filter to "$label (${statusCounts[filter] ?: 0})" },
                     onSelect = { statusFilter = it },
                     accessibleLabel = stringResource(R.string.filter_status_label),
                     dense = true,
@@ -319,7 +319,7 @@ fun LibraryScreen(
                             onCta = {
                                 query = ""
                                 typeFilter = 0
-                                statusFilter = null
+                                statusFilter = LibraryFilter.All
                                 tagFilter = null
                             }
                         )

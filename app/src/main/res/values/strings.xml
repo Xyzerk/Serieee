@@ -38,6 +38,7 @@
     <string name="filter_watching">Watching</string>
     <string name="filter_completed">Completed</string>
     <string name="filter_coming_soon">Coming Soon</string>
+    <string name="filter_ongoing">Ongoing</string>
     <string name="filter_plan_to_watch">Plan to Watch</string>
     <string name="no_search_results">No results for "%1$s"</string>
     <string name="no_shows">No shows.</string>

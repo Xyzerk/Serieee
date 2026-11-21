@@ -38,6 +38,7 @@
     <string name="filter_watching">Sedang Ditonton</string>
     <string name="filter_completed">Selesai</string>
     <string name="filter_coming_soon">Segera Tayang</string>
+    <string name="filter_ongoing">Sedang Tayang</string>
     <string name="filter_plan_to_watch">Rencana Tonton</string>
     <string name="no_search_results">Tidak ada hasil pencarian "%1$s"</string>
     <string name="no_shows">Tidak ada tayangan.</string>
