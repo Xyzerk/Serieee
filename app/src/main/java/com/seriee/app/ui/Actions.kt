@@ -77,7 +77,7 @@ fun openVideoUri(context: Context, uriString: String, pkg: String?) {
  * are resolutions, codecs, years or part of a `5.1` audio tag are skipped.
  */
 object EpisodeFileParser {
-    private const val MAX_EPISODE = 999
+    private const val MAX_EPISODE = 99_999
 
     private val sxe = Regex("""S(\d+)[^E0-9]*E(\d+)""", RegexOption.IGNORE_CASE)
     private val explicitEpisode = Regex("""(?:^|[^A-Za-z])E(?:P|PISODE)?\s*0*(\d+)""", RegexOption.IGNORE_CASE)
@@ -153,7 +153,7 @@ object EpisodeFileParser {
             }
             val token = tokens[i]
             val value = token.toIntOrNull()
-            if (value != null && token.length <= 4 && value > 0 &&
+            if (value != null && token.length <= 6 && value > 0 &&
                 value !in resolutionTokens && value !in codecTokens &&
                 value !in 1900..2100 && value <= maxEpisodes
             ) {

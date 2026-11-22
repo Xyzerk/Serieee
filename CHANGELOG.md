@@ -69,6 +69,10 @@ dialog is generated from the `changelog_*` strings in
 - Countdown labels agree on calendar days: a title three days away now reads
   "Airing in 3 days" everywhere instead of "2 days", and on-screen text keeps
   up with the clock instead of freezing at composition time.
+- Long-running shows whose source has no total episode count (e.g. One Piece,
+  episode 1181) now use the reported next-episode number instead of the
+  12-episode form default, and episode numbers above 999 are accepted when
+  matching video files.
 
 ## [0.5.0] — 2026-11-16
 

@@ -109,7 +109,13 @@ internal fun mapAniListMedia(media: JSONObject, query: String): MetadataResult? 
     val tags = mutableListOf<String>()
     val genres = media.optJSONArray("genres")
     if (genres != null) for (i in 0 until genres.length()) tags.add(genres.optString(i))
-    val total = media.optInt("episodes", 0)
+    val totalFromSource = media.optInt("episodes", 0).takeIf { it > 0 }
+    val nextEpisodeRaw = media.optJSONObject("nextAiringEpisode")?.optInt("episode", 0)?.takeIf { it > 0 }
+    // Long-running ongoing shows (e.g. ONE PIECE) leave `episodes` null. Their
+    // next-airing episode is still a usable lower bound for the season count,
+    // so the form gets that number instead of falling back to its 12-episode
+    // default.
+    val inferredTotal = totalFromSource ?: nextEpisodeRaw?.takeIf { it > 1 }
     val isMovie = media.optString("format").equals("MOVIE", ignoreCase = true)
     val mediaType = if (isMovie) MediaType.Movie else MediaType.Series
     // AniList models each season as its own entry ("…Season 4"). Its `season`
@@ -119,7 +125,7 @@ internal fun mapAniListMedia(media: JSONObject, query: String): MetadataResult? 
         else parseSeasonNumberFromText(title) ?: parseSeasonNumberFromText(query)
     val seasons = when {
         isMovie -> listOf(1)
-        total > 0 -> listOf(total)
+        inferredTotal != null -> listOf(inferredTotal)
         else -> emptyList()
     }
     val seasonNumbers = when {
@@ -144,7 +150,7 @@ internal fun mapAniListMedia(media: JSONObject, query: String): MetadataResult? 
     val startAt = startDateMillis(media.optJSONObject("startDate"))
     val info = airingFromAniList(
         status = media.optString("status"),
-        nextEpisode = media.optJSONObject("nextAiringEpisode")?.optInt("episode", 0)?.takeIf { it > 0 },
+        nextEpisode = nextEpisodeRaw,
         nextAiringAtMillis = media.optJSONObject("nextAiringEpisode")?.optLong("airingAt", 0L)?.takeIf { it > 0 }?.times(1000L),
         startAtMillis = startAt,
         nextEpisodeSeason = detectedSeason,

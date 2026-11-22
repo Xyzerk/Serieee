@@ -77,6 +77,12 @@ class AniListAiringTest {
     }
 
     @Test
+    fun `ongoing entry without a total uses its next episode number as the count`() {
+        val r = mapAniListMedia(media(21, "ONE PIECE", "RELEASING", nextEpisode = 1181), "one piece")!!
+        assertEquals(listOf(1181), r.seasonEpisodeCounts)
+    }
+
+    @Test
     fun `finished entry is not airing`() {
         val r = mapAniListMedia(media(161645, "The Apothecary Diaries", "FINISHED", totalEpisodes = 24, startYear = 2023), "Kusuriya")!!
         assertFalse(r.airing)

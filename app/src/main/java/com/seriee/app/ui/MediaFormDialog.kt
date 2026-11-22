@@ -1281,13 +1281,13 @@ fun MediaFormDialog(
                                     Column(Modifier.weight(1f)) {
                                         FieldLabel(stringResource(R.string.current_episode))
                                         SField(draft.currentEpStr, { v ->
-                                            upsertDraft(sIdx, draft.copy(currentEpStr = v.filter(Char::isDigit).take(4)))
+                                            upsertDraft(sIdx, draft.copy(currentEpStr = v.filter(Char::isDigit).take(6)))
                                         }, keyboardType = KeyboardType.Number)
                                     }
                                     Column(Modifier.weight(1f)) {
                                         FieldLabel(stringResource(R.string.total_episodes))
                                         SField(draft.totalEpStr, { v ->
-                                            upsertDraft(sIdx, draft.copy(totalEpStr = v.filter(Char::isDigit).take(4)))
+                                            upsertDraft(sIdx, draft.copy(totalEpStr = v.filter(Char::isDigit).take(6)))
                                         }, keyboardType = KeyboardType.Number)
                                     }
                                 }

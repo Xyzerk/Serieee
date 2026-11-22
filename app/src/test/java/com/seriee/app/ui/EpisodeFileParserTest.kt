@@ -32,6 +32,11 @@ class EpisodeFileParserTest {
     }
 
     @Test
+    fun `parses four digit episode numbers`() {
+        assertEquals(1181, EpisodeFileParser.parseEpisode("One Piece 1181.mkv", listOf("One Piece")))
+    }
+
+    @Test
     fun `returns null when no episode number exists`() {
         assertNull(EpisodeFileParser.parseEpisode("Show.mkv"))
         assertNull(EpisodeFileParser.parseEpisode("Show.Special.mkv"))
