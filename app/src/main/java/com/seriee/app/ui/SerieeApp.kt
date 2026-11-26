@@ -22,7 +22,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -837,7 +836,7 @@ private fun SerieeNavBar(
             .glassChrome(p, CircleShape)
             .padding(horizontal = 6.dp, vertical = 5.dp)
     ) {
-        BoxWithConstraints(
+        Box(
             Modifier
                 .fillMaxWidth()
                 .height(52.dp)
