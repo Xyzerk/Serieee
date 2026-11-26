@@ -96,7 +96,7 @@ fun BackupRestoreDialog(
                 )
             }
             vm.setAutoBackupFolder(uri.toString())
-            vm.setAutoBackupEnabled(true)
+            vm.updateAutoBackupEnabled(true)
             Toast.makeText(context, "Backup otomatis aktif", Toast.LENGTH_SHORT).show()
         }
     }
