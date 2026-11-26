@@ -84,6 +84,7 @@ import com.seriee.app.data.MediaType
 import com.seriee.app.data.AiringRules
 import com.seriee.app.data.Season
 import com.seriee.app.data.WatchStatus
+import com.seriee.app.data.episodeKey
 import com.seriee.app.reminder.ReminderScheduler
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -97,7 +98,12 @@ fun DetailDialog(
     onTestReminder: (() -> Unit)? = null,
     onUpdateReleaseDate: ((Long) -> Unit)? = null,
     onUpdateRating: ((Int) -> Unit)? = null,
-    onSelectEpisode: ((Int, Int) -> Unit)? = null
+    onSelectEpisode: ((Int, Int) -> Unit)? = null,
+    onEpisodeRating: ((Int, Int, Int) -> Unit)? = null,
+    onEpisodeNote: ((Int, Int, String) -> Unit)? = null,
+    onAddRewatch: (() -> Unit)? = null,
+    onToggleList: ((String) -> Unit)? = null,
+    allListNames: List<String> = emptyList()
 ) {
     val p = LocalPalette.current
     val context = LocalContext.current
@@ -106,6 +112,8 @@ fun DetailDialog(
     var jumpPickerSeason by remember { mutableStateOf<Season?>(null) }
 
     var pendingWatchedEpisode by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var noteEditTarget by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var newListOpen by remember { mutableStateOf(false) }
     var launchedExternalPlayer by remember { mutableStateOf(false) }
     var showWatchedPrompt by remember { mutableStateOf(false) }
     var resumeTick by remember { mutableIntStateOf(0) }
@@ -293,6 +301,87 @@ fun DetailDialog(
                         item.tags.forEach { tag ->
                             GenreTagBadge(tag)
                         }
+                    }
+                }
+
+                // F1: per-episode ratings & notes for the selected season.
+                if (item.type == MediaType.Series && onEpisodeRating != null) {
+                    val activeSeason = seasons.getOrNull(safeSeasonIdx) ?: seasons.firstOrNull()
+                    if (activeSeason != null && activeSeason.currentEp > 0) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Rating Episode \u2022 Season ${activeSeason.number}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = p.text
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        (1..activeSeason.currentEp).forEach { ep ->
+                            val key = episodeKey(activeSeason.number, ep)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "E$ep",
+                                    fontSize = 12.sp,
+                                    color = p.muted,
+                                    modifier = Modifier.width(34.dp)
+                                )
+                                StarRatingBar(
+                                    rating = item.episodeRatings[key] ?: 0,
+                                    onRatingChange = { r -> onEpisodeRating(activeSeason.number, ep, r) },
+                                    starSize = 18.dp,
+                                    showLabel = false
+                                )
+                                if (onEpisodeNote != null) {
+                                    TextButton(onClick = { noteEditTarget = activeSeason.number to ep }) {
+                                        Text(if (item.episodeNotes[key].isNullOrBlank()) "Catatan" else "Catatan \u2713", fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                            item.episodeNotes[key]?.takeIf { it.isNotBlank() }?.let { note ->
+                                Text(note, fontSize = 12.sp, color = p.muted, modifier = Modifier.padding(start = 34.dp))
+                            }
+                        }
+                    }
+                }
+
+                // F1: rewatch counter for completed titles.
+                if (item.status == WatchStatus.Completed && onAddRewatch != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Ditonton ulang: ${item.rewatchCount}\u00d7",
+                            fontSize = 13.sp,
+                            color = p.text,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onAddRewatch) { Text("+ Rewatch", fontSize = 13.sp) }
+                    }
+                }
+
+                // F6: custom lists membership.
+                if (onToggleList != null && (allListNames.isNotEmpty() || item.lists.isNotEmpty())) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Daftar Saya", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = p.text)
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        (allListNames + item.lists).distinctBy { it.lowercase() }.forEach { name ->
+                            FilterChip(
+                                label = name,
+                                selected = item.lists.any { it.equals(name, ignoreCase = true) },
+                                onClick = { onToggleList(name) }
+                            )
+                        }
+                        TextButton(onClick = { newListOpen = true }) { Text("+ Baru", fontSize = 13.sp) }
+                    }
+                } else if (onToggleList != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Daftar Saya", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = p.text, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { newListOpen = true }) { Text("+ Buat Daftar", fontSize = 13.sp) }
                     }
                 }
 
@@ -1159,6 +1248,59 @@ fun DetailDialog(
             onSelectEpisode = { targetEp ->
                 onSelectEpisode?.invoke(sec.number, targetEp)
                 jumpPickerSeason = null
+            }
+        )
+    }
+
+    // F1: episode note editor.
+    noteEditTarget?.let { (seasonNo, epNo) ->
+        val key = episodeKey(seasonNo, epNo)
+        var noteText by remember(noteEditTarget) { mutableStateOf(item.episodeNotes[key] ?: "") }
+        AlertDialog(
+            onDismissRequest = { noteEditTarget = null },
+            title = { Text("Catatan S${seasonNo}E${epNo}") },
+            text = {
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    label = { Text("Catatan episode") },
+                    minLines = 2
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onEpisodeNote?.invoke(seasonNo, epNo, noteText)
+                    noteEditTarget = null
+                }) { Text("Simpan") }
+            },
+            dismissButton = {
+                TextButton(onClick = { noteEditTarget = null }) { Text("Batal") }
+            }
+        )
+    }
+
+    // F6: create a new custom list and add this title to it.
+    if (newListOpen) {
+        var listName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { newListOpen = false },
+            title = { Text("Daftar Baru") },
+            text = {
+                OutlinedTextField(
+                    value = listName,
+                    onValueChange = { listName = it },
+                    label = { Text("Nama daftar") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (listName.isNotBlank()) onToggleList?.invoke(listName.trim())
+                    newListOpen = false
+                }) { Text("Buat") }
+            },
+            dismissButton = {
+                TextButton(onClick = { newListOpen = false }) { Text("Batal") }
             }
         )
     }
