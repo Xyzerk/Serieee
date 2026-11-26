@@ -267,6 +267,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (after.watchedEpisodes > before) {
             logged?.let { logWatch(target, it.season, it.episode) }
             recordWatch()
+            pushProgressToAniList(after)
         }
     }
 
@@ -514,6 +515,31 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             PosterStore.deleteIfLocal(getApplication(), it)
         }
         commit(items.filterNot { it.id == id })
+    }
+
+    // F3: AniList sync token + outbound progress push.
+    private val _anilistToken = mutableStateOf(repo.loadAniListToken())
+    val anilistToken: String get() = _anilistToken.value
+
+    fun setAniListToken(value: String) {
+        _anilistToken.value = value.trim()
+        repo.saveAniListToken(value.trim())
+    }
+
+    /** Fire-and-forget: push this item's progress to AniList when possible. */
+    fun pushProgressToAniList(item: MediaItem) {
+        val token = _anilistToken.value
+        if (token.isBlank()) return
+        if (!item.source.equals("AniList", ignoreCase = true)) return
+        val mediaId = item.sourceId.toIntOrNull() ?: return
+        val progress = item.watchedEpisodes
+        val status = item.status
+        val score = item.rating
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                com.seriee.app.data.AniListSyncClient.pushProgress(token, mediaId, progress, status, score)
+            }
+        }
     }
 
     fun setTmdbKey(value: String) {
