@@ -91,6 +91,11 @@ fun CalendarScreen(
             items(dayEntries, key = { "cal-${it.third.id}-${it.second}" }) { (_, at, item) ->
                 Row(
                     modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = SerieeMotion.enterTween(),
+                            placementSpec = SerieeMotion.PlacementSpring,
+                            fadeOutSpec = SerieeMotion.exitTween()
+                        )
                         .fillMaxWidth()
                         .clickable { onOpen(item) }
                         .padding(horizontal = 16.dp, vertical = 6.dp),

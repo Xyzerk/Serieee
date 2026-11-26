@@ -63,6 +63,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -138,6 +142,16 @@ fun DetailDialog(
         ReminderScheduler.canScheduleExactAlarms(context)
     }
 
+    // Artwork-driven accent (frosted-glass apps like BitChord tint the UI from
+    // the artwork): extract the poster's dominant colour and let it glow
+    // behind the header and tint the type chip. Falls back to the theme
+    // primary while loading, for blank posters, or when extraction fails.
+    var artworkAccent by remember(item.id, item.poster) { mutableStateOf<Color?>(null) }
+    LaunchedEffect(item.poster) {
+        artworkAccent = if (item.poster.isNotBlank()) accentFromPoster(context, item.poster) else null
+    }
+    val headerAccent = artworkAccent ?: p.primary
+
     val seasons = item.effectiveSeasons
     LaunchedEffect(seasons.size) {
         if (selectedSeasonIdx >= seasons.size) selectedSeasonIdx = 0
@@ -200,7 +214,24 @@ fun DetailDialog(
                     }
                 }
 
-                Row {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .drawBehind {
+                            drawRoundRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        headerAccent.copy(alpha = if (p.isLight) 0.18f else 0.28f),
+                                        headerAccent.copy(alpha = 0f)
+                                    ),
+                                    start = Offset.Zero,
+                                    end = Offset(size.width, size.height)
+                                ),
+                                cornerRadius = CornerRadius(20.dp.toPx())
+                            )
+                        }
+                        .padding(10.dp)
+                ) {
                     Poster(item.poster, Modifier.size(width = 112.dp, height = 144.dp))
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
@@ -219,7 +250,7 @@ fun DetailDialog(
                             Box(
                                 Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (p.isNeoBrutalist) NeoBrutalistColors.SkyBlue else p.primary.copy(alpha = 0.25f))
+                                    .background(if (p.isNeoBrutalist) NeoBrutalistColors.SkyBlue else headerAccent.copy(alpha = 0.25f))
                                     .then(
                                         if (p.isNeoBrutalist) {
                                             Modifier.border(1.5.dp, p.border, RoundedCornerShape(6.dp))
@@ -234,7 +265,7 @@ fun DetailDialog(
                                     fontSize = 11.sp,
                                     fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                                     fontWeight = if (p.isNeoBrutalist) FontWeight.ExtraBold else FontWeight.Normal,
-                                    color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else p.primary
+                                    color = if (p.isNeoBrutalist) NeoBrutalistColors.Black else headerAccent
                                 )
                             }
                             StatusBadge(item.status)

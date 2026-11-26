@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -374,12 +375,9 @@ fun LibraryScreen(
                             onClick = { onOpen(item) },
                             onPin = { onPin(item.id) },
                             modifier = Modifier.animateItem(
-                                fadeInSpec = tween(200, easing = SerieeMotion.StandardEasing),
-                                placementSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = 380f
-                                ),
-                                fadeOutSpec = tween(150, easing = SerieeMotion.StandardEasing)
+                                fadeInSpec = SerieeMotion.enterTween(),
+                                placementSpec = SerieeMotion.PlacementSpring,
+                                fadeOutSpec = SerieeMotion.exitTween()
                             )
                         )
                     }
@@ -395,12 +393,9 @@ fun LibraryScreen(
                             onClick = { onOpen(item) },
                             onPin = { onPin(item.id) },
                             modifier = Modifier.animateItem(
-                                fadeInSpec = tween(200, easing = SerieeMotion.StandardEasing),
-                                placementSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = 380f
-                                ),
-                                fadeOutSpec = tween(150, easing = SerieeMotion.StandardEasing)
+                                fadeInSpec = SerieeMotion.enterTween(),
+                                placementSpec = SerieeMotion.PlacementSpring,
+                                fadeOutSpec = SerieeMotion.exitTween()
                             )
                         )
                     }
@@ -679,10 +674,9 @@ private fun GridItem(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = p.text,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp).basicMarquee()
                 )
                 if (item.tags.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
@@ -691,7 +685,7 @@ private fun GridItem(
                         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)
                     ) {
                         item.tags.take(2).forEach { tag ->
-                            GenreTagBadge(tag)
+                            GenreTagBadge(tag, modifier = Modifier.weight(1f, fill = false))
                         }
                         if (item.tags.size > 2) {
                             GenreTagBadge("+${item.tags.size - 2}", color = NeoBrutalistColors.Yellow)
@@ -707,7 +701,7 @@ private fun GridItem(
     val gridPressed by gridInteraction.collectIsPressedAsState()
     val gridScale by animateFloatAsState(
         targetValue = if (gridPressed) 0.96f else 1f,
-        animationSpec = SerieeMotion.SnappySpring,
+        animationSpec = SerieeMotion.PressSpring,
         label = "gridCardScale"
     )
     Column(
@@ -729,10 +723,9 @@ private fun GridItem(
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             color = p.text,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp).basicMarquee()
         )
         if (item.tags.isNotEmpty()) {
             Spacer(Modifier.height(2.dp))
@@ -741,7 +734,7 @@ private fun GridItem(
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)
             ) {
                 item.tags.take(2).forEach { tag ->
-                    GenreTagBadge(tag)
+                    GenreTagBadge(tag, modifier = Modifier.weight(1f, fill = false))
                 }
                 if (item.tags.size > 2) {
                     GenreTagBadge("+${item.tags.size - 2}")
@@ -961,7 +954,7 @@ private fun ListItem(
         val listPressed by listInteraction.collectIsPressedAsState()
         val listScale by animateFloatAsState(
             targetValue = if (listPressed) 0.985f else 1f,
-            animationSpec = SerieeMotion.SnappySpring,
+            animationSpec = SerieeMotion.PressSpring,
             label = "listCardScale"
         )
         Box(

@@ -97,7 +97,7 @@ fun InsightsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(key = "insights-header") {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.fillMaxWidth().staggeredEntrance(0), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     stringResource(R.string.insights_title),
                     fontSize = 24.sp,
@@ -126,7 +126,7 @@ fun InsightsScreen(
                     hint = stringResource(R.string.empty_library_hint),
                     ctaLabel = stringResource(R.string.add_first_title),
                     onCta = onAdd,
-                    modifier = Modifier.padding(top = 20.dp)
+                    modifier = Modifier.padding(top = 20.dp).staggeredEntrance(1)
                 )
             }
             if (insights.recent.isNotEmpty()) {

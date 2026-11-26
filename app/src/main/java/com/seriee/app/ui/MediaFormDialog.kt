@@ -2,7 +2,6 @@ package com.seriee.app.ui
 
 import android.content.Intent
 import android.net.Uri
-import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,11 +36,14 @@ import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -53,11 +55,11 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,7 +92,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val EPISODES_PAGE_SIZE = 50
-private const val BACK_CONFIRM_WINDOW_MS = 2000L
 private const val EPISODES_UNPAGED_LIMIT = 100
 
 /**
@@ -456,9 +457,33 @@ fun MediaFormDialog(
         } else true
     }
 
+    // Discard protection: every exit path (back, X, Cancel, swipe, scrim)
+    // asks for confirmation first whenever the form differs from how it was
+    // opened, so a stray tap can no longer throw away a filled-in form.
+    fun formSignature(): List<Any?> = listOf(
+        title, description, type, status, poster, posterIsStorage, altTitles, source, sourceId,
+        streamUrl, videoPath, videoUri, releaseDate, reminderEnabled, tags,
+        rating, episodeDurationMin,
+        airing, airingStarted, nextEpisode, nextEpisodeSeason, nextAirAt,
+        seasonsDraft.map { listOf(it.number, it.totalEpStr, it.currentEpStr, it.episodes) }
+    )
+    val initialSignature = remember { formSignature() }
+    val isDirty = formSignature() != initialSignature
+    val isDirtyState = rememberUpdatedState(isDirty)
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+    fun requestDismiss() {
+        if (isDirty) showDiscardConfirm = true else onDismiss()
+    }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { target ->
+            target != SheetValue.Hidden || !isDirtyState.value
+        }
+    )
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        onDismissRequest = { requestDismiss() },
+        sheetState = sheetState,
         shape = RoundedCornerShape(
             topStart = if (p.isNeoBrutalist) 8.dp else 28.dp,
             topEnd = if (p.isNeoBrutalist) 8.dp else 28.dp
@@ -469,21 +494,24 @@ fun MediaFormDialog(
         dragHandle = { SheetDragHandle() }
     ) {
         LiquidSheetHost {
-            // Adding a title takes effort, so a stray back press must not throw it away:
-            // the first press only warns, a second one within 2 seconds cancels.
-            var lastBackPressAt by remember { mutableLongStateOf(0L) }
-            BackHandler(enabled = initial == null) {
-                val now = SystemClock.elapsedRealtime()
-                if (lastBackPressAt != 0L && now - lastBackPressAt <= BACK_CONFIRM_WINDOW_MS) {
-                    onDismiss()
-                } else {
-                    lastBackPressAt = now
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.back_again_to_cancel),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+            BackHandler { requestDismiss() }
+            if (showDiscardConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showDiscardConfirm = false },
+                    title = { Text(stringResource(R.string.discard_changes_title)) },
+                    text = { Text(stringResource(R.string.discard_changes_message)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showDiscardConfirm = false
+                            onDismiss()
+                        }) { Text(stringResource(R.string.discard)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDiscardConfirm = false }) {
+                            Text(stringResource(R.string.keep_editing))
+                        }
+                    }
+                )
             }
             Column(
                 Modifier
@@ -505,7 +533,7 @@ fun MediaFormDialog(
                     )
                     if (p.isNeoBrutalist) {
                         NeoBrutalistBox(
-                            onClick = onDismiss,
+                            onClick = { requestDismiss() },
                             role = Role.Button,
                             backgroundColor = NeoBrutalistColors.OffWhite,
                             borderColor = p.border,
@@ -523,7 +551,7 @@ fun MediaFormDialog(
                             Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(50))
-                                .clickable(onClick = onDismiss),
+                                .clickable(onClick = { requestDismiss() }),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close), tint = p.muted)
@@ -1760,7 +1788,7 @@ fun MediaFormDialog(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
                     if (p.isNeoBrutalist) {
                         NeoBrutalistBox(
-                            onClick = onDismiss,
+                            onClick = { requestDismiss() },
                             role = Role.Button,
                             backgroundColor = NeoBrutalistColors.OffWhite,
                             borderColor = p.border,
@@ -1808,7 +1836,7 @@ fun MediaFormDialog(
                                     refractionAmount = 14.dp,
                                     chromaticAberration = false
                                 )
-                                .clickable(onClick = onDismiss)
+                                .clickable(onClick = { requestDismiss() })
                                 .padding(horizontal = 20.dp, vertical = 12.dp)
                         ) { Text(stringResource(R.string.cancel), color = p.text.copy(alpha = 0.8f), fontSize = 14.sp) }
 

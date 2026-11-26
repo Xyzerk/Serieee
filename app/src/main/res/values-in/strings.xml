@@ -65,6 +65,10 @@
 
     <!-- Media form -->
     <string name="back_again_to_cancel">Tekan kembali lagi untuk membatalkan</string>
+    <string name="discard_changes_title">Buang perubahan?</string>
+    <string name="discard_changes_message">Semua yang sudah kamu isi akan hilang.</string>
+    <string name="discard">Buang</string>
+    <string name="keep_editing">Lanjut mengedit</string>
     <string name="add_to_seriee">Tambah ke Seriee</string>
     <string name="edit_media">Edit Media</string>
     <string name="title_label">Judul Film / Serial *</string>

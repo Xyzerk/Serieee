@@ -22,7 +22,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -71,14 +70,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -100,13 +106,9 @@ import androidx.compose.ui.unit.sp
 import com.seriee.app.R
 import com.seriee.app.SerieeViewModel
 import com.seriee.app.debug.AppLogger
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 @Composable
 fun SerieeApp(
@@ -163,16 +165,23 @@ fun SerieeApp(
     val scope = rememberCoroutineScope()
     val uiExceptionHandler = remember { AppLogger.coroutineExceptionHandler("UI") }
 
+    // Tab haptics: exactly one light tick per tab change, fired at the moment
+    // of interaction. Taps tick from the nav bar's click handler (before the
+    // pager animation starts); swipes tick when the incoming page becomes the
+    // current page mid-gesture. lastTickPage dedupes the two paths so a tap
+    // never buzzes twice, and nothing is tied to settledPage any more (that
+    // landed only after the spring animation finished, which felt late).
+    val lastTickPage = remember { mutableIntStateOf(tab) }
+    val tickForPage: (Int) -> Unit = { page ->
+        if (lastTickPage.intValue != page) {
+            lastTickPage.intValue = page
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+
     LaunchedEffect(pagerState.currentPage) {
         tab = pagerState.currentPage
-    }
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }
-            .distinctUntilChanged()
-            .drop(1)
-            .collect {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            }
+        tickForPage(pagerState.currentPage)
     }
 
     val goToTab: (Int) -> Unit = { index ->
@@ -430,6 +439,7 @@ fun SerieeApp(
                     pagerState.currentPage + pagerState.currentPageOffsetFraction
                 },
                 onSelect = goToTab,
+                onTabPressed = tickForPage,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxWidth()
@@ -441,30 +451,18 @@ fun SerieeApp(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 enter = scaleIn(
                     initialScale = 0.78f,
-                    animationSpec = tween(
-                        durationMillis = 200,
-                        easing = SerieeMotion.EaseOutExpo
-                    )
+                    animationSpec = SerieeMotion.enterTween()
                 ) + slideInVertically(
                     initialOffsetY = { it / 3 },
-                    animationSpec = tween(
-                        durationMillis = 200,
-                        easing = SerieeMotion.EaseOutExpo
-                    )
-                ) + fadeIn(tween(180)),
+                    animationSpec = SerieeMotion.enterTween()
+                ) + fadeIn(SerieeMotion.enterTween()),
                 exit = scaleOut(
                     targetScale = 0.78f,
-                    animationSpec = tween(
-                        durationMillis = 150,
-                        easing = SerieeMotion.StandardEasing
-                    )
+                    animationSpec = SerieeMotion.exitTween()
                 ) + slideOutVertically(
                     targetOffsetY = { it / 3 },
-                    animationSpec = tween(
-                        durationMillis = 150,
-                        easing = SerieeMotion.StandardEasing
-                    )
-                ) + fadeOut(tween(130))
+                    animationSpec = SerieeMotion.exitTween()
+                ) + fadeOut(SerieeMotion.exitTween())
             ) {
                 LiquidAddOrb(
                     onClick = {
@@ -482,11 +480,11 @@ fun SerieeApp(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 58.dp),
-            enter = fadeIn(tween(160)) + scaleIn(
+            enter = fadeIn(SerieeMotion.enterTween()) + scaleIn(
                 initialScale = 0.94f,
-                animationSpec = tween(180, easing = SerieeMotion.EaseOutExpo)
+                animationSpec = SerieeMotion.enterTween()
             ),
-            exit = fadeOut(tween(120))
+            exit = fadeOut(SerieeMotion.exitTween())
         ) {
             DebugOverlay(onDismiss = { showDebugOverlay = false })
         }
@@ -808,14 +806,27 @@ private fun SerieeTopBar(
     }
 }
 
+/**
+ * Reports only [fraction] of the content's natural width (measured unbounded),
+ * so a label can be revealed progressively without re-measuring its text.
+ * Pair with clipToBounds + a graphicsLayer alpha for a smooth reveal.
+ */
+private fun Modifier.revealWidth(fraction: Float): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(maxWidth = Constraints.Infinity))
+    val width = (placeable.width * fraction.coerceIn(0f, 1f)).roundToInt()
+    layout(width, placeable.height) {
+        placeable.placeRelative(0, 0)
+    }
+}
+
 @Composable
 private fun SerieeNavBar(
     pagerPositionProvider: () -> Float,
     onSelect: (Int) -> Unit,
+    onTabPressed: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val p = LocalPalette.current
-    val haptic = LocalHapticFeedback.current
     val items = listOf(
         Icons.Filled.Timeline to stringResource(R.string.nav_progress),
         Icons.Filled.VideoLibrary to stringResource(R.string.nav_library),
@@ -835,76 +846,92 @@ private fun SerieeNavBar(
             .glassChrome(p, CircleShape)
             .padding(horizontal = 6.dp, vertical = 5.dp)
     ) {
-        BoxWithConstraints(
+        Box(
             Modifier
                 .fillMaxWidth()
                 .height(52.dp)
         ) {
-            val itemWidth = maxWidth / items.size
-            val indicatorWidth = (itemWidth - 4.dp).coerceAtLeast(0.dp)
+            // Single source of motion: the pager position itself. Slot widths,
+            // the pill and the label reveals are all pure functions of it, so
+            // nothing can drift out of sync (the previous version animated the
+            // widths on a separate tween/spring clock, which juddered against
+            // the pager's own motion, and re-measured labels every frame).
+            val pos by remember(maxPosition) {
+                derivedStateOf { pagerPositionProvider().coerceIn(0f, maxPosition) }
+            }
+            val itemWeights = items.indices.map { i ->
+                1f + (1f - abs(pos - i)).coerceIn(0f, 1f)
+            }
             val indicatorShape = if (p.isNeoBrutalist) RoundedCornerShape(6.dp) else CircleShape
+            // The pill is drawn, never scaled: its capsule corners stay perfectly
+            // round at any width, filled with the theme's primary colour.
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .width(indicatorWidth)
+                    .fillMaxWidth()
                     .fillMaxHeight()
-                    .graphicsLayer {
-                        val pos = pagerPositionProvider().coerceIn(0f, maxPosition)
+                    .drawBehind {
                         val padPx = 2.dp.toPx()
-                        translationX = itemWidth.toPx() * pos + padPx
-                        if (!p.isNeoBrutalist) {
-                            val midFrac = abs(pos - pos.roundToInt())
-                            val stretch = (sin(midFrac * PI.toFloat()) * 0.14f).coerceIn(0f, 0.14f)
-                            scaleX = 1f + stretch
-                            scaleY = 1f - stretch * 0.22f
+                        val totalWeight = itemWeights.sum().coerceAtLeast(1f)
+                        val unitPx = size.width / totalWeight
+                        fun leftEdgePx(k: Int): Float {
+                            var s = 0f
+                            for (j in 0 until k) s += itemWeights[j]
+                            return s * unitPx
+                        }
+                        val i0 = pos.toInt().coerceIn(0, items.lastIndex)
+                        val i1 = (i0 + 1).coerceAtMost(items.lastIndex)
+                        val frac = (pos - i0).coerceIn(0f, 1f)
+                        val leftPx = lerp(leftEdgePx(i0), leftEdgePx(i1), frac) + padPx
+                        val slotPx = (lerp(itemWeights[i0] * unitPx, itemWeights[i1] * unitPx, frac) - 2 * padPx).coerceAtLeast(0f)
+                        val heightPx = (size.height - 2 * padPx).coerceAtLeast(0f)
+                        val radius = if (p.isNeoBrutalist) 6.dp.toPx() else heightPx / 2f
+                        val rectSize = Size(slotPx, heightPx)
+                        val topLeft = Offset(leftPx, padPx)
+                        val corner = CornerRadius(radius, radius)
+                        if (p.isNeoBrutalist) {
+                            drawRoundRect(
+                                color = NeoBrutalistColors.Yellow,
+                                topLeft = topLeft,
+                                size = rectSize,
+                                cornerRadius = corner
+                            )
+                            drawRoundRect(
+                                color = p.border,
+                                topLeft = topLeft,
+                                size = rectSize,
+                                cornerRadius = corner,
+                                style = Stroke(width = 2.dp.toPx())
+                            )
+                        } else {
+                            drawRoundRect(
+                                color = p.primary.copy(alpha = if (p.isGlass) 0.85f else 1f),
+                                topLeft = topLeft,
+                                size = rectSize,
+                                cornerRadius = corner
+                            )
+                            if (p.isGlass) {
+                                drawRoundRect(
+                                    brush = Brush.linearGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.75f),
+                                            Color.White.copy(alpha = 0.12f),
+                                            Color.White.copy(alpha = 0.40f)
+                                        )
+                                    ),
+                                    topLeft = topLeft,
+                                    size = rectSize,
+                                    cornerRadius = corner,
+                                    style = Stroke(width = 0.75.dp.toPx())
+                                )
+                            }
                         }
                     }
-                    .clip(indicatorShape)
-                    .then(
-                        if (p.isNeoBrutalist) {
-                            Modifier
-                                .background(NeoBrutalistColors.Yellow)
-                                .border(2.dp, p.border, indicatorShape)
-                        } else {
-                            Modifier
-                                .background(
-                                    if (p.isGlass) {
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                p.primary.copy(alpha = 0.85f),
-                                                p.accent.copy(alpha = 0.85f)
-                                            )
-                                        )
-                                    } else {
-                                        Brush.horizontalGradient(listOf(p.primary, p.accent))
-                                    }
-                                )
-                                .then(
-                                    if (p.isGlass) {
-                                        Modifier.border(
-                                            0.75.dp,
-                                            Brush.linearGradient(
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.75f),
-                                                    Color.White.copy(alpha = 0.12f),
-                                                    Color.White.copy(alpha = 0.40f)
-                                                )
-                                            ),
-                                            CircleShape
-                                        )
-                                    } else Modifier
-                                )
-                        }
-                    )
             )
             Row(Modifier.fillMaxSize()) {
                 items.forEachIndexed { index, (icon, label) ->
                     val selected = activeIndex == index
-                    val itemScale by animateFloatAsState(
-                        targetValue = if (p.isNeoBrutalist) 1f else if (selected) 1.04f else 0.96f,
-                        animationSpec = SerieeMotion.SnappySpring,
-                        label = "navItemScale_$index"
-                    )
+                    val labelReveal = (itemWeights[index] - 1f).coerceIn(0f, 1f)
                     val tag = when (index) {
                         0 -> "nav_tab_progress"
                         1 -> "nav_tab_library"
@@ -921,7 +948,7 @@ private fun SerieeNavBar(
                     Row(
                         modifier = Modifier
                             .testTag(tag)
-                            .weight(1f)
+                            .weight(itemWeights[index])
                             .fillMaxHeight()
                             .clip(indicatorShape)
                             .clickable(
@@ -929,12 +956,8 @@ private fun SerieeNavBar(
                                 indication = null,
                                 role = Role.Tab
                             ) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onTabPressed(index)
                                 onSelect(index)
-                            }
-                            .graphicsLayer {
-                                scaleX = itemScale
-                                scaleY = itemScale
                             },
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -945,14 +968,28 @@ private fun SerieeNavBar(
                             tint = itemTint,
                             modifier = Modifier.size(18.dp)
                         )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            label,
-                            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                            fontSize = if (p.isNeoBrutalist) 11.sp else 12.sp,
-                            fontWeight = if (selected || p.isNeoBrutalist) FontWeight.ExtraBold else FontWeight.SemiBold,
-                            color = itemTint
-                        )
+                        // The label is always composed at natural size; only its
+                        // revealed width + alpha follow the slot's expansion, so
+                        // the text itself is never re-measured mid-transition.
+                        Box(
+                            modifier = Modifier
+                                .revealWidth(labelReveal)
+                                .clipToBounds()
+                                .graphicsLayer { alpha = labelReveal }
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    label,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                                    fontSize = if (p.isNeoBrutalist) 11.sp else 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = itemTint
+                                )
+                            }
+                        }
                     }
                 }
             }

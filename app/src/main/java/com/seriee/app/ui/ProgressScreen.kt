@@ -208,12 +208,9 @@ fun ProgressScreen(
                     onClick = { onOpen(item) },
                     onIncrement = { onIncrement(item.id) },
                     modifier = Modifier.animateItem(
-                        fadeInSpec = tween(200, easing = SerieeMotion.StandardEasing),
-                        placementSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = 380f
-                        ),
-                        fadeOutSpec = tween(150, easing = SerieeMotion.StandardEasing)
+                        fadeInSpec = SerieeMotion.enterTween(),
+                                placementSpec = SerieeMotion.PlacementSpring,
+                                fadeOutSpec = SerieeMotion.exitTween()
                     )
                 )
             }
@@ -543,7 +540,7 @@ private fun ProgressCard(
                     val incPressed by incInteraction.collectIsPressedAsState()
                     val incScale by animateFloatAsState(
                         targetValue = if (incPressed) 0.88f else 1f,
-                        animationSpec = SerieeMotion.SnappySpring,
+                        animationSpec = SerieeMotion.PressSpring,
                         label = "incBtnScale"
                     )
                     Box(
@@ -599,7 +596,7 @@ private fun ProgressCard(
         val cardPressed by cardInteraction.collectIsPressedAsState()
         val cardScale by animateFloatAsState(
             targetValue = if (cardPressed) 0.985f else 1f,
-            animationSpec = SerieeMotion.SnappySpring,
+            animationSpec = SerieeMotion.PressSpring,
             label = "progressCardScale"
         )
         Box(

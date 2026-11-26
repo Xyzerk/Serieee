@@ -69,6 +69,10 @@
 
     <!-- Media form -->
     <string name="back_again_to_cancel">Press back again to cancel</string>
+    <string name="discard_changes_title">Discard changes?</string>
+    <string name="discard_changes_message">Everything you have filled in will be lost.</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep editing</string>
     <string name="add_to_seriee">Add to Seriee</string>
     <string name="edit_media">Edit Media</string>
     <string name="title_label">Movie / Series Title *</string>
