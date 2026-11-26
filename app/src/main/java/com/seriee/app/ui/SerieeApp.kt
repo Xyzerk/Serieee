@@ -139,6 +139,8 @@ fun SerieeApp(
     }
 
     val context = LocalContext.current
+    // F2: run the daily automatic backup check once per app start.
+    LaunchedEffect(Unit) { vm.maybeAutoBackup(context) }
     val pendingCrash by AppLogger.pendingCrash.collectAsState()
     val crashBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
