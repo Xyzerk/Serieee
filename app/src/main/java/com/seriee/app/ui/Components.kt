@@ -681,7 +681,9 @@ fun GenreTagBadge(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = NeoBrutalistColors.Black
+                color = NeoBrutalistColors.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         return
@@ -701,7 +703,9 @@ fun GenreTagBadge(
             text = tag,
             fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
-            color = accent
+            color = accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

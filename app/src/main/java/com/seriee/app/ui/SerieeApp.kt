@@ -9,10 +9,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
@@ -76,7 +74,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -109,6 +110,7 @@ import com.seriee.app.debug.AppLogger
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -811,6 +813,19 @@ private fun SerieeTopBar(
     }
 }
 
+/**
+ * Reports only [fraction] of the content's natural width (measured unbounded),
+ * so a label can be revealed progressively without re-measuring its text.
+ * Pair with clipToBounds + a graphicsLayer alpha for a smooth reveal.
+ */
+private fun Modifier.revealWidth(fraction: Float): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(maxWidth = Constraints.Infinity))
+    val width = (placeable.width * fraction.coerceIn(0f, 1f)).roundToInt()
+    layout(width, placeable.height) {
+        placeable.placeRelative(0, 0)
+    }
+}
+
 @Composable
 private fun SerieeNavBar(
     pagerPositionProvider: () -> Float,
@@ -843,16 +858,16 @@ private fun SerieeNavBar(
                 .fillMaxWidth()
                 .height(52.dp)
         ) {
-            // Only the active tab shows its label, so it gets a wider slot;
-            // inactive tabs are icon-only. Slot widths glide with an iOS-style
-            // ease-out-expo tween so the pill transition stays buttery.
-            val itemWeights = items.indices.map { index ->
-                val w by animateFloatAsState(
-                    targetValue = if (activeIndex == index) 2f else 1f,
-                    animationSpec = tween(durationMillis = 420, easing = SerieeMotion.EaseOutExpo),
-                    label = "navItemWeight_$index"
-                )
-                w
+            // Single source of motion: the pager position itself. Slot widths,
+            // the pill and the label reveals are all pure functions of it, so
+            // nothing can drift out of sync (the previous version animated the
+            // widths on a separate tween/spring clock, which juddered against
+            // the pager's own motion, and re-measured labels every frame).
+            val pos by remember(maxPosition) {
+                derivedStateOf { pagerPositionProvider().coerceIn(0f, maxPosition) }
+            }
+            val itemWeights = items.indices.map { i ->
+                1f + (1f - abs(pos - i)).coerceIn(0f, 1f)
             }
             val indicatorShape = if (p.isNeoBrutalist) RoundedCornerShape(6.dp) else CircleShape
             // The pill is drawn, never scaled: its capsule corners stay perfectly
@@ -863,7 +878,6 @@ private fun SerieeNavBar(
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .drawBehind {
-                        val pos = pagerPositionProvider().coerceIn(0f, maxPosition)
                         val padPx = 2.dp.toPx()
                         val totalWeight = itemWeights.sum().coerceAtLeast(1f)
                         val unitPx = size.width / totalWeight
@@ -924,11 +938,7 @@ private fun SerieeNavBar(
             Row(Modifier.fillMaxSize()) {
                 items.forEachIndexed { index, (icon, label) ->
                     val selected = activeIndex == index
-                    val itemScale by animateFloatAsState(
-                        targetValue = if (p.isNeoBrutalist) 1f else if (selected) 1.04f else 0.96f,
-                        animationSpec = tween(durationMillis = 320, easing = SerieeMotion.EaseOutExpo),
-                        label = "navItemScale_$index"
-                    )
+                    val labelReveal = (itemWeights[index] - 1f).coerceIn(0f, 1f)
                     val tag = when (index) {
                         0 -> "nav_tab_progress"
                         1 -> "nav_tab_library"
@@ -955,10 +965,6 @@ private fun SerieeNavBar(
                             ) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onSelect(index)
-                            }
-                            .graphicsLayer {
-                                scaleX = itemScale
-                                scaleY = itemScale
                             },
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -969,18 +975,21 @@ private fun SerieeNavBar(
                             tint = itemTint,
                             modifier = Modifier.size(18.dp)
                         )
-                        AnimatedVisibility(
-                            visible = selected,
-                            enter = fadeIn(animationSpec = tween(220, easing = SerieeMotion.EaseOutExpo)) +
-                                expandHorizontally(animationSpec = tween(380, easing = SerieeMotion.EaseOutExpo)),
-                            exit = fadeOut(animationSpec = tween(140)) +
-                                shrinkHorizontally(animationSpec = tween(240, easing = SerieeMotion.EaseOutExpo))
+                        // The label is always composed at natural size; only its
+                        // revealed width + alpha follow the slot's expansion, so
+                        // the text itself is never re-measured mid-transition.
+                        Box(
+                            modifier = Modifier
+                                .revealWidth(labelReveal)
+                                .clipToBounds()
+                                .graphicsLayer { alpha = labelReveal }
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     label,
                                     maxLines = 1,
+                                    softWrap = false,
                                     fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
                                     fontSize = if (p.isNeoBrutalist) 11.sp else 12.sp,
                                     fontWeight = FontWeight.ExtraBold,

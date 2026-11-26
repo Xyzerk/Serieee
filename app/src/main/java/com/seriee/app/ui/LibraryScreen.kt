@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -679,10 +680,9 @@ private fun GridItem(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = p.text,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp).basicMarquee()
                 )
                 if (item.tags.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
@@ -691,7 +691,7 @@ private fun GridItem(
                         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)
                     ) {
                         item.tags.take(2).forEach { tag ->
-                            GenreTagBadge(tag)
+                            GenreTagBadge(tag, modifier = Modifier.weight(1f, fill = false))
                         }
                         if (item.tags.size > 2) {
                             GenreTagBadge("+${item.tags.size - 2}", color = NeoBrutalistColors.Yellow)
@@ -729,10 +729,9 @@ private fun GridItem(
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             color = p.text,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp).basicMarquee()
         )
         if (item.tags.isNotEmpty()) {
             Spacer(Modifier.height(2.dp))
@@ -741,7 +740,7 @@ private fun GridItem(
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)
             ) {
                 item.tags.take(2).forEach { tag ->
-                    GenreTagBadge(tag)
+                    GenreTagBadge(tag, modifier = Modifier.weight(1f, fill = false))
                 }
                 if (item.tags.size > 2) {
                     GenreTagBadge("+${item.tags.size - 2}")
