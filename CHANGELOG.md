@@ -30,8 +30,27 @@ dialog is generated from the `changelog_*` strings in
   airing date, with the episode number in the notification. The alarm is
   re-armed whenever the airing schedule refreshes and cancelled once the source
   reports the show has finished.
+- **Per-episode ratings & notes**: rate and annotate individual episodes from
+  a title's detail page, with a rewatch counter per title.
+- **Daily auto-backup**: an automatic JSON backup once a day to a storage
+  folder you pick (SAF), checked when the app starts.
+- **AniList sync (outbound)**: marking an episode as watched pushes your
+  progress to AniList automatically. Bring your own AniList access token
+  (Settings → API keys). Note AniList entries are per-season, while the synced
+  progress is the total watched episode count.
+- **Calendar tab**: upcoming airing schedule grouped by day, from next-episode
+  air dates and release dates.
+- **Discover tab**: trending and this-season titles from AniList, addable to
+  your library in one tap, with a duplicate guard.
+- **Custom lists**: organise titles into your own lists and filter the Library
+  by them.
+- **Shareable stats card**: your Insights summary rendered as a 1080×1350 PNG
+  you can share.
 
 ### Changed
+
+- **Insights watch time** now uses each title's real episode duration from
+  AniList metadata when available, instead of a flat 24 minutes per episode.
 
 - The theme entry moved from the overflow menu to a palette button in the top
   bar; **Custom** now opens Theme Studio instead of an in-menu colour page.
