@@ -9,8 +9,10 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
@@ -74,10 +76,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -104,10 +109,7 @@ import com.seriee.app.debug.AppLogger
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 @Composable
 fun SerieeApp(
@@ -842,22 +844,25 @@ private fun SerieeNavBar(
                 .height(52.dp)
         ) {
             // Only the active tab shows its label, so it gets a wider slot;
-            // inactive tabs are icon-only. Weights animate with the selection.
+            // inactive tabs are icon-only. Slot widths glide with an iOS-style
+            // ease-out-expo tween so the pill transition stays buttery.
             val itemWeights = items.indices.map { index ->
                 val w by animateFloatAsState(
                     targetValue = if (activeIndex == index) 2f else 1f,
-                    animationSpec = SerieeMotion.SnappySpring,
+                    animationSpec = tween(durationMillis = 420, easing = SerieeMotion.EaseOutExpo),
                     label = "navItemWeight_$index"
                 )
                 w
             }
             val indicatorShape = if (p.isNeoBrutalist) RoundedCornerShape(6.dp) else CircleShape
+            // The pill is drawn, never scaled: its capsule corners stay perfectly
+            // round at any width, filled with the theme's primary colour.
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxWidth()
                     .fillMaxHeight()
-                    .graphicsLayer {
+                    .drawBehind {
                         val pos = pagerPositionProvider().coerceIn(0f, maxPosition)
                         val padPx = 2.dp.toPx()
                         val totalWeight = itemWeights.sum().coerceAtLeast(1f)
@@ -870,64 +875,58 @@ private fun SerieeNavBar(
                         val i0 = pos.toInt().coerceIn(0, items.lastIndex)
                         val i1 = (i0 + 1).coerceAtMost(items.lastIndex)
                         val frac = (pos - i0).coerceIn(0f, 1f)
-                        val leftPx = lerp(leftEdgePx(i0), leftEdgePx(i1), frac)
-                        val slotPx = lerp(itemWeights[i0] * unitPx, itemWeights[i1] * unitPx, frac)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        translationX = leftPx + padPx
-                        val baseScale = ((slotPx - 2 * padPx).coerceAtLeast(0f)) / size.width.toFloat().coerceAtLeast(1f)
-                        if (!p.isNeoBrutalist) {
-                            val midFrac = abs(pos - pos.roundToInt())
-                            val stretch = (sin(midFrac * PI.toFloat()) * 0.14f).coerceIn(0f, 0.14f)
-                            scaleX = baseScale * (1f + stretch)
-                            scaleY = 1f - stretch * 0.22f
+                        val leftPx = lerp(leftEdgePx(i0), leftEdgePx(i1), frac) + padPx
+                        val slotPx = (lerp(itemWeights[i0] * unitPx, itemWeights[i1] * unitPx, frac) - 2 * padPx).coerceAtLeast(0f)
+                        val heightPx = (size.height - 2 * padPx).coerceAtLeast(0f)
+                        val radius = if (p.isNeoBrutalist) 6.dp.toPx() else heightPx / 2f
+                        val rectSize = Size(slotPx, heightPx)
+                        val topLeft = Offset(leftPx, padPx)
+                        val corner = CornerRadius(radius, radius)
+                        if (p.isNeoBrutalist) {
+                            drawRoundRect(
+                                color = NeoBrutalistColors.Yellow,
+                                topLeft = topLeft,
+                                size = rectSize,
+                                cornerRadius = corner
+                            )
+                            drawRoundRect(
+                                color = p.border,
+                                topLeft = topLeft,
+                                size = rectSize,
+                                cornerRadius = corner,
+                                style = Stroke(width = 2.dp.toPx())
+                            )
                         } else {
-                            scaleX = baseScale
+                            drawRoundRect(
+                                color = p.primary.copy(alpha = if (p.isGlass) 0.85f else 1f),
+                                topLeft = topLeft,
+                                size = rectSize,
+                                cornerRadius = corner
+                            )
+                            if (p.isGlass) {
+                                drawRoundRect(
+                                    brush = Brush.linearGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.75f),
+                                            Color.White.copy(alpha = 0.12f),
+                                            Color.White.copy(alpha = 0.40f)
+                                        )
+                                    ),
+                                    topLeft = topLeft,
+                                    size = rectSize,
+                                    cornerRadius = corner,
+                                    style = Stroke(width = 0.75.dp.toPx())
+                                )
+                            }
                         }
                     }
-                    .clip(indicatorShape)
-                    .then(
-                        if (p.isNeoBrutalist) {
-                            Modifier
-                                .background(NeoBrutalistColors.Yellow)
-                                .border(2.dp, p.border, indicatorShape)
-                        } else {
-                            Modifier
-                                .background(
-                                    if (p.isGlass) {
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                p.primary.copy(alpha = 0.85f),
-                                                p.accent.copy(alpha = 0.85f)
-                                            )
-                                        )
-                                    } else {
-                                        Brush.horizontalGradient(listOf(p.primary, p.accent))
-                                    }
-                                )
-                                .then(
-                                    if (p.isGlass) {
-                                        Modifier.border(
-                                            0.75.dp,
-                                            Brush.linearGradient(
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.75f),
-                                                    Color.White.copy(alpha = 0.12f),
-                                                    Color.White.copy(alpha = 0.40f)
-                                                )
-                                            ),
-                                            CircleShape
-                                        )
-                                    } else Modifier
-                                )
-                        }
-                    )
             )
             Row(Modifier.fillMaxSize()) {
                 items.forEachIndexed { index, (icon, label) ->
                     val selected = activeIndex == index
                     val itemScale by animateFloatAsState(
                         targetValue = if (p.isNeoBrutalist) 1f else if (selected) 1.04f else 0.96f,
-                        animationSpec = SerieeMotion.SnappySpring,
+                        animationSpec = tween(durationMillis = 320, easing = SerieeMotion.EaseOutExpo),
                         label = "navItemScale_$index"
                     )
                     val tag = when (index) {
@@ -970,16 +969,24 @@ private fun SerieeNavBar(
                             tint = itemTint,
                             modifier = Modifier.size(18.dp)
                         )
-                        if (selected) {
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                label,
-                                maxLines = 1,
-                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                                fontSize = if (p.isNeoBrutalist) 11.sp else 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = itemTint
-                            )
+                        AnimatedVisibility(
+                            visible = selected,
+                            enter = fadeIn(animationSpec = tween(220, easing = SerieeMotion.EaseOutExpo)) +
+                                expandHorizontally(animationSpec = tween(380, easing = SerieeMotion.EaseOutExpo)),
+                            exit = fadeOut(animationSpec = tween(140)) +
+                                shrinkHorizontally(animationSpec = tween(240, easing = SerieeMotion.EaseOutExpo))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    label,
+                                    maxLines = 1,
+                                    fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                                    fontSize = if (p.isNeoBrutalist) 11.sp else 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = itemTint
+                                )
+                            }
                         }
                     }
                 }
