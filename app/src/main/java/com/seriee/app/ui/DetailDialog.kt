@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Public
@@ -59,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,7 +91,9 @@ import com.seriee.app.data.AiringRules
 import com.seriee.app.data.Season
 import com.seriee.app.data.WatchStatus
 import com.seriee.app.data.episodeKey
+import com.seriee.app.data.seasonKey
 import com.seriee.app.reminder.ReminderScheduler
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -107,7 +111,10 @@ fun DetailDialog(
     onEpisodeNote: ((Int, Int, String) -> Unit)? = null,
     onAddRewatch: (() -> Unit)? = null,
     onToggleList: ((String) -> Unit)? = null,
-    allListNames: List<String> = emptyList()
+    allListNames: List<String> = emptyList(),
+    onToggleNotificationsMuted: (() -> Unit)? = null,
+    onSeasonRating: ((Int, Int) -> Unit)? = null,
+    onUpdateShareComment: ((String) -> Unit)? = null
 ) {
     val p = LocalPalette.current
     val context = LocalContext.current
@@ -118,6 +125,10 @@ fun DetailDialog(
     var pendingWatchedEpisode by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var noteEditTarget by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var newListOpen by remember { mutableStateOf(false) }
+    // Vetro P1a: share-card draft state (comment + full/minimal mode).
+    var shareCommentDraft by remember(item.id) { mutableStateOf(item.shareComment) }
+    var shareFull by remember { mutableStateOf(true) }
+    val shareScope = rememberCoroutineScope()
     var launchedExternalPlayer by remember { mutableStateOf(false) }
     var showWatchedPrompt by remember { mutableStateOf(false) }
     var resumeTick by remember { mutableIntStateOf(0) }
@@ -320,6 +331,49 @@ fun DetailDialog(
                     }
                 }
 
+                // Vetro P2b: countdown block to the next episode.
+                if (AiringRules.isOngoing(item) && item.nextAirAt != null) {
+                    val countdownNow = rememberNow()
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(p.reminder.copy(alpha = 0.14f))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.HourglassTop,
+                            contentDescription = null,
+                            tint = p.reminder,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.countdown_next_episode),
+                                fontSize = 11.sp,
+                                color = p.muted
+                            )
+                            Text(
+                                ReminderScheduler.countdownDetailedText(context, item.nextAirAt, countdownNow),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = p.text
+                            )
+                            Text(
+                                listOfNotNull(
+                                    item.nextEpisode?.let { "E$it" },
+                                    ReminderScheduler.formatReleaseDate(context, item.nextAirAt)
+                                ).joinToString(" • "),
+                                fontSize = 11.sp,
+                                color = p.muted
+                            )
+                        }
+                    }
+                }
+
                 if (item.tags.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     Row(
@@ -413,6 +467,103 @@ fun DetailDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Daftar Saya", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = p.text, modifier = Modifier.weight(1f))
                         TextButton(onClick = { newListOpen = true }) { Text("+ Buat Daftar", fontSize = 13.sp) }
+                    }
+                }
+
+                // Vetro P2a + P1a: per-title notification mute and share card.
+                if (onToggleNotificationsMuted != null || onUpdateShareComment != null) {
+                    Spacer(Modifier.height(16.dp))
+                    SectionTitle(stringResource(R.string.vetro_section_title))
+
+                    if (onToggleNotificationsMuted != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (item.notificationsMuted) Icons.Filled.NotificationsOff else Icons.Filled.NotificationsActive,
+                                contentDescription = null,
+                                tint = if (item.notificationsMuted) p.muted else p.reminder,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(
+                                        if (item.notificationsMuted) R.string.detail_notifications_muted
+                                        else R.string.detail_notifications_on
+                                    ),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = p.text
+                                )
+                                Text(
+                                    stringResource(R.string.detail_notifications_desc),
+                                    fontSize = 11.sp,
+                                    color = p.muted
+                                )
+                            }
+                            TextButton(onClick = onToggleNotificationsMuted) {
+                                Text(
+                                    stringResource(
+                                        if (item.notificationsMuted) R.string.detail_unmute_notifications
+                                        else R.string.detail_mute_notifications
+                                    ),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    if (onUpdateShareComment != null) {
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = shareCommentDraft,
+                            onValueChange = { if (it.length <= 52) shareCommentDraft = it },
+                            label = { Text(stringResource(R.string.share_card_comment_hint)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = p.primary,
+                                unfocusedBorderColor = p.muted.copy(alpha = 0.5f),
+                                focusedTextColor = p.text,
+                                unfocusedTextColor = p.text
+                            )
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            FilterChip(
+                                label = stringResource(R.string.share_card_full),
+                                selected = shareFull,
+                                onClick = { shareFull = true }
+                            )
+                            FilterChip(
+                                label = stringResource(R.string.share_card_minimal),
+                                selected = !shareFull,
+                                onClick = { shareFull = false }
+                            )
+                            Spacer(Modifier.weight(1f))
+                            TextButton(
+                                onClick = { onUpdateShareComment(shareCommentDraft) }
+                            ) {
+                                Text(stringResource(R.string.save), fontSize = 12.sp)
+                            }
+                            Button(
+                                onClick = {
+                                    onUpdateShareComment(shareCommentDraft)
+                                    val snapshot = item.copy(shareComment = shareCommentDraft.trim().take(52))
+                                    shareScope.launch {
+                                        shareTitleCard(context, snapshot, "", shareFull)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = p.primary,
+                                    contentColor = p.onAccent
+                                )
+                            ) {
+                                Text(stringResource(R.string.share_card_share), fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
 
@@ -957,6 +1108,23 @@ fun DetailDialog(
                                     fraction = sec.currentEp.toFloat() / total,
                                     height = 6.dp
                                 )
+                                // Vetro P3c: rate the whole season.
+                                if (onSeasonRating != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            stringResource(R.string.season_rating_label),
+                                            fontSize = 12.sp,
+                                            color = p.muted,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        StarRatingBar(
+                                            rating = item.seasonRatings[seasonKey(sec.number)] ?: 0,
+                                            onRatingChange = { r -> onSeasonRating(sec.number, r) },
+                                            starSize = 18.dp,
+                                            showLabel = false
+                                        )
+                                    }
+                                }
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     SeasonActionButton(
                                         label = stringResource(R.string.jump_to_episode),

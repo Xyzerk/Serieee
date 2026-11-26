@@ -641,4 +641,37 @@
     <string name="studio_c_reminder">Reminder</string>
     <string name="studio_c_star">Stars &amp; ratings</string>
     <string name="theme_image_failed">Could not use that image</string>
+    <!-- Vetro features (P1-P3) -->
+    <string name="notification_centre_title">Notifications</string>
+    <string name="notification_centre_airing">Airing &amp; upcoming episodes</string>
+    <string name="notification_centre_quiet">Quiet reminders</string>
+    <string name="notification_centre_empty">Nothing here yet. Airing titles and titles you paused a while ago will show up here.</string>
+    <string name="vetro_section_title">Notifications &amp; Sharing</string>
+    <string name="detail_notifications_muted">Notifications muted for this title</string>
+    <string name="detail_notifications_on">Notifications on for this title</string>
+    <string name="detail_notifications_desc">Muted titles are skipped by reminders and the notification centre.</string>
+    <string name="detail_mute_notifications">Mute</string>
+    <string name="detail_unmute_notifications">Unmute</string>
+    <string name="countdown_next_episode">Next episode countdown</string>
+    <string name="share_card_comment_hint">Thought bubble (max 52 characters)</string>
+    <string name="share_card_full">Full</string>
+    <string name="share_card_minimal">Minimal</string>
+    <string name="share_card_share">Share Card</string>
+    <string name="season_rating_label">Season rating</string>
+    <string name="filter_rating_range">Rating range</string>
+    <string name="filter_year_range">Release year range</string>
+    <string name="insights_advanced_title">Advanced Insights</string>
+    <string name="insights_genre_outcomes">Finished vs dropped per genre</string>
+    <string name="insights_finished_short">finished</string>
+    <string name="insights_dropped_short">dropped</string>
+    <string name="insights_last_90_days">Last 90 days</string>
+    <string name="insights_all_time">All time</string>
+    <string name="insights_episodes_unit">episodes</string>
+    <string name="insights_monthly_title">Episodes per month</string>
+    <string name="rating_edit_title">Change rating</string>
+    <string name="export_pdf_desc">Save the whole collection as a printable PDF list (title, status, progress, rating).</string>
+    <string name="export_pdf_button">Export PDF</string>
+    <string name="share_pdf_button">Share PDF</string>
+    <string name="pdf_export_success">PDF saved: %1$d titles</string>
+    <string name="pdf_export_failed">PDF export failed: %1$s</string>
 </resources>
