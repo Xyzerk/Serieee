@@ -71,6 +71,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.data.WatchStatus
@@ -127,6 +128,13 @@ object SerieeMotion {
         stiffness = 520f
     )
     val SmoothSpring = spring<Float>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 380f
+    )
+
+    /** Placement spring for Lazy list item moves: same feel as SmoothSpring,
+     *  but typed for IntOffset as Modifier.animateItem(placementSpec) requires. */
+    val PlacementSpring = spring<IntOffset>(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = 380f
     )

@@ -376,7 +376,7 @@ fun LibraryScreen(
                             onPin = { onPin(item.id) },
                             modifier = Modifier.animateItem(
                                 fadeInSpec = SerieeMotion.enterTween(),
-                                placementSpec = SerieeMotion.SmoothSpring,
+                                placementSpec = SerieeMotion.PlacementSpring,
                                 fadeOutSpec = SerieeMotion.exitTween()
                             )
                         )
@@ -394,7 +394,7 @@ fun LibraryScreen(
                             onPin = { onPin(item.id) },
                             modifier = Modifier.animateItem(
                                 fadeInSpec = SerieeMotion.enterTween(),
-                                placementSpec = SerieeMotion.SmoothSpring,
+                                placementSpec = SerieeMotion.PlacementSpring,
                                 fadeOutSpec = SerieeMotion.exitTween()
                             )
                         )
