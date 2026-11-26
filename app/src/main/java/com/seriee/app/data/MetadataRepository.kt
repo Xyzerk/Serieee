@@ -395,6 +395,45 @@ class MetadataRepository {
             } else Result.success(results)
         }
 
+    /** F5 (Discover): currently trending anime on AniList. */
+    suspend fun discoverTrending(): Result<List<MetadataResult>> = withContext(Dispatchers.IO) {
+        runCatching { anilistPage("""sort: TRENDING_DESC""") }
+    }
+
+    /** F5 (Discover): anime of the current season on AniList, by popularity. */
+    suspend fun discoverSeasonal(): Result<List<MetadataResult>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val now = java.time.LocalDate.now()
+            val season = when (now.monthValue) {
+                12, 1, 2 -> "WINTER"
+                3, 4, 5 -> "SPRING"
+                6, 7, 8 -> "SUMMER"
+                else -> "FALL"
+            }
+            val year = if (now.monthValue == 12) now.year + 1 else now.year
+            anilistPage("""season: $season, seasonYear: $year, sort: POPULARITY_DESC""")
+        }
+    }
+
+    private fun anilistPage(args: String): List<MetadataResult> {
+        val body = JSONObject().apply {
+            put("query", """
+                query {
+                  Page(page: 1, perPage: 20) {
+                    media(type: ANIME, $args) {
+                      id title { english romaji native } synonyms
+                      coverImage { large } description genres episodes duration format status
+                      startDate { year month day }
+                      nextAiringEpisode { airingAt episode }
+                      externalLinks { url site type }
+                    }
+                  }
+                }
+            """.trimIndent())
+        }
+        return parseAniListPage(postJson("https://graphql.anilist.co", body), "")
+    }
+
     private fun searchAniList(query: String): List<MetadataResult> {
         val body = JSONObject().apply {
             put("query", """
