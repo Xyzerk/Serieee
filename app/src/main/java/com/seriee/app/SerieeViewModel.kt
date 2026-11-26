@@ -344,6 +344,40 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         commit(items.map { if (it.id == id) it.copy(pinned = !it.pinned) else it })
     }
 
+    /** F5 (Discover): add a metadata result straight to the library as Plan to Watch / Coming Soon. */
+    fun addFromMetadata(r: com.seriee.app.data.MetadataResult) {
+        if (items.any { it.source == r.source && it.sourceId == r.sourceId && r.sourceId.isNotBlank() }) return
+        val seasons = r.seasonEpisodeCounts.mapIndexed { idx, total ->
+            com.seriee.app.data.Season(
+                number = r.seasonNumbers.getOrNull(idx)?.takeIf { it > 0 } ?: (idx + 1),
+                currentEp = 0,
+                totalEp = total.coerceAtLeast(1)
+            )
+        }
+        val item = MediaItem(
+            id = java.util.UUID.randomUUID().toString(),
+            title = r.title,
+            type = r.type,
+            status = if (r.upcoming) WatchStatus.ComingSoon else WatchStatus.PlanToWatch,
+            poster = r.posterUrl,
+            description = r.description,
+            source = r.source,
+            sourceId = r.sourceId,
+            tags = r.tags,
+            altTitles = r.altTitles,
+            seasons = seasons,
+            totalEp = seasons.sumOf { it.totalEp }.coerceAtLeast(1),
+            releaseDate = r.releaseAt,
+            airing = r.airing,
+            airingStarted = r.airingStarted,
+            nextEpisode = r.nextEpisode,
+            nextEpisodeSeason = r.nextEpisodeSeason,
+            nextAirAt = r.nextAirAt,
+            episodeDurationMin = r.episodeDurationMin
+        )
+        commit(items + item)
+    }
+
     /** F1: set (or clear, with 0) the star rating for one episode. */
     fun setEpisodeRating(id: String, season: Int, episode: Int, rating: Int) {
         val key = episodeKey(season, episode)
