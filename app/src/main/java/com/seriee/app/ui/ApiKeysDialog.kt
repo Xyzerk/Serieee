@@ -179,6 +179,22 @@ fun ApiKeysDialog(
                 )
 
                 ApiKeySection(
+                    title = stringResource(R.string.anilist_token_title),
+                    hint = stringResource(R.string.anilist_token_hint),
+                    savedKey = vm.anilistToken,
+                    saveLabel = stringResource(R.string.anilist_token_save),
+                    placeholder = stringResource(R.string.api_key_placeholder),
+                    onSave = {
+                        vm.setAniListToken(it)
+                        Toast.makeText(context, context.getString(R.string.anilist_token_save), Toast.LENGTH_SHORT).show()
+                    },
+                    onClear = {
+                        vm.setAniListToken("")
+                        Toast.makeText(context, context.getString(R.string.anilist_token_cleared), Toast.LENGTH_SHORT).show()
+                    }
+                )
+
+                ApiKeySection(
                     title = stringResource(R.string.omdb_api_key_title),
                     hint = stringResource(R.string.omdb_api_key_hint),
                     savedKey = vm.omdbKey,
