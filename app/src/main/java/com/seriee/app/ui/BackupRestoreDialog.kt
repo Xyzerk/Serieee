@@ -417,7 +417,7 @@ fun BackupRestoreDialog(
                         )
                         Switch(
                             checked = vm.autoBackupEnabled,
-                            onCheckedChange = { vm.setAutoBackupEnabled(it) }
+                            onCheckedChange = { vm.updateAutoBackupEnabled(it) }
                         )
                     }
                     Text(
