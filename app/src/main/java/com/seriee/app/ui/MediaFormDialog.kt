@@ -461,10 +461,11 @@ fun MediaFormDialog(
     // asks for confirmation first whenever the form differs from how it was
     // opened, so a stray tap can no longer throw away a filled-in form.
     fun formSignature(): List<Any?> = listOf(
-        title, description, type, status, poster, altTitles, source, sourceId,
+        title, description, type, status, poster, posterIsStorage, altTitles, source, sourceId,
         streamUrl, videoPath, videoUri, releaseDate, reminderEnabled, tags,
         rating, episodeDurationMin,
-        seasonsDraft.map { listOf(it.number, it.totalEpStr, it.currentEpStr, it.episodes.size) }
+        airing, airingStarted, nextEpisode, nextEpisodeSeason, nextAirAt,
+        seasonsDraft.map { listOf(it.number, it.totalEpStr, it.currentEpStr, it.episodes) }
     )
     val initialSignature = remember { formSignature() }
     val isDirty = formSignature() != initialSignature

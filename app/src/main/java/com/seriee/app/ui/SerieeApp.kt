@@ -70,7 +70,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -107,8 +106,6 @@ import androidx.compose.ui.unit.sp
 import com.seriee.app.R
 import com.seriee.app.SerieeViewModel
 import com.seriee.app.debug.AppLogger
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -168,16 +165,23 @@ fun SerieeApp(
     val scope = rememberCoroutineScope()
     val uiExceptionHandler = remember { AppLogger.coroutineExceptionHandler("UI") }
 
+    // Tab haptics: exactly one light tick per tab change, fired at the moment
+    // of interaction. Taps tick from the nav bar's click handler (before the
+    // pager animation starts); swipes tick when the incoming page becomes the
+    // current page mid-gesture. lastTickPage dedupes the two paths so a tap
+    // never buzzes twice, and nothing is tied to settledPage any more (that
+    // landed only after the spring animation finished, which felt late).
+    val lastTickPage = remember { mutableIntStateOf(tab) }
+    val tickForPage: (Int) -> Unit = { page ->
+        if (lastTickPage.intValue != page) {
+            lastTickPage.intValue = page
+            haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+        }
+    }
+
     LaunchedEffect(pagerState.currentPage) {
         tab = pagerState.currentPage
-    }
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }
-            .distinctUntilChanged()
-            .drop(1)
-            .collect {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            }
+        tickForPage(pagerState.currentPage)
     }
 
     val goToTab: (Int) -> Unit = { index ->
@@ -435,6 +439,7 @@ fun SerieeApp(
                     pagerState.currentPage + pagerState.currentPageOffsetFraction
                 },
                 onSelect = goToTab,
+                onTabPressed = tickForPage,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxWidth()
@@ -818,10 +823,10 @@ private fun Modifier.revealWidth(fraction: Float): Modifier = layout { measurabl
 private fun SerieeNavBar(
     pagerPositionProvider: () -> Float,
     onSelect: (Int) -> Unit,
+    onTabPressed: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val p = LocalPalette.current
-    val haptic = LocalHapticFeedback.current
     val items = listOf(
         Icons.Filled.Timeline to stringResource(R.string.nav_progress),
         Icons.Filled.VideoLibrary to stringResource(R.string.nav_library),
@@ -951,7 +956,7 @@ private fun SerieeNavBar(
                                 indication = null,
                                 role = Role.Tab
                             ) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onTabPressed(index)
                                 onSelect(index)
                             },
                         horizontalArrangement = Arrangement.Center,
