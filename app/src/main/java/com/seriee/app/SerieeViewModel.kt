@@ -31,6 +31,7 @@ import com.seriee.app.data.ImportSource
 import com.seriee.app.data.ImportUiState
 import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
+import com.seriee.app.data.episodeKey
 import com.seriee.app.data.MetadataRepository
 import com.seriee.app.data.PosterStore
 import com.seriee.app.data.SerieeRepository
@@ -342,6 +343,54 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     fun togglePin(id: String) {
         commit(items.map { if (it.id == id) it.copy(pinned = !it.pinned) else it })
     }
+
+    /** F1: set (or clear, with 0) the star rating for one episode. */
+    fun setEpisodeRating(id: String, season: Int, episode: Int, rating: Int) {
+        val key = episodeKey(season, episode)
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val next = if (rating in 1..5) m.episodeRatings + (key to rating) else m.episodeRatings - key
+                m.copy(episodeRatings = next)
+            }
+        })
+    }
+
+    /** F1: set (or clear, with blank text) the note for one episode. */
+    fun setEpisodeNote(id: String, season: Int, episode: Int, note: String) {
+        val key = episodeKey(season, episode)
+        val trimmed = note.trim()
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val next = if (trimmed.isNotEmpty()) m.episodeNotes + (key to trimmed) else m.episodeNotes - key
+                m.copy(episodeNotes = next)
+            }
+        })
+    }
+
+    /** F1: count one more rewatch of a completed title. */
+    fun addRewatch(id: String) {
+        commit(items.map { if (it.id == id) it.copy(rewatchCount = it.rewatchCount + 1) else it })
+    }
+
+    /** F6: add or remove a title from a user-defined custom list. */
+    fun toggleCustomList(id: String, listName: String) {
+        val name = listName.trim()
+        if (name.isEmpty()) return
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val next = if (m.lists.any { it.equals(name, ignoreCase = true) }) {
+                    m.lists.filterNot { it.equals(name, ignoreCase = true) }
+                } else {
+                    (m.lists + name).distinctBy { it.lowercase() }
+                }
+                m.copy(lists = next)
+            }
+        })
+    }
+
+    /** F6: every custom list name in use, sorted. */
+    fun customListNames(): List<String> =
+        items.flatMap { it.lists }.distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
 
     /**
      * Daily streak. Watch activity is bucketed by local calendar day:
