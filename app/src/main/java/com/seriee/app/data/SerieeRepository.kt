@@ -190,6 +190,28 @@ class SerieeRepository(context: Context) {
         prefs.edit().putString(KEY_LANG, language.tag).apply()
     }
 
+    // F2: automatic daily backup to a user-picked folder (SAF tree URI).
+    fun loadAutoBackupEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
+    fun saveAutoBackupEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_BACKUP_ENABLED, value).apply()
+    }
+
+    fun loadAutoBackupFolderUri(): String = prefs.getString(KEY_AUTO_BACKUP_URI, "") ?: ""
+    fun saveAutoBackupFolderUri(uri: String) {
+        prefs.edit().putString(KEY_AUTO_BACKUP_URI, uri).apply()
+    }
+
+    fun loadLastAutoBackupAt(): Long = prefs.getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
+    fun saveLastAutoBackupAt(value: Long) {
+        prefs.edit().putLong(KEY_LAST_AUTO_BACKUP_AT, value).apply()
+    }
+
+    // F3: AniList OAuth access token (stored with the other API secrets).
+    fun loadAniListToken(): String = secretPrefs.getString(KEY_ANILIST_TOKEN, "") ?: ""
+    fun saveAniListToken(token: String) {
+        secretPrefs.edit().putString(KEY_ANILIST_TOKEN, token.trim()).apply()
+    }
+
     fun loadTmdbKey(): String = secretPrefs.getString(KEY_TMDB, "") ?: ""
     fun saveTmdbKey(key: String) {
         secretPrefs.edit().putString(KEY_TMDB, key.trim()).apply()
@@ -263,6 +285,37 @@ class SerieeRepository(context: Context) {
     fun saveBackupPromptedAtCount(v: Int) =
         prefs.edit().putInt(KEY_BACKUP_PROMPTED_AT_COUNT, v).apply()
 
+    private fun parseIntMap(o: JSONObject?): Map<String, Int> {
+        if (o == null) return emptyMap()
+        val out = LinkedHashMap<String, Int>()
+        val keys = o.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            val v = o.optInt(k, 0)
+            if (v in 1..5) out[k] = v
+        }
+        return out
+    }
+
+    private fun parseStringMap(o: JSONObject?): Map<String, String> {
+        if (o == null) return emptyMap()
+        val out = LinkedHashMap<String, String>()
+        val keys = o.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            val v = o.optString(k).trim()
+            if (v.isNotEmpty()) out[k] = v
+        }
+        return out
+    }
+
+    private fun parseStringList(a: JSONArray?): List<String> {
+        if (a == null) return emptyList()
+        return (0 until a.length()).mapNotNull { i ->
+            a.optString(i).trim().takeIf { it.isNotEmpty() }
+        }.distinct()
+    }
+
     private fun toJson(m: MediaItem): JSONObject = JSONObject().apply {
         put("id", m.id)
         put("title", m.title)
@@ -313,6 +366,17 @@ class SerieeRepository(context: Context) {
         put("nextEpisodeSeason", m.nextEpisodeSeason ?: -1)
         put("nextAirAt", m.nextAirAt ?: -1L)
         put("airingCheckedAt", m.airingCheckedAt)
+        val epRatings = JSONObject()
+        m.episodeRatings.forEach { (k, v) -> epRatings.put(k, v) }
+        put("episodeRatings", epRatings)
+        val epNotes = JSONObject()
+        m.episodeNotes.forEach { (k, v) -> epNotes.put(k, v) }
+        put("episodeNotes", epNotes)
+        put("rewatchCount", m.rewatchCount)
+        val listsArr = JSONArray()
+        m.lists.forEach { listsArr.put(it) }
+        put("lists", listsArr)
+        put("episodeDurationMin", m.episodeDurationMin)
     }
 
     private fun fromJson(o: JSONObject): MediaItem {
@@ -391,7 +455,12 @@ class SerieeRepository(context: Context) {
             nextEpisode = o.optInt("nextEpisode", -1).takeIf { it > 0 },
             nextEpisodeSeason = o.optInt("nextEpisodeSeason", -1).takeIf { it > 0 },
             nextAirAt = o.optLong("nextAirAt", -1L).takeIf { it > 0L },
-            airingCheckedAt = o.optLong("airingCheckedAt", 0L)
+            airingCheckedAt = o.optLong("airingCheckedAt", 0L),
+            episodeRatings = parseIntMap(o.optJSONObject("episodeRatings")),
+            episodeNotes = parseStringMap(o.optJSONObject("episodeNotes")),
+            rewatchCount = o.optInt("rewatchCount", 0).coerceAtLeast(0),
+            lists = parseStringList(o.optJSONArray("lists")),
+            episodeDurationMin = o.optInt("episodeDurationMin", 0).coerceAtLeast(0)
         )
     }
 
@@ -493,6 +562,9 @@ class SerieeRepository(context: Context) {
 
     private companion object {
         const val KEY_DATA = "seriee_data_v2"
+        const val KEY_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
+        const val KEY_AUTO_BACKUP_URI = "auto_backup_folder_uri"
+        const val KEY_LAST_AUTO_BACKUP_AT = "last_auto_backup_at"
         const val KEY_THEME = "seriee_theme"
         const val KEY_THEME_MODE = "seriee_theme_mode"
         const val KEY_THEME_STYLE = "seriee_theme_style"
@@ -509,6 +581,7 @@ class SerieeRepository(context: Context) {
         const val KEY_GRID = "seriee_grid"
         const val KEY_LANG = "seriee_lang"
         const val KEY_TMDB = "tmdb_api_key"
+        const val KEY_ANILIST_TOKEN = "anilist_access_token"
         const val KEY_OMDB = "omdb_api_key"
         const val KEY_LAST_SEEN_VERSION = "last_seen_version_code"
         const val KEY_ONBOARDING_DONE = "onboarding_done"

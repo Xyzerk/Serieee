@@ -5,6 +5,12 @@
     <string name="nav_progress">Progress</string>
     <string name="nav_library">Library</string>
     <string name="nav_insights">Insights</string>
+    <string name="nav_calendar">Calendar</string>
+    <string name="anilist_token_title">AniList Sync Token</string>
+    <string name="anilist_token_hint">Paste an AniList OAuth access token to push your progress back to AniList automatically when you mark episodes watched. Leave empty to disable sync.</string>
+    <string name="anilist_token_save">AniList token saved</string>
+    <string name="anilist_token_cleared">AniList token cleared</string>
+    <string name="nav_discover">Discover</string>
     <string name="add">Add</string>
 
     <!-- Top bar -->

@@ -152,6 +152,7 @@ fun MediaFormDialog(
     var nextEpisodeSeason by remember { mutableStateOf(initial?.nextEpisodeSeason) }
     var nextAirAt by remember { mutableStateOf(initial?.nextAirAt) }
     var airingCheckedAt by remember { mutableStateOf(initial?.airingCheckedAt ?: 0L) }
+    var episodeDurationMin by remember { mutableStateOf(initial?.episodeDurationMin ?: 0) }
     var tags by remember { mutableStateOf(initial?.tags ?: emptyList()) }
     var rating by remember { mutableStateOf(initial?.rating ?: 0) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -388,6 +389,7 @@ fun MediaFormDialog(
         nextEpisodeSeason = r.nextEpisodeSeason
         nextAirAt = r.nextAirAt ?: if (r.upcoming) r.releaseAt else null
         airingCheckedAt = System.currentTimeMillis()
+        if (r.episodeDurationMin > 0) episodeDurationMin = r.episodeDurationMin
         // Season comes from the source result (AniList entry / TMDB season numbers),
         // falling back to parsing the fetched title. This keeps "…Season 4" from
         // saving as a Season 1 card — so Pick Folder targets Season 4.
@@ -1742,6 +1744,7 @@ fun MediaFormDialog(
                                 nextEpisodeSeason = nextEpisodeSeason,
                                 nextAirAt = nextAirAt,
                                 airingCheckedAt = airingCheckedAt,
+                                episodeDurationMin = episodeDurationMin,
                                 tags = tags,
                                 rating = rating,
                                 altTitles = altTitles

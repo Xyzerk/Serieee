@@ -110,6 +110,11 @@ fun InsightsScreen(
                     fontWeight = if (p.isNeoBrutalist) FontWeight.SemiBold else FontWeight.Normal,
                     color = p.muted
                 )
+                // F8: share the stats as an image card.
+                val shareContext = LocalContext.current
+                TextButton(onClick = { shareStatsCard(shareContext, insights) }) {
+                    Text("Bagikan Statistik", fontSize = 13.sp)
+                }
             }
         }
 

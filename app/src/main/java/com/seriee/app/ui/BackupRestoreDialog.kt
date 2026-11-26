@@ -34,6 +34,8 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -79,6 +81,23 @@ fun BackupRestoreDialog(
             }.onFailure { err ->
                 Toast.makeText(context, context.getString(R.string.backup_failed, err.localizedMessage ?: ""), Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    // F2: folder picker for automatic backups
+    val autoBackupFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            vm.setAutoBackupFolder(uri.toString())
+            vm.updateAutoBackupEnabled(true)
+            Toast.makeText(context, "Backup otomatis aktif", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -380,6 +399,40 @@ fun BackupRestoreDialog(
                                 color = p.onAccent
                             )
                         }
+                    }
+                }
+
+                // F2: Automatic backup
+                Column(
+                    modifier = sectionCardModifier(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Backup Otomatis Harian",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = p.text,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = vm.autoBackupEnabled,
+                            onCheckedChange = { vm.updateAutoBackupEnabled(it) }
+                        )
+                    }
+                    Text(
+                        "Saat aplikasi dibuka, backup JSON ditulis otomatis ke folder pilihanmu (maksimal 1x sehari).",
+                        fontSize = 12.sp,
+                        color = p.muted,
+                        lineHeight = 17.sp
+                    )
+                    Text(
+                        if (vm.autoBackupFolderUri.isBlank()) "Folder: belum dipilih" else "Folder: sudah dipilih",
+                        fontSize = 12.sp,
+                        color = p.muted
+                    )
+                    TextButton(onClick = { autoBackupFolderLauncher.launch(null) }) {
+                        Text("Pilih Folder Backup")
                     }
                 }
 

@@ -31,6 +31,7 @@ import com.seriee.app.data.ImportSource
 import com.seriee.app.data.ImportUiState
 import com.seriee.app.data.MalXmlParser
 import com.seriee.app.data.MediaItem
+import com.seriee.app.data.episodeKey
 import com.seriee.app.data.MetadataRepository
 import com.seriee.app.data.PosterStore
 import com.seriee.app.data.SerieeRepository
@@ -266,6 +267,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         if (after.watchedEpisodes > before) {
             logged?.let { logWatch(target, it.season, it.episode) }
             recordWatch()
+            pushProgressToAniList(after)
         }
     }
 
@@ -342,6 +344,88 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     fun togglePin(id: String) {
         commit(items.map { if (it.id == id) it.copy(pinned = !it.pinned) else it })
     }
+
+    /** F5 (Discover): add a metadata result straight to the library as Plan to Watch / Coming Soon. */
+    fun addFromMetadata(r: com.seriee.app.data.MetadataResult) {
+        if (items.any { it.source == r.source && it.sourceId == r.sourceId && r.sourceId.isNotBlank() }) return
+        val seasons = r.seasonEpisodeCounts.mapIndexed { idx, total ->
+            com.seriee.app.data.Season(
+                number = r.seasonNumbers.getOrNull(idx)?.takeIf { it > 0 } ?: (idx + 1),
+                currentEp = 0,
+                totalEp = total.coerceAtLeast(1)
+            )
+        }
+        val item = MediaItem(
+            id = java.util.UUID.randomUUID().toString(),
+            title = r.title,
+            type = r.type,
+            status = if (r.upcoming) WatchStatus.ComingSoon else WatchStatus.PlanToWatch,
+            poster = r.posterUrl,
+            description = r.description,
+            source = r.source,
+            sourceId = r.sourceId,
+            tags = r.tags,
+            altTitles = r.altTitles,
+            seasons = seasons,
+            totalEp = seasons.sumOf { it.totalEp }.coerceAtLeast(1),
+            releaseDate = r.releaseAt,
+            airing = r.airing,
+            airingStarted = r.airingStarted,
+            nextEpisode = r.nextEpisode,
+            nextEpisodeSeason = r.nextEpisodeSeason,
+            nextAirAt = r.nextAirAt,
+            episodeDurationMin = r.episodeDurationMin
+        )
+        commit(items + item)
+    }
+
+    /** F1: set (or clear, with 0) the star rating for one episode. */
+    fun setEpisodeRating(id: String, season: Int, episode: Int, rating: Int) {
+        val key = episodeKey(season, episode)
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val next = if (rating in 1..5) m.episodeRatings + (key to rating) else m.episodeRatings - key
+                m.copy(episodeRatings = next)
+            }
+        })
+    }
+
+    /** F1: set (or clear, with blank text) the note for one episode. */
+    fun setEpisodeNote(id: String, season: Int, episode: Int, note: String) {
+        val key = episodeKey(season, episode)
+        val trimmed = note.trim()
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val next = if (trimmed.isNotEmpty()) m.episodeNotes + (key to trimmed) else m.episodeNotes - key
+                m.copy(episodeNotes = next)
+            }
+        })
+    }
+
+    /** F1: count one more rewatch of a completed title. */
+    fun addRewatch(id: String) {
+        commit(items.map { if (it.id == id) it.copy(rewatchCount = it.rewatchCount + 1) else it })
+    }
+
+    /** F6: add or remove a title from a user-defined custom list. */
+    fun toggleCustomList(id: String, listName: String) {
+        val name = listName.trim()
+        if (name.isEmpty()) return
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val next = if (m.lists.any { it.equals(name, ignoreCase = true) }) {
+                    m.lists.filterNot { it.equals(name, ignoreCase = true) }
+                } else {
+                    (m.lists + name).distinctBy { it.lowercase() }
+                }
+                m.copy(lists = next)
+            }
+        })
+    }
+
+    /** F6: every custom list name in use, sorted. */
+    fun customListNames(): List<String> =
+        items.flatMap { it.lists }.distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
 
     /**
      * Daily streak. Watch activity is bucketed by local calendar day:
@@ -431,6 +515,31 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
             PosterStore.deleteIfLocal(getApplication(), it)
         }
         commit(items.filterNot { it.id == id })
+    }
+
+    // F3: AniList sync token + outbound progress push.
+    private val _anilistToken = mutableStateOf(repo.loadAniListToken())
+    val anilistToken: String get() = _anilistToken.value
+
+    fun setAniListToken(value: String) {
+        _anilistToken.value = value.trim()
+        repo.saveAniListToken(value.trim())
+    }
+
+    /** Fire-and-forget: push this item's progress to AniList when possible. */
+    fun pushProgressToAniList(item: MediaItem) {
+        val token = _anilistToken.value
+        if (token.isBlank()) return
+        if (!item.source.equals("AniList", ignoreCase = true)) return
+        val mediaId = item.sourceId.toIntOrNull() ?: return
+        val progress = item.watchedEpisodes
+        val status = item.status
+        val score = item.rating
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                com.seriee.app.data.AniListSyncClient.pushProgress(token, mediaId, progress, status, score)
+            }
+        }
     }
 
     fun setTmdbKey(value: String) {
@@ -815,6 +924,46 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     fun dismissImport() {
         importJob?.cancel()
         _importState.value = ImportUiState(source = _importState.value.source, mode = _importState.value.mode)
+    }
+
+    // F2: automatic backup settings + runner (called once on app start).
+    var autoBackupEnabled by mutableStateOf(repo.loadAutoBackupEnabled())
+        private set
+    var autoBackupFolderUri by mutableStateOf(repo.loadAutoBackupFolderUri())
+        private set
+
+    fun updateAutoBackupEnabled(value: Boolean) {
+        autoBackupEnabled = value
+        repo.saveAutoBackupEnabled(value)
+    }
+
+    fun setAutoBackupFolder(uriString: String) {
+        autoBackupFolderUri = uriString
+        repo.saveAutoBackupFolderUri(uriString)
+    }
+
+    /** Writes a backup into the picked folder when the last one is >24h old. */
+    fun maybeAutoBackup(context: Context) {
+        if (!autoBackupEnabled || autoBackupFolderUri.isBlank()) return
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - repo.loadLastAutoBackupAt() < 24L * 60L * 60L * 1000L) return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val treeUri = Uri.parse(autoBackupFolderUri)
+                    val parentDoc = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, treeUri)
+                        ?: error("folder")
+                    val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                        .format(java.util.Date(nowMs))
+                    val file = parentDoc.createFile("application/json", "seriee_autobackup_$stamp.json")
+                        ?: error("file")
+                    context.contentResolver.openOutputStream(file.uri)?.use { out ->
+                        out.write(repo.exportBackupJson(items, history).toByteArray(Charsets.UTF_8))
+                    } ?: error("stream")
+                    repo.saveLastAutoBackupAt(nowMs)
+                }
+            }
+        }
     }
 
     fun exportBackup(context: Context, uri: Uri): Result<Int> {

@@ -48,6 +48,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
@@ -138,6 +139,8 @@ fun SerieeApp(
     }
 
     val context = LocalContext.current
+    // F2: run the daily automatic backup check once per app start.
+    LaunchedEffect(Unit) { vm.maybeAutoBackup(context) }
     val pendingCrash by AppLogger.pendingCrash.collectAsState()
     val crashBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -156,7 +159,7 @@ fun SerieeApp(
     // Quick-action triggers handed down to the active screen.
     var comingSoonTick by remember { mutableIntStateOf(0) }
 
-    val pagerState = rememberPagerState(initialPage = tab) { 3 }
+    val pagerState = rememberPagerState(initialPage = tab) { 5 }
     val scope = rememberCoroutineScope()
     val uiExceptionHandler = remember { AppLogger.coroutineExceptionHandler("UI") }
 
@@ -223,7 +226,7 @@ fun SerieeApp(
                         .semantics {
                             customActions = listOf(
                                 CustomAccessibilityAction(nextTabLabel) {
-                                    goToTab((pagerState.currentPage + 1).coerceAtMost(2))
+                                    goToTab((pagerState.currentPage + 1).coerceAtMost(4))
                                     true
                                 },
                                 CustomAccessibilityAction(previousTabLabel) {
@@ -262,7 +265,7 @@ fun SerieeApp(
                                     showForm = true
                                 }
                             )
-                            else -> InsightsScreen(
+                            2 -> InsightsScreen(
                                 list = vm.items,
                                 history = vm.history,
                                 watchDays = vm.watchDays,
@@ -273,6 +276,16 @@ fun SerieeApp(
                                     showForm = true
                                 },
                                 onClearHistory = vm::clearHistory
+                            )
+                            3 -> CalendarScreen(
+                                list = vm.items,
+                                padding = contentInsets,
+                                onOpen = { detailId = it.id }
+                            )
+                            else -> DiscoverScreen(
+                                list = vm.items,
+                                padding = contentInsets,
+                                onAddFromMetadata = vm::addFromMetadata
                             )
                         }
                     }
@@ -516,7 +529,16 @@ fun SerieeApp(
                 },
                 onSelectEpisode = { seasonNo, epNo ->
                     vm.setCurrentEpisode(item.id, seasonNo, epNo)
-                }
+                },
+                onEpisodeRating = { seasonNo, epNo, rating ->
+                    vm.setEpisodeRating(item.id, seasonNo, epNo, rating)
+                },
+                onEpisodeNote = { seasonNo, epNo, note ->
+                    vm.setEpisodeNote(item.id, seasonNo, epNo, note)
+                },
+                onAddRewatch = { vm.addRewatch(item.id) },
+                onToggleList = { name -> vm.toggleCustomList(item.id, name) },
+                allListNames = vm.customListNames()
             )
         }
     }
@@ -797,7 +819,9 @@ private fun SerieeNavBar(
     val items = listOf(
         Icons.Filled.Timeline to stringResource(R.string.nav_progress),
         Icons.Filled.VideoLibrary to stringResource(R.string.nav_library),
-        Icons.Filled.Insights to stringResource(R.string.nav_insights)
+        Icons.Filled.Insights to stringResource(R.string.nav_insights),
+        Icons.Filled.CalendarMonth to stringResource(R.string.nav_calendar),
+        Icons.Filled.Explore to stringResource(R.string.nav_discover)
     )
     val maxPosition = (items.size - 1).toFloat()
     val activeIndex by remember(items.size) {
@@ -884,7 +908,9 @@ private fun SerieeNavBar(
                     val tag = when (index) {
                         0 -> "nav_tab_progress"
                         1 -> "nav_tab_library"
-                        else -> "nav_tab_insights"
+                        2 -> "nav_tab_insights"
+                        3 -> "nav_tab_calendar"
+                        else -> "nav_tab_discover"
                     }
                     val itemTint = when {
                         p.isNeoBrutalist && selected -> NeoBrutalistColors.Black
