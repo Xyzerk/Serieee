@@ -73,6 +73,8 @@ data class MetadataResult(
     val nextEpisodeSeason: Int? = null,
     /** Epoch millis of the next airing episode. */
     val nextAirAt: Long? = null,
+    /** Per-episode duration in minutes when the source exposes it (AniList `duration`). */
+    val episodeDurationMin: Int = 0,
 )
 
 /**
@@ -175,6 +177,7 @@ internal fun mapAniListMedia(media: JSONObject, query: String): MetadataResult? 
         nextEpisode = info.nextEpisode,
         nextEpisodeSeason = info.nextEpisodeSeason ?: 1,
         nextAirAt = info.nextAirAt,
+        episodeDurationMin = media.optInt("duration", 0).coerceAtLeast(0),
     )
 }
 
@@ -399,7 +402,7 @@ class MetadataRepository {
                   Page(page: 1, perPage: 10) {
                     media(search: ${'$'}search, type: ANIME, sort: SEARCH_MATCH) {
                       id title { english romaji native } synonyms
-                      coverImage { large } description genres episodes format status
+                      coverImage { large } description genres episodes duration format status
                       startDate { year month day }
                       nextAiringEpisode { airingAt episode }
                       externalLinks { url site type }
