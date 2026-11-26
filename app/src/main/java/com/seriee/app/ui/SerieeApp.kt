@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.VideoLibrary
@@ -130,6 +131,7 @@ fun SerieeApp(
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var showThemeStudio by rememberSaveable { mutableStateOf(false) }
     var showImport by rememberSaveable { mutableStateOf(false) }
+    var showNotifications by rememberSaveable { mutableStateOf(false) }
     var showDebugOverlay by rememberSaveable { mutableStateOf(false) }
     var fabVisible by remember { mutableStateOf(true) }
 
@@ -165,13 +167,22 @@ fun SerieeApp(
     val scope = rememberCoroutineScope()
     val uiExceptionHandler = remember { AppLogger.coroutineExceptionHandler("UI") }
 
-    // Tab haptics: exactly one light tick per tab change, fired at the moment
-    // of interaction. Taps tick from the nav bar's click handler (before the
-    // pager animation starts); swipes tick when the incoming page becomes the
-    // current page mid-gesture. lastTickPage dedupes the two paths so a tap
-    // never buzzes twice, and nothing is tied to settledPage any more (that
-    // landed only after the spring animation finished, which felt late).
+    // Tab haptics: exactly ONE light tick per tab change, fired at the moment
+    // of interaction — never after the pager settles.
+    //
+    // Root cause of the previous double tick: the old dedupe only remembered
+    // the LAST ticked page, but LaunchedEffect(currentPage) fires for EVERY
+    // page an animated scroll passes through. Tapping a non-adjacent tab
+    // ticked at press time (target page), ticked again for the intermediate
+    // page the spring crossed (overwriting lastTickPage), and then ticked
+    // AGAIN when the target page finally became current — a late buzz at the
+    // end of the animation. The fix: a tap records its target in
+    // tapTargetPage, and while a tap-initiated scroll is in flight the
+    // currentPage effect never ticks at all. The effect only ticks for
+    // genuine user swipes (no tap target), at the moment the incoming page
+    // first becomes current mid-gesture.
     val lastTickPage = remember { mutableIntStateOf(tab) }
+    var tapTargetPage by remember { mutableStateOf<Int?>(null) }
     val tickForPage: (Int) -> Unit = { page ->
         if (lastTickPage.intValue != page) {
             lastTickPage.intValue = page
@@ -181,19 +192,28 @@ fun SerieeApp(
 
     LaunchedEffect(pagerState.currentPage) {
         tab = pagerState.currentPage
-        tickForPage(pagerState.currentPage)
+        if (tapTargetPage == null) {
+            tickForPage(pagerState.currentPage)
+        } else if (pagerState.currentPage == tapTargetPage) {
+            tapTargetPage = null
+        }
+    }
+
+    // When scrolling fully stops, any tap target is stale (arrived, or the
+    // user grabbed the pager mid-flight); clear it so later swipes tick
+    // normally again. This effect never ticks itself.
+    LaunchedEffect(pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress) tapTargetPage = null
     }
 
     val goToTab: (Int) -> Unit = { index ->
         tab = index
+        tapTargetPage = index
         fabVisible = true
         scope.launch(uiExceptionHandler) {
             pagerState.animateScrollToPage(
                 page = index,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = 380f
-                )
+                animationSpec = MotionTokens.standard()
             )
         }
     }
@@ -269,6 +289,9 @@ fun SerieeApp(
                                 onSetGrid = vm::setGridView,
                                 onOpen = { detailId = it.id },
                                 onPin = vm::togglePin,
+                                onUpdateRating = { item, rating ->
+                                    vm.upsert(item.copy(rating = rating))
+                                },
                                 onAdd = {
                                     editingId = null
                                     showForm = true
@@ -335,6 +358,7 @@ fun SerieeApp(
             )
             SerieeTopBar(
                 vm = vm,
+                onOpenNotifications = { showNotifications = true },
                 onOpenBackupRestore = { showBackupRestore = true },
                 onOpenApiKeys = { showApiKeys = true },
                 onOpenImport = {
@@ -439,7 +463,10 @@ fun SerieeApp(
                     pagerState.currentPage + pagerState.currentPageOffsetFraction
                 },
                 onSelect = goToTab,
-                onTabPressed = tickForPage,
+                onTabPressed = { page ->
+                    tapTargetPage = page
+                    tickForPage(page)
+                },
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxWidth()
@@ -451,18 +478,18 @@ fun SerieeApp(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 enter = scaleIn(
                     initialScale = 0.78f,
-                    animationSpec = SerieeMotion.enterTween()
+                    animationSpec = MotionTokens.DialogPop
                 ) + slideInVertically(
                     initialOffsetY = { it / 3 },
-                    animationSpec = SerieeMotion.enterTween()
-                ) + fadeIn(SerieeMotion.enterTween()),
+                    animationSpec = MotionTokens.sheetPresent()
+                ) + fadeIn(MotionTokens.DialogPop),
                 exit = scaleOut(
                     targetScale = 0.78f,
-                    animationSpec = SerieeMotion.exitTween()
+                    animationSpec = MotionTokens.standard()
                 ) + slideOutVertically(
                     targetOffsetY = { it / 3 },
-                    animationSpec = SerieeMotion.exitTween()
-                ) + fadeOut(SerieeMotion.exitTween())
+                    animationSpec = MotionTokens.standard()
+                ) + fadeOut(MotionTokens.standard())
             ) {
                 LiquidAddOrb(
                     onClick = {
@@ -480,11 +507,11 @@ fun SerieeApp(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 58.dp),
-            enter = fadeIn(SerieeMotion.enterTween()) + scaleIn(
+            enter = fadeIn(MotionTokens.DialogPop) + scaleIn(
                 initialScale = 0.94f,
-                animationSpec = SerieeMotion.enterTween()
+                animationSpec = MotionTokens.DialogPop
             ),
-            exit = fadeOut(SerieeMotion.exitTween())
+            exit = fadeOut(MotionTokens.standard())
         ) {
             DebugOverlay(onDismiss = { showDebugOverlay = false })
         }
@@ -536,9 +563,25 @@ fun SerieeApp(
                 },
                 onAddRewatch = { vm.addRewatch(item.id) },
                 onToggleList = { name -> vm.toggleCustomList(item.id, name) },
-                allListNames = vm.customListNames()
+                allListNames = vm.customListNames(),
+                onToggleNotificationsMuted = { vm.toggleNotificationsMuted(item.id) },
+                onSeasonRating = { seasonNo, rating ->
+                    vm.setSeasonRating(item.id, seasonNo, rating)
+                },
+                onUpdateShareComment = { comment -> vm.setShareComment(item.id, comment) }
             )
         }
+    }
+
+    if (showNotifications) {
+        NotificationCentreDialog(
+            items = vm.items,
+            onDismiss = { showNotifications = false },
+            onOpen = { id ->
+                showNotifications = false
+                detailId = id
+            }
+        )
     }
 
     if (showBackupRestore) {
@@ -692,6 +735,7 @@ private fun LiquidAddOrb(
 @Composable
 private fun SerieeTopBar(
     vm: SerieeViewModel,
+    onOpenNotifications: () -> Unit,
     onOpenBackupRestore: () -> Unit,
     onOpenApiKeys: () -> Unit,
     onOpenImport: () -> Unit,
@@ -767,6 +811,11 @@ private fun SerieeTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            IconPillButton(
+                icon = Icons.Filled.Notifications,
+                contentDescription = stringResource(R.string.notification_centre_title),
+                onClick = onOpenNotifications
+            )
             IconPillButton(
                 icon = Icons.Filled.CalendarMonth,
                 contentDescription = stringResource(R.string.schedule),

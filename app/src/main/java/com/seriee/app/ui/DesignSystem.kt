@@ -5,6 +5,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -114,6 +115,40 @@ object SerieeSpace {
     val xxl = 24.dp
 }
 
+/**
+ * Vetro P1b: spring-physics motion tokens converted from SwiftUI's
+ * response/damping pairs (Vetro "Echoic" iOS motion guidebook). Springs
+ * replace fixed-duration tweens for interactive motion so animations settle
+ * naturally and can be interrupted mid-flight without a visible restart.
+ */
+object MotionTokens {
+    /** Default interactive spring (SwiftUI response 0.55, damping 0.825). */
+    val Standard = spring<Float>(dampingRatio = 0.825f, stiffness = 130.5f)
+
+    /** Card-to-detail hero transitions (response 0.50, damping 0.70). */
+    val HeroCard = spring<Float>(dampingRatio = 0.70f, stiffness = 157.9f)
+
+    /** Button/row presses (response 0.20, damping 0.60). */
+    val Press = spring<Float>(dampingRatio = 0.60f, stiffness = 987f)
+
+    /** Bottom-sheet presentation (practical token, all sources agree). */
+    val SheetPresent = spring<Float>(dampingRatio = 0.86f, stiffness = 380f)
+
+    /** Dropdown/context menus with a light overshoot. */
+    val MenuPop = spring<Float>(dampingRatio = 0.62f, stiffness = 500f)
+
+    /** Rubber-band overscroll return: critically damped, no bounce. */
+    val OverscrollReturn = spring<Float>(dampingRatio = 1.0f, stiffness = 400f)
+
+    /** Popup dialogs. */
+    val DialogPop = spring<Float>(dampingRatio = 0.75f, stiffness = 500f)
+
+    fun <T> standard(): SpringSpec<T> = spring(dampingRatio = 0.825f, stiffness = 130.5f)
+    fun <T> heroCard(): SpringSpec<T> = spring(dampingRatio = 0.70f, stiffness = 157.9f)
+    fun <T> sheetPresent(): SpringSpec<T> = spring(dampingRatio = 0.86f, stiffness = 380f)
+    fun <T> dialogPop(): SpringSpec<T> = spring(dampingRatio = 0.75f, stiffness = 500f)
+}
+
 object SerieeMotion {
     const val quick = 160
     const val standard = 240
@@ -127,17 +162,12 @@ object SerieeMotion {
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = 520f
     )
-    val SmoothSpring = spring<Float>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = 380f
-    )
+    /** Vetro P1b: the shared smooth spring is now the Echoic standard spring. */
+    val SmoothSpring = MotionTokens.Standard
 
-    /** Placement spring for Lazy list item moves: same feel as SmoothSpring,
-     *  but typed for IntOffset as Modifier.animateItem(placementSpec) requires. */
-    val PlacementSpring = spring<IntOffset>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = 380f
-    )
+    /** Placement spring for Lazy list item moves: same physics as the standard
+     *  token, but typed for IntOffset as Modifier.animateItem requires. */
+    val PlacementSpring = MotionTokens.standard<IntOffset>()
     val SleekSpring = spring<Float>(
         dampingRatio = 0.88f,
         stiffness = 420f
@@ -146,11 +176,8 @@ object SerieeMotion {
     /** Exit easing: gentle acceleration away, the counterpart of EaseOutExpo. */
     val EaseIn = CubicBezierEasing(0.32f, 0f, 0.67f, 0f)
 
-    /** Soft overshoot for tactile press/release feedback. */
-    val PressSpring = spring<Float>(
-        dampingRatio = 0.72f,
-        stiffness = 560f
-    )
+    /** Vetro P1b: tactile press/release now uses the Echoic press spring. */
+    val PressSpring = MotionTokens.Press
 
     /** The one enter spec for sheets, dialogs and content: 380ms ease-out-expo. */
     fun <T> enterTween(): TweenSpec<T> = tween(durationMillis = 380, easing = EaseOutExpo)
