@@ -48,6 +48,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
@@ -156,7 +157,7 @@ fun SerieeApp(
     // Quick-action triggers handed down to the active screen.
     var comingSoonTick by remember { mutableIntStateOf(0) }
 
-    val pagerState = rememberPagerState(initialPage = tab) { 3 }
+    val pagerState = rememberPagerState(initialPage = tab) { 5 }
     val scope = rememberCoroutineScope()
     val uiExceptionHandler = remember { AppLogger.coroutineExceptionHandler("UI") }
 
@@ -223,7 +224,7 @@ fun SerieeApp(
                         .semantics {
                             customActions = listOf(
                                 CustomAccessibilityAction(nextTabLabel) {
-                                    goToTab((pagerState.currentPage + 1).coerceAtMost(2))
+                                    goToTab((pagerState.currentPage + 1).coerceAtMost(4))
                                     true
                                 },
                                 CustomAccessibilityAction(previousTabLabel) {
@@ -262,7 +263,7 @@ fun SerieeApp(
                                     showForm = true
                                 }
                             )
-                            else -> InsightsScreen(
+                            2 -> InsightsScreen(
                                 list = vm.items,
                                 history = vm.history,
                                 watchDays = vm.watchDays,
@@ -273,6 +274,16 @@ fun SerieeApp(
                                     showForm = true
                                 },
                                 onClearHistory = vm::clearHistory
+                            )
+                            3 -> CalendarScreen(
+                                list = vm.items,
+                                padding = contentInsets,
+                                onOpen = { detailId = it.id }
+                            )
+                            else -> DiscoverScreen(
+                                list = vm.items,
+                                padding = contentInsets,
+                                onAddFromMetadata = vm::addFromMetadata
                             )
                         }
                     }
@@ -797,7 +808,9 @@ private fun SerieeNavBar(
     val items = listOf(
         Icons.Filled.Timeline to stringResource(R.string.nav_progress),
         Icons.Filled.VideoLibrary to stringResource(R.string.nav_library),
-        Icons.Filled.Insights to stringResource(R.string.nav_insights)
+        Icons.Filled.Insights to stringResource(R.string.nav_insights),
+        Icons.Filled.CalendarMonth to stringResource(R.string.nav_calendar),
+        Icons.Filled.Explore to stringResource(R.string.nav_discover)
     )
     val maxPosition = (items.size - 1).toFloat()
     val activeIndex by remember(items.size) {
