@@ -133,7 +133,17 @@ data class MediaItem(
     /** Epoch millis of the next airing episode. */
     val nextAirAt: Long? = null,
     /** When the airing fields were last refreshed from a metadata source. */
-    val airingCheckedAt: Long = 0L
+    val airingCheckedAt: Long = 0L,
+    /** Per-episode star ratings, keyed by episodeKey(season, episode). Values 1..5. */
+    val episodeRatings: Map<String, Int> = emptyMap(),
+    /** Per-episode free-text notes, keyed by episodeKey(season, episode). */
+    val episodeNotes: Map<String, String> = emptyMap(),
+    /** How many times this title has been rewatched after completion. */
+    val rewatchCount: Int = 0,
+    /** User-defined custom lists this title belongs to (separate from tags). */
+    val lists: List<String> = emptyList(),
+    /** Real per-episode duration in minutes from metadata; 0 = unknown (Insights falls back to an estimate). */
+    val episodeDurationMin: Int = 0
 ) {
     val effectiveSeasons: List<Season>
         get() = if (seasons.isNotEmpty()) seasons else {
@@ -162,3 +172,6 @@ data class MediaItem(
     val fraction: Float
         get() = if (totalEpisodes <= 0) 0f else (watchedEpisodes.toFloat() / totalEpisodes).coerceIn(0f, 1f)
 }
+
+/** Stable map key for per-episode data (ratings/notes): "S{season}E{episode}". */
+fun episodeKey(season: Int, episode: Int): String = "S${season}E${episode}"
