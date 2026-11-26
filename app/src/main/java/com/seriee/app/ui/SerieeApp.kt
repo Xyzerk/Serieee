@@ -175,7 +175,7 @@ fun SerieeApp(
     val tickForPage: (Int) -> Unit = { page ->
         if (lastTickPage.intValue != page) {
             lastTickPage.intValue = page
-            haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
     }
 
