@@ -263,6 +263,37 @@ class SerieeRepository(context: Context) {
     fun saveBackupPromptedAtCount(v: Int) =
         prefs.edit().putInt(KEY_BACKUP_PROMPTED_AT_COUNT, v).apply()
 
+    private fun parseIntMap(o: JSONObject?): Map<String, Int> {
+        if (o == null) return emptyMap()
+        val out = LinkedHashMap<String, Int>()
+        val keys = o.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            val v = o.optInt(k, 0)
+            if (v in 1..5) out[k] = v
+        }
+        return out
+    }
+
+    private fun parseStringMap(o: JSONObject?): Map<String, String> {
+        if (o == null) return emptyMap()
+        val out = LinkedHashMap<String, String>()
+        val keys = o.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            val v = o.optString(k).trim()
+            if (v.isNotEmpty()) out[k] = v
+        }
+        return out
+    }
+
+    private fun parseStringList(a: JSONArray?): List<String> {
+        if (a == null) return emptyList()
+        return (0 until a.length()).mapNotNull { i ->
+            a.optString(i).trim().takeIf { it.isNotEmpty() }
+        }.distinct()
+    }
+
     private fun toJson(m: MediaItem): JSONObject = JSONObject().apply {
         put("id", m.id)
         put("title", m.title)
@@ -313,6 +344,17 @@ class SerieeRepository(context: Context) {
         put("nextEpisodeSeason", m.nextEpisodeSeason ?: -1)
         put("nextAirAt", m.nextAirAt ?: -1L)
         put("airingCheckedAt", m.airingCheckedAt)
+        val epRatings = JSONObject()
+        m.episodeRatings.forEach { (k, v) -> epRatings.put(k, v) }
+        put("episodeRatings", epRatings)
+        val epNotes = JSONObject()
+        m.episodeNotes.forEach { (k, v) -> epNotes.put(k, v) }
+        put("episodeNotes", epNotes)
+        put("rewatchCount", m.rewatchCount)
+        val listsArr = JSONArray()
+        m.lists.forEach { listsArr.put(it) }
+        put("lists", listsArr)
+        put("episodeDurationMin", m.episodeDurationMin)
     }
 
     private fun fromJson(o: JSONObject): MediaItem {
@@ -391,7 +433,12 @@ class SerieeRepository(context: Context) {
             nextEpisode = o.optInt("nextEpisode", -1).takeIf { it > 0 },
             nextEpisodeSeason = o.optInt("nextEpisodeSeason", -1).takeIf { it > 0 },
             nextAirAt = o.optLong("nextAirAt", -1L).takeIf { it > 0L },
-            airingCheckedAt = o.optLong("airingCheckedAt", 0L)
+            airingCheckedAt = o.optLong("airingCheckedAt", 0L),
+            episodeRatings = parseIntMap(o.optJSONObject("episodeRatings")),
+            episodeNotes = parseStringMap(o.optJSONObject("episodeNotes")),
+            rewatchCount = o.optInt("rewatchCount", 0).coerceAtLeast(0),
+            lists = parseStringList(o.optJSONArray("lists")),
+            episodeDurationMin = o.optInt("episodeDurationMin", 0).coerceAtLeast(0)
         )
     }
 
