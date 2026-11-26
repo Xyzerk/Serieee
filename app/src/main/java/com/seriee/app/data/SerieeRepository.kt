@@ -206,6 +206,12 @@ class SerieeRepository(context: Context) {
         prefs.edit().putLong(KEY_LAST_AUTO_BACKUP_AT, value).apply()
     }
 
+    // F3: AniList OAuth access token (stored with the other API secrets).
+    fun loadAniListToken(): String = secretPrefs.getString(KEY_ANILIST_TOKEN, "") ?: ""
+    fun saveAniListToken(token: String) {
+        secretPrefs.edit().putString(KEY_ANILIST_TOKEN, token.trim()).apply()
+    }
+
     fun loadTmdbKey(): String = secretPrefs.getString(KEY_TMDB, "") ?: ""
     fun saveTmdbKey(key: String) {
         secretPrefs.edit().putString(KEY_TMDB, key.trim()).apply()
@@ -575,6 +581,7 @@ class SerieeRepository(context: Context) {
         const val KEY_GRID = "seriee_grid"
         const val KEY_LANG = "seriee_lang"
         const val KEY_TMDB = "tmdb_api_key"
+        const val KEY_ANILIST_TOKEN = "anilist_access_token"
         const val KEY_OMDB = "omdb_api_key"
         const val KEY_LAST_SEEN_VERSION = "last_seen_version_code"
         const val KEY_ONBOARDING_DONE = "onboarding_done"
