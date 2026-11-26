@@ -190,6 +190,22 @@ class SerieeRepository(context: Context) {
         prefs.edit().putString(KEY_LANG, language.tag).apply()
     }
 
+    // F2: automatic daily backup to a user-picked folder (SAF tree URI).
+    fun loadAutoBackupEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
+    fun saveAutoBackupEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_BACKUP_ENABLED, value).apply()
+    }
+
+    fun loadAutoBackupFolderUri(): String = prefs.getString(KEY_AUTO_BACKUP_URI, "") ?: ""
+    fun saveAutoBackupFolderUri(uri: String) {
+        prefs.edit().putString(KEY_AUTO_BACKUP_URI, uri).apply()
+    }
+
+    fun loadLastAutoBackupAt(): Long = prefs.getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
+    fun saveLastAutoBackupAt(value: Long) {
+        prefs.edit().putLong(KEY_LAST_AUTO_BACKUP_AT, value).apply()
+    }
+
     fun loadTmdbKey(): String = secretPrefs.getString(KEY_TMDB, "") ?: ""
     fun saveTmdbKey(key: String) {
         secretPrefs.edit().putString(KEY_TMDB, key.trim()).apply()
@@ -540,6 +556,9 @@ class SerieeRepository(context: Context) {
 
     private companion object {
         const val KEY_DATA = "seriee_data_v2"
+        const val KEY_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
+        const val KEY_AUTO_BACKUP_URI = "auto_backup_folder_uri"
+        const val KEY_LAST_AUTO_BACKUP_AT = "last_auto_backup_at"
         const val KEY_THEME = "seriee_theme"
         const val KEY_THEME_MODE = "seriee_theme_mode"
         const val KEY_THEME_STYLE = "seriee_theme_style"
