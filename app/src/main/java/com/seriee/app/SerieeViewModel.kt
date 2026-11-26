@@ -900,6 +900,46 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         _importState.value = ImportUiState(source = _importState.value.source, mode = _importState.value.mode)
     }
 
+    // F2: automatic backup settings + runner (called once on app start).
+    var autoBackupEnabled by mutableStateOf(repo.loadAutoBackupEnabled())
+        private set
+    var autoBackupFolderUri by mutableStateOf(repo.loadAutoBackupFolderUri())
+        private set
+
+    fun setAutoBackupEnabled(value: Boolean) {
+        autoBackupEnabled = value
+        repo.saveAutoBackupEnabled(value)
+    }
+
+    fun setAutoBackupFolder(uriString: String) {
+        autoBackupFolderUri = uriString
+        repo.saveAutoBackupFolderUri(uriString)
+    }
+
+    /** Writes a backup into the picked folder when the last one is >24h old. */
+    fun maybeAutoBackup(context: Context) {
+        if (!autoBackupEnabled || autoBackupFolderUri.isBlank()) return
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - repo.loadLastAutoBackupAt() < 24L * 60L * 60L * 1000L) return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val treeUri = Uri.parse(autoBackupFolderUri)
+                    val parentDoc = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, treeUri)
+                        ?: error("folder")
+                    val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                        .format(java.util.Date(nowMs))
+                    val file = parentDoc.createFile("application/json", "seriee_autobackup_$stamp.json")
+                        ?: error("file")
+                    context.contentResolver.openOutputStream(file.uri)?.use { out ->
+                        out.write(repo.exportBackupJson(items, history).toByteArray(Charsets.UTF_8))
+                    } ?: error("stream")
+                    repo.saveLastAutoBackupAt(nowMs)
+                }
+            }
+        }
+    }
+
     fun exportBackup(context: Context, uri: Uri): Result<Int> {
         return runCatching {
             val jsonString = repo.exportBackupJson(items, history)
