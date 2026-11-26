@@ -527,7 +527,16 @@ fun SerieeApp(
                 },
                 onSelectEpisode = { seasonNo, epNo ->
                     vm.setCurrentEpisode(item.id, seasonNo, epNo)
-                }
+                },
+                onEpisodeRating = { seasonNo, epNo, rating ->
+                    vm.setEpisodeRating(item.id, seasonNo, epNo, rating)
+                },
+                onEpisodeNote = { seasonNo, epNo, note ->
+                    vm.setEpisodeNote(item.id, seasonNo, epNo, note)
+                },
+                onAddRewatch = { vm.addRewatch(item.id) },
+                onToggleList = { name -> vm.toggleCustomList(item.id, name) },
+                allListNames = vm.customListNames()
             )
         }
     }
