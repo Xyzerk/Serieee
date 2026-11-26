@@ -70,6 +70,11 @@ object ReminderScheduler {
     }
 
     fun scheduleReminder(context: Context, item: MediaItem) {
+        // Vetro P2a: a muted title never gets an alarm, even if reminders are on.
+        if (item.notificationsMuted) {
+            cancelReminder(context, item.id)
+            return
+        }
         if (!item.reminderEnabled) return
         // Re-arming drops the old time first, so a refreshed air date or a
         // source that reports "finished" cannot leave a stale alarm behind.
