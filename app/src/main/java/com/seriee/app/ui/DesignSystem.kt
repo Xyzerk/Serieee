@@ -5,6 +5,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -40,8 +41,11 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -130,6 +134,72 @@ object SerieeMotion {
         dampingRatio = 0.88f,
         stiffness = 420f
     )
+
+    /** Exit easing: gentle acceleration away, the counterpart of EaseOutExpo. */
+    val EaseIn = CubicBezierEasing(0.32f, 0f, 0.67f, 0f)
+
+    /** Soft overshoot for tactile press/release feedback. */
+    val PressSpring = spring<Float>(
+        dampingRatio = 0.72f,
+        stiffness = 560f
+    )
+
+    /** The one enter spec for sheets, dialogs and content: 380ms ease-out-expo. */
+    fun <T> enterTween(): TweenSpec<T> = tween(durationMillis = 380, easing = EaseOutExpo)
+
+    /** The one exit spec: shorter, ease-in, never lingering. */
+    fun <T> exitTween(): TweenSpec<T> = tween(durationMillis = 200, easing = EaseIn)
+}
+
+/**
+ * Uniform tactile press feedback: a slight scale-down while pressed, released
+ * with the shared press spring. Draw-phase only (graphicsLayer), so it never
+ * costs a re-layout.
+ */
+@Composable
+fun Modifier.pressScale(
+    interactionSource: MutableInteractionSource,
+    pressedScale: Float = 0.97f
+): Modifier {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) pressedScale else 1f,
+        animationSpec = SerieeMotion.PressSpring,
+        label = "pressScale"
+    )
+    return this.graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
+/**
+ * One-shot staggered entrance for list/grid items: fades in while rising a
+ * few dp, delayed by position (capped) so items cascade instead of popping.
+ */
+@Composable
+fun Modifier.staggeredEntrance(index: Int): Modifier {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val spec = tween<Float>(
+        durationMillis = 420,
+        delayMillis = index.coerceAtMost(8) * 30,
+        easing = SerieeMotion.EaseOutExpo
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (shown) 1f else 0f,
+        animationSpec = spec,
+        label = "entranceAlpha"
+    )
+    val rise by animateFloatAsState(
+        targetValue = if (shown) 0f else 1f,
+        animationSpec = spec,
+        label = "entranceRise"
+    )
+    return this.graphicsLayer {
+        this.alpha = alpha
+        translationY = rise * 14.dp.toPx()
+    }
 }
 
 /** Status colours shared by cards, badges and the detail sheet. */

@@ -103,7 +103,14 @@ fun DiscoverScreen(
         items(results, key = { "disc-${it.source}-${it.sourceId}" }) { r ->
             val alreadyAdded = list.any { it.source == r.source && it.sourceId == r.sourceId && r.sourceId.isNotBlank() }
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .animateItem(
+                        fadeInSpec = SerieeMotion.enterTween(),
+                        placementSpec = SerieeMotion.SmoothSpring,
+                        fadeOutSpec = SerieeMotion.exitTween()
+                    )
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Poster(r.posterUrl, Modifier.size(width = 42.dp, height = 62.dp))

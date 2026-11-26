@@ -88,7 +88,7 @@ fun Poster(url: String, modifier: Modifier, shape: Shape = RoundedCornerShape(12
         val request = remember(model) {
             coil.request.ImageRequest.Builder(context)
                 .data(model)
-                .crossfade(false)
+                .crossfade(280)
                 .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
                 .build()
         }

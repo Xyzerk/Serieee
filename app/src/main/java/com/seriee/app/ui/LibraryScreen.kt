@@ -375,12 +375,9 @@ fun LibraryScreen(
                             onClick = { onOpen(item) },
                             onPin = { onPin(item.id) },
                             modifier = Modifier.animateItem(
-                                fadeInSpec = tween(200, easing = SerieeMotion.StandardEasing),
-                                placementSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = 380f
-                                ),
-                                fadeOutSpec = tween(150, easing = SerieeMotion.StandardEasing)
+                                fadeInSpec = SerieeMotion.enterTween(),
+                                placementSpec = SerieeMotion.SmoothSpring,
+                                fadeOutSpec = SerieeMotion.exitTween()
                             )
                         )
                     }
@@ -396,12 +393,9 @@ fun LibraryScreen(
                             onClick = { onOpen(item) },
                             onPin = { onPin(item.id) },
                             modifier = Modifier.animateItem(
-                                fadeInSpec = tween(200, easing = SerieeMotion.StandardEasing),
-                                placementSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = 380f
-                                ),
-                                fadeOutSpec = tween(150, easing = SerieeMotion.StandardEasing)
+                                fadeInSpec = SerieeMotion.enterTween(),
+                                placementSpec = SerieeMotion.SmoothSpring,
+                                fadeOutSpec = SerieeMotion.exitTween()
                             )
                         )
                     }
@@ -707,7 +701,7 @@ private fun GridItem(
     val gridPressed by gridInteraction.collectIsPressedAsState()
     val gridScale by animateFloatAsState(
         targetValue = if (gridPressed) 0.96f else 1f,
-        animationSpec = SerieeMotion.SnappySpring,
+        animationSpec = SerieeMotion.PressSpring,
         label = "gridCardScale"
     )
     Column(
@@ -960,7 +954,7 @@ private fun ListItem(
         val listPressed by listInteraction.collectIsPressedAsState()
         val listScale by animateFloatAsState(
             targetValue = if (listPressed) 0.985f else 1f,
-            animationSpec = SerieeMotion.SnappySpring,
+            animationSpec = SerieeMotion.PressSpring,
             label = "listCardScale"
         )
         Box(

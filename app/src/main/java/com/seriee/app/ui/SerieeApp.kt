@@ -446,30 +446,18 @@ fun SerieeApp(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 enter = scaleIn(
                     initialScale = 0.78f,
-                    animationSpec = tween(
-                        durationMillis = 200,
-                        easing = SerieeMotion.EaseOutExpo
-                    )
+                    animationSpec = SerieeMotion.enterTween()
                 ) + slideInVertically(
                     initialOffsetY = { it / 3 },
-                    animationSpec = tween(
-                        durationMillis = 200,
-                        easing = SerieeMotion.EaseOutExpo
-                    )
-                ) + fadeIn(tween(180)),
+                    animationSpec = SerieeMotion.enterTween()
+                ) + fadeIn(SerieeMotion.enterTween()),
                 exit = scaleOut(
                     targetScale = 0.78f,
-                    animationSpec = tween(
-                        durationMillis = 150,
-                        easing = SerieeMotion.StandardEasing
-                    )
+                    animationSpec = SerieeMotion.exitTween()
                 ) + slideOutVertically(
                     targetOffsetY = { it / 3 },
-                    animationSpec = tween(
-                        durationMillis = 150,
-                        easing = SerieeMotion.StandardEasing
-                    )
-                ) + fadeOut(tween(130))
+                    animationSpec = SerieeMotion.exitTween()
+                ) + fadeOut(SerieeMotion.exitTween())
             ) {
                 LiquidAddOrb(
                     onClick = {
@@ -487,11 +475,11 @@ fun SerieeApp(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 58.dp),
-            enter = fadeIn(tween(160)) + scaleIn(
+            enter = fadeIn(SerieeMotion.enterTween()) + scaleIn(
                 initialScale = 0.94f,
-                animationSpec = tween(180, easing = SerieeMotion.EaseOutExpo)
+                animationSpec = SerieeMotion.enterTween()
             ),
-            exit = fadeOut(tween(120))
+            exit = fadeOut(SerieeMotion.exitTween())
         ) {
             DebugOverlay(onDismiss = { showDebugOverlay = false })
         }
