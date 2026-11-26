@@ -78,7 +78,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -840,23 +842,47 @@ private fun SerieeNavBar(
                 .fillMaxWidth()
                 .height(52.dp)
         ) {
-            val itemWidth = maxWidth / items.size
-            val indicatorWidth = (itemWidth - 4.dp).coerceAtLeast(0.dp)
+            // Only the active tab shows its label, so it gets a wider slot;
+            // inactive tabs are icon-only. Weights animate with the selection.
+            val itemWeights = items.indices.map { index ->
+                val w by animateFloatAsState(
+                    targetValue = if (activeIndex == index) 2f else 1f,
+                    animationSpec = SerieeMotion.SnappySpring,
+                    label = "navItemWeight_$index"
+                )
+                w
+            }
             val indicatorShape = if (p.isNeoBrutalist) RoundedCornerShape(6.dp) else CircleShape
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .width(indicatorWidth)
+                    .fillMaxWidth()
                     .fillMaxHeight()
                     .graphicsLayer {
                         val pos = pagerPositionProvider().coerceIn(0f, maxPosition)
                         val padPx = 2.dp.toPx()
-                        translationX = itemWidth.toPx() * pos + padPx
+                        val totalWeight = itemWeights.sum().coerceAtLeast(1f)
+                        val unitPx = size.width / totalWeight
+                        fun leftEdgePx(k: Int): Float {
+                            var s = 0f
+                            for (j in 0 until k) s += itemWeights[j]
+                            return s * unitPx
+                        }
+                        val i0 = pos.toInt().coerceIn(0, items.lastIndex)
+                        val i1 = (i0 + 1).coerceAtMost(items.lastIndex)
+                        val frac = (pos - i0).coerceIn(0f, 1f)
+                        val leftPx = lerp(leftEdgePx(i0), leftEdgePx(i1), frac)
+                        val slotPx = lerp(itemWeights[i0] * unitPx, itemWeights[i1] * unitPx, frac)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        translationX = leftPx + padPx
+                        val baseScale = ((slotPx - 2 * padPx).coerceAtLeast(0f)) / size.width.toFloat().coerceAtLeast(1f)
                         if (!p.isNeoBrutalist) {
                             val midFrac = abs(pos - pos.roundToInt())
                             val stretch = (sin(midFrac * PI.toFloat()) * 0.14f).coerceIn(0f, 0.14f)
-                            scaleX = 1f + stretch
+                            scaleX = baseScale * (1f + stretch)
                             scaleY = 1f - stretch * 0.22f
+                        } else {
+                            scaleX = baseScale
                         }
                     }
                     .clip(indicatorShape)
@@ -921,7 +947,7 @@ private fun SerieeNavBar(
                     Row(
                         modifier = Modifier
                             .testTag(tag)
-                            .weight(1f)
+                            .weight(itemWeights[index])
                             .fillMaxHeight()
                             .clip(indicatorShape)
                             .clickable(
@@ -945,14 +971,17 @@ private fun SerieeNavBar(
                             tint = itemTint,
                             modifier = Modifier.size(18.dp)
                         )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            label,
-                            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                            fontSize = if (p.isNeoBrutalist) 11.sp else 12.sp,
-                            fontWeight = if (selected || p.isNeoBrutalist) FontWeight.ExtraBold else FontWeight.SemiBold,
-                            color = itemTint
-                        )
+                        if (selected) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                label,
+                                maxLines = 1,
+                                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                                fontSize = if (p.isNeoBrutalist) 11.sp else 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = itemTint
+                            )
+                        }
                     }
                 }
             }
