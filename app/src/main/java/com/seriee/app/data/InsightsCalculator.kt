@@ -76,7 +76,9 @@ object InsightsCalculator {
             },
             ratingCounts = ratingCounts,
             topTags = topTags(items),
-            estimatedMinutes = watchedEpisodes * MINUTES_PER_EPISODE,
+            estimatedMinutes = items
+                .filter { it.type == MediaType.Series && it.status.countsProgress() }
+                .sumOf { it.watchedEpisodes * (it.episodeDurationMin.takeIf { d -> d > 0 } ?: MINUTES_PER_EPISODE) },
             dailyCounts = dailyCounts(history, watchDays, now, zone),
             recent = history.sortedByDescending { it.watchedAt }.take(RECENT_LIMIT)
         )
