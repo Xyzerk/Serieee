@@ -932,7 +932,7 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
     var autoBackupFolderUri by mutableStateOf(repo.loadAutoBackupFolderUri())
         private set
 
-    fun setAutoBackupEnabled(value: Boolean) {
+    fun updateAutoBackupEnabled(value: Boolean) {
         autoBackupEnabled = value
         repo.saveAutoBackupEnabled(value)
     }
