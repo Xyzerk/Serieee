@@ -102,6 +102,7 @@ fun LibraryScreen(
     var typeFilter by rememberSaveable { mutableIntStateOf(0) }
     var statusFilter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
     var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var listFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortBy by rememberSaveable { mutableStateOf(LibrarySort.RECENT) }
 
     val typeLabels = listOf(
@@ -126,7 +127,16 @@ fun LibraryScreen(
             .sortedBy { it.lowercase() }
     }
 
-    val filtered by remember(list, query, typeFilter, statusFilter, tagFilter, sortBy) {
+    // F6: custom lists present in the library.
+    val availableLists = remember(list) {
+        list.flatMap { it.lists }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+            .sortedBy { it.lowercase() }
+    }
+
+    val filtered by remember(list, query, typeFilter, statusFilter, tagFilter, listFilter, sortBy) {
         derivedStateOf {
             val matched = list.filter { it.title.contains(query.trim(), ignoreCase = true) }
                 .filter {
@@ -138,6 +148,7 @@ fun LibraryScreen(
                 }
                 .filter { statusFilter.matches(it) }
                 .filter { tagFilter == null || it.tags.any { tag -> tag.equals(tagFilter, ignoreCase = true) } }
+                .filter { listFilter == null || it.lists.any { name -> name.equals(listFilter, ignoreCase = true) } }
             val secondary: Comparator<MediaItem> = when (sortBy) {
                 LibrarySort.RECENT -> compareByDescending { it.updatedAt }
                 LibrarySort.TITLE -> compareBy { it.title.lowercase() }
@@ -268,6 +279,31 @@ fun LibraryScreen(
                             selected = tagFilter.equals(tag, ignoreCase = true),
                             onClick = {
                                 tagFilter = if (tagFilter.equals(tag, ignoreCase = true)) null else tag
+                            }
+                        )
+                    }
+                }
+            }
+
+            // F6: custom-list filter, only when at least one list exists
+            if (availableLists.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                ) {
+                    FilterChip(
+                        label = "Semua Daftar",
+                        selected = listFilter == null,
+                        onClick = { listFilter = null }
+                    )
+                    availableLists.forEach { name ->
+                        FilterChip(
+                            label = name,
+                            selected = listFilter.equals(name, ignoreCase = true),
+                            onClick = {
+                                listFilter = if (listFilter.equals(name, ignoreCase = true)) null else name
                             }
                         )
                     }
