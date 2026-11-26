@@ -908,7 +908,9 @@ private fun SerieeNavBar(
                     val tag = when (index) {
                         0 -> "nav_tab_progress"
                         1 -> "nav_tab_library"
-                        else -> "nav_tab_insights"
+                        2 -> "nav_tab_insights"
+                        3 -> "nav_tab_calendar"
+                        else -> "nav_tab_discover"
                     }
                     val itemTint = when {
                         p.isNeoBrutalist && selected -> NeoBrutalistColors.Black
