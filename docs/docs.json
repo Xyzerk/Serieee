@@ -8,7 +8,7 @@
     "groups": [
       {
         "group": "Guide",
-        "pages": ["index"]
+        "pages": ["index", "feature-requests"]
       }
     ]
   },
