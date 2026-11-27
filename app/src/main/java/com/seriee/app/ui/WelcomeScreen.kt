@@ -1,7 +1,15 @@
 package com.seriee.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,14 +30,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Movie
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.TrendingUp
-import androidx.compose.material.icons.rounded.VideoLibrary
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,7 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -48,27 +51,33 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 
 private data class WelcomePage(
-    val icon: ImageVector,
+    @DrawableRes val artRes: Int,
     val titleRes: Int,
     val descRes: Int
 )
 
 private val welcomePages = listOf(
-    WelcomePage(Icons.Rounded.Movie, R.string.welcome_1_title, R.string.welcome_1_desc),
-    WelcomePage(Icons.Rounded.TrendingUp, R.string.welcome_2_title, R.string.welcome_2_desc),
-    WelcomePage(Icons.Rounded.VideoLibrary, R.string.welcome_3_title, R.string.welcome_3_desc),
-    WelcomePage(Icons.Rounded.Insights, R.string.welcome_4_title, R.string.welcome_4_desc),
-    WelcomePage(Icons.Rounded.NotificationsActive, R.string.welcome_5_title, R.string.welcome_5_desc),
-    WelcomePage(Icons.Rounded.Lock, R.string.welcome_6_title, R.string.welcome_6_desc)
+    WelcomePage(R.drawable.welcome_illus_1, R.string.welcome_1_title, R.string.welcome_1_desc),
+    WelcomePage(R.drawable.welcome_illus_2, R.string.welcome_2_title, R.string.welcome_2_desc),
+    WelcomePage(R.drawable.welcome_illus_3, R.string.welcome_3_title, R.string.welcome_3_desc),
+    WelcomePage(R.drawable.welcome_illus_4, R.string.welcome_4_title, R.string.welcome_4_desc),
+    WelcomePage(R.drawable.welcome_illus_5, R.string.welcome_5_title, R.string.welcome_5_desc),
+    WelcomePage(R.drawable.welcome_illus_6, R.string.welcome_6_title, R.string.welcome_6_desc)
 )
 
 /**
  * First-run welcome slides. [onFinish] is called when the person taps
  * "Get started" on the last page or skips; the caller persists that so the
  * slides are only shown once.
+ *
+ * Each slide carries a Material 3 spot illustration. The motion stays on
+ * even though the art is static: the card parallaxes against the swipe,
+ * floats with a gentle bob and breathes with a slow inner zoom, while
+ * the copy fades and rises with the page offset.
  */
 @Composable
 fun WelcomeScreen(onFinish: () -> Unit) {
@@ -77,6 +86,30 @@ fun WelcomeScreen(onFinish: () -> Unit) {
     val scope = rememberCoroutineScope()
     val lastIndex = welcomePages.lastIndex
     val isLast = pagerState.currentPage == lastIndex
+    // Fractional pager position: currentPage is where the pager rests,
+    // the offset fraction carries the in-flight swipe.
+    val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+
+    // Shared gentle float + breathing zoom for every slide's illustration.
+    val floatAnim = rememberInfiniteTransition(label = "welcomeFloat")
+    val bob by floatAnim.animateFloat(
+        initialValue = -7f,
+        targetValue = 7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "welcomeBob"
+    )
+    val breathe by floatAnim.animateFloat(
+        initialValue = 1.03f,
+        targetValue = 1.09f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 9000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "welcomeBreathe"
+    )
 
     // Back goes to the previous slide; on the first slide it leaves the app as usual.
     BackHandler(enabled = pagerState.currentPage > 0) {
@@ -129,7 +162,12 @@ fun WelcomeScreen(onFinish: () -> Unit) {
                     .weight(1f)
                     .fillMaxWidth()
             ) { index ->
-                WelcomePageContent(welcomePages[index])
+                WelcomePageContent(
+                    page = welcomePages[index],
+                    offset = position - index,
+                    bob = bob,
+                    breathe = breathe
+                )
             }
 
             PageDots(
@@ -156,8 +194,9 @@ fun WelcomeScreen(onFinish: () -> Unit) {
 }
 
 @Composable
-private fun WelcomePageContent(page: WelcomePage) {
+private fun WelcomePageContent(page: WelcomePage, offset: Float, bob: Float, breathe: Float) {
     val p = LocalPalette.current
+    val clamped = abs(offset).coerceIn(0f, 1f)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -168,39 +207,59 @@ private fun WelcomePageContent(page: WelcomePage) {
         val shape = RoundedCornerShape(if (p.isNeoBrutalist) 16.dp else 36.dp)
         Box(
             modifier = Modifier
-                .size(136.dp)
+                .fillMaxWidth()
+                .aspectRatio(4f / 3f)
+                .graphicsLayer {
+                    alpha = 1f - clamped
+                    translationX = -offset * 56f
+                    translationY = bob
+                    val scale = 1f - 0.05f * clamped
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .clip(shape)
-                .background(if (p.isNeoBrutalist) NeoBrutalistColors.Yellow else p.accentSoft)
                 .then(
                     if (p.isNeoBrutalist) Modifier.border(3.dp, p.border, shape) else Modifier
-                ),
-            contentAlignment = Alignment.Center
+                )
         ) {
-            Icon(
-                page.icon,
+            Image(
+                painter = painterResource(page.artRes),
                 contentDescription = null,
-                tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else p.accent,
-                modifier = Modifier.size(68.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = breathe
+                        scaleY = breathe
+                    },
+                contentScale = ContentScale.Crop
             )
         }
         Spacer(Modifier.height(40.dp))
-        Text(
-            stringResource(page.titleRes),
-            fontSize = 26.sp,
-            lineHeight = 32.sp,
-            fontWeight = FontWeight.ExtraBold,
-            fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-            color = p.text,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(14.dp))
-        Text(
-            stringResource(page.descRes),
-            fontSize = 15.sp,
-            lineHeight = 22.sp,
-            color = p.muted,
-            textAlign = TextAlign.Center
-        )
+        Column(
+            modifier = Modifier.graphicsLayer {
+                alpha = 1f - clamped
+                translationY = offset * 90f
+            },
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                stringResource(page.titleRes),
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
+                color = p.text,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(14.dp))
+            Text(
+                stringResource(page.descRes),
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                color = p.muted,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

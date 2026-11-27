@@ -782,7 +782,7 @@ private fun SerieeTopBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_launcher_foreground),
+                    painter = painterResource(R.drawable.ic_seriee_mark),
                     contentDescription = null,
                     tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else Color.White,
                     modifier = Modifier.size(24.dp)
