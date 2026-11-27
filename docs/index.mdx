@@ -1,0 +1,41 @@
+---
+title: Introduction
+description: Seriee — a local-first watch-progress tracker for series, anime, and movies
+---
+
+# Seriee
+
+Seriee is a native Android app for tracking what you watch — series, anime, and movies. It is built with Kotlin, Jetpack Compose, and Material 3, and is local-first: no account, no server, no ads, no analytics. Seriee is free software under the [Apache License 2.0](https://github.com/eggBrainX/Seriee/blob/main/LICENSE).
+
+## What it does
+
+- **Progress** — episode cards with completion percentages, status filters with live counts, daily streaks, and a one-tap action to advance an episode.
+- **Library** — search, sort, and filter your titles; pinned favorites, ratings, tags, and adaptive grid or list views.
+- **Insights** — episodes watched, estimated watch time, completion rates, ratings, top genres, and an activity heatmap.
+- **Metadata** — automatically fill in titles, posters, descriptions, genres, and dates from AniList and TVmaze, with optional TMDB and OMDb keys.
+- **Reminders and watch links** — release countdowns and alarms, plus streaming links and local episode files opened in external players.
+- **Backup and import** — JSON export with merge or replace restore, and collection imports from AniList or MyAnimeList.
+- **Themes and languages** — multiple appearance styles, a theme studio, and English or Bahasa Indonesia.
+
+## Requirements and installation
+
+Seriee runs on Android 8.0 (API 26) or newer. Signed builds are published on [GitHub Releases](https://github.com/eggBrainX/Seriee/releases/latest), together with checksums and signing-certificate details.
+
+> Upgrading from 0.2.x? Version 0.3.0 changed the application ID, so Android treats it as a new app. Export a backup first, install, then use **Backup & Restore → Merge**.
+
+## Build from source
+
+You need JDK 17, Android SDK Platform 36, and Android Studio or a command-line SDK setup:
+
+```bash
+./gradlew assembleDebug         # debug APK
+./gradlew assembleRelease       # minified release APK (see docs/RELEASING.md)
+./gradlew lintDebug             # Android lint
+./gradlew testDebugUnitTest     # unit tests
+```
+
+Release signing and publishing are maintainer tasks described in [`docs/RELEASING.md`](https://github.com/eggBrainX/Seriee/blob/main/docs/RELEASING.md).
+
+## Source and support
+
+The full README, contribution guide, changelog, privacy policy, and issue tracker live in the [Seriee repository](https://github.com/eggBrainX/Seriee).
