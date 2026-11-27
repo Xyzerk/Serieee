@@ -1,3 +1,8 @@
+---
+title: Releasing
+description: Release signing, CI/CD workflows, and repository hardening for maintainers
+---
+
 # Releasing Seriee
 
 **Audience:** repository maintainers and admins. End users only need
