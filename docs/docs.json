@@ -9,6 +9,7 @@
       {
         "group": "Guide",
         "pages": ["index", "RELEASING"]
+        "pages": ["index", "feature-requests"]
       }
     ]
   },
