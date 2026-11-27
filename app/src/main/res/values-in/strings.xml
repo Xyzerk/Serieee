@@ -614,4 +614,37 @@
     <string name="studio_c_reminder">Pengingat</string>
     <string name="studio_c_star">Bintang &amp; rating</string>
     <string name="theme_image_failed">Gambar tidak bisa dipakai</string>
+    <!-- Fitur Vetro (P1-P3) -->
+    <string name="notification_centre_title">Notifikasi</string>
+    <string name="notification_centre_airing">Sedang tayang &amp; episode berikutnya</string>
+    <string name="notification_centre_quiet">Pengingat senyap</string>
+    <string name="notification_centre_empty">Belum ada apa-apa. Judul yang sedang tayang dan judul yang lama kamu jeda akan muncul di sini.</string>
+    <string name="vetro_section_title">Notifikasi &amp; Berbagi</string>
+    <string name="detail_notifications_muted">Notifikasi judul ini dibisukan</string>
+    <string name="detail_notifications_on">Notifikasi judul ini aktif</string>
+    <string name="detail_notifications_desc">Judul yang dibisukan dilewati pengingat dan pusat notifikasi.</string>
+    <string name="detail_mute_notifications">Bisukan</string>
+    <string name="detail_unmute_notifications">Aktifkan</string>
+    <string name="countdown_next_episode">Hitung mundur episode berikutnya</string>
+    <string name="share_card_comment_hint">Gelembung pikiran (maks 52 karakter)</string>
+    <string name="share_card_full">Penuh</string>
+    <string name="share_card_minimal">Minimal</string>
+    <string name="share_card_share">Bagikan Kartu</string>
+    <string name="season_rating_label">Rating season</string>
+    <string name="filter_rating_range">Rentang rating</string>
+    <string name="filter_year_range">Rentang tahun rilis</string>
+    <string name="insights_advanced_title">Wawasan Lanjutan</string>
+    <string name="insights_genre_outcomes">Tamat vs berhenti per genre</string>
+    <string name="insights_finished_short">tamat</string>
+    <string name="insights_dropped_short">berhenti</string>
+    <string name="insights_last_90_days">90 hari terakhir</string>
+    <string name="insights_all_time">Sepanjang waktu</string>
+    <string name="insights_episodes_unit">episode</string>
+    <string name="insights_monthly_title">Episode per bulan</string>
+    <string name="rating_edit_title">Ubah rating</string>
+    <string name="export_pdf_desc">Simpan seluruh koleksi sebagai daftar PDF yang bisa dicetak (judul, status, progres, rating).</string>
+    <string name="export_pdf_button">Ekspor PDF</string>
+    <string name="share_pdf_button">Bagikan PDF</string>
+    <string name="pdf_export_success">PDF tersimpan: %1$d judul</string>
+    <string name="pdf_export_failed">Ekspor PDF gagal: %1$s</string>
 </resources>

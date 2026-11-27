@@ -402,6 +402,38 @@ class SerieeViewModel(app: Application) : AndroidViewModel(app) {
         })
     }
 
+    /** Vetro P3c: set (or clear, with 0) the star rating for one whole season. */
+    fun setSeasonRating(id: String, season: Int, rating: Int) {
+        val key = com.seriee.app.data.seasonKey(season)
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val next = if (rating in 1..5) m.seasonRatings + (key to rating) else m.seasonRatings - key
+                m.copy(seasonRatings = next)
+            }
+        })
+    }
+
+    /** Vetro P1a: set the share-card thought-bubble comment (trimmed, max 52 chars). */
+    fun setShareComment(id: String, comment: String) {
+        val trimmed = comment.trim().take(52)
+        commit(items.map { m -> if (m.id == id) m.copy(shareComment = trimmed) else m })
+    }
+
+    /** Vetro P2a: mute/unmute a title's notifications; muting also cancels its alarm. */
+    fun toggleNotificationsMuted(id: String) {
+        commit(items.map { m ->
+            if (m.id != id) m else {
+                val updated = m.copy(notificationsMuted = !m.notificationsMuted)
+                if (updated.notificationsMuted) {
+                    com.seriee.app.reminder.ReminderScheduler.cancelReminder(getApplication(), id)
+                } else if (updated.reminderEnabled) {
+                    com.seriee.app.reminder.ReminderScheduler.scheduleReminder(getApplication(), updated)
+                }
+                updated
+            }
+        })
+    }
+
     /** F1: count one more rewatch of a completed title. */
     fun addRewatch(id: String) {
         commit(items.map { if (it.id == id) it.copy(rewatchCount = it.rewatchCount + 1) else it })

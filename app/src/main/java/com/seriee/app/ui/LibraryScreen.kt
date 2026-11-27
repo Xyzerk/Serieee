@@ -49,11 +49,16 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,6 +93,13 @@ private enum class LibrarySort(val labelRes: Int) {
     PROGRESS(R.string.sort_progress),
 }
 
+private fun releaseYearOf(ts: Long): Int {
+    val cal = java.util.Calendar.getInstance()
+    cal.timeInMillis = ts
+    return cal.get(java.util.Calendar.YEAR)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     list: List<MediaItem>,
@@ -96,6 +108,7 @@ fun LibraryScreen(
     onSetGrid: (Boolean) -> Unit,
     onOpen: (MediaItem) -> Unit,
     onPin: (String) -> Unit,
+    onUpdateRating: (MediaItem, Int) -> Unit,
     onAdd: () -> Unit
 ) {
     val p = LocalPalette.current
@@ -105,6 +118,18 @@ fun LibraryScreen(
     var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var listFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortBy by rememberSaveable { mutableStateOf(LibrarySort.RECENT) }
+    // Vetro P3a: rating / release-year range filters (year 0f = unbounded).
+    var ratingMin by rememberSaveable { mutableFloatStateOf(0f) }
+    var ratingMax by rememberSaveable { mutableFloatStateOf(5f) }
+    var yearMin by rememberSaveable { mutableFloatStateOf(0f) }
+    var yearMax by rememberSaveable { mutableFloatStateOf(0f) }
+    // Vetro P3c: title whose rating is being edited in place from its card.
+    var ratingEditItem by remember { mutableStateOf<MediaItem?>(null) }
+
+    val yearDataBounds = remember(list) {
+        val years = list.mapNotNull { it.releaseDate?.let { ts -> releaseYearOf(ts) } }
+        if (years.isEmpty()) null else (years.min() to years.max())
+    }
 
     val typeLabels = listOf(
         stringResource(R.string.all_types),
@@ -137,7 +162,7 @@ fun LibraryScreen(
             .sortedBy { it.lowercase() }
     }
 
-    val filtered by remember(list, query, typeFilter, statusFilter, tagFilter, listFilter, sortBy) {
+    val filtered by remember(list, query, typeFilter, statusFilter, tagFilter, listFilter, sortBy, ratingMin, ratingMax, yearMin, yearMax) {
         derivedStateOf {
             val matched = list.filter { it.title.contains(query.trim(), ignoreCase = true) }
                 .filter {
@@ -150,6 +175,20 @@ fun LibraryScreen(
                 .filter { statusFilter.matches(it) }
                 .filter { tagFilter == null || it.tags.any { tag -> tag.equals(tagFilter, ignoreCase = true) } }
                 .filter { listFilter == null || it.lists.any { name -> name.equals(listFilter, ignoreCase = true) } }
+                // Vetro P3a: rating range (unrated titles count as 0).
+                .filter { it.rating.toFloat() in ratingMin..ratingMax }
+                // Vetro P3a: release-year range; titles without a date pass
+                // unless the user actually narrowed the range.
+                .filter { item ->
+                    if (yearMin == 0f && yearMax == 0f) true
+                    else {
+                        val ts = item.releaseDate ?: return@filter true
+                        val yr = releaseYearOf(ts).toFloat()
+                        val lo = if (yearMin == 0f) yr else yearMin
+                        val hi = if (yearMax == 0f) yr else yearMax
+                        yr in lo..hi
+                    }
+                }
             val secondary: Comparator<MediaItem> = when (sortBy) {
                 LibrarySort.RECENT -> compareByDescending { it.updatedAt }
                 LibrarySort.TITLE -> compareBy { it.title.lowercase() }
@@ -310,6 +349,62 @@ fun LibraryScreen(
                     }
                 }
             }
+
+            // Vetro P3a: rating & release-year range sliders.
+            if (list.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.filter_rating_range),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = p.text,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "${ratingMin.toInt()} – ${ratingMax.toInt()} ★",
+                            fontSize = 12.sp,
+                            color = p.muted
+                        )
+                    }
+                    RangeSlider(
+                        value = ratingMin..ratingMax,
+                        onValueChange = { range ->
+                            ratingMin = range.start
+                            ratingMax = range.endInclusive
+                        },
+                        valueRange = 0f..5f,
+                        steps = 4,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    val bounds = yearDataBounds
+                    if (bounds != null && bounds.first < bounds.second) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.filter_year_range),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = p.text,
+                                modifier = Modifier.weight(1f)
+                            )
+                            val lo = if (yearMin == 0f) bounds.first else yearMin.toInt()
+                            val hi = if (yearMax == 0f) bounds.second else yearMax.toInt()
+                            Text("$lo – $hi", fontSize = 12.sp, color = p.muted)
+                        }
+                        RangeSlider(
+                            value = (if (yearMin == 0f) bounds.first.toFloat() else yearMin)..
+                                (if (yearMax == 0f) bounds.second.toFloat() else yearMax),
+                            onValueChange = { range ->
+                                yearMin = range.start
+                                yearMax = range.endInclusive
+                            },
+                            valueRange = bounds.first.toFloat()..bounds.second.toFloat(),
+                            steps = (bounds.second - bounds.first - 1).coerceAtLeast(0),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
         }
 
         val viewMode = when {
@@ -358,6 +453,10 @@ fun LibraryScreen(
                                 typeFilter = 0
                                 statusFilter = LibraryFilter.All
                                 tagFilter = null
+                                ratingMin = 0f
+                                ratingMax = 5f
+                                yearMin = 0f
+                                yearMax = 0f
                             }
                         )
                     }
@@ -374,6 +473,7 @@ fun LibraryScreen(
                             item = item,
                             onClick = { onOpen(item) },
                             onPin = { onPin(item.id) },
+                            onRate = { ratingEditItem = item },
                             modifier = Modifier.animateItem(
                                 fadeInSpec = SerieeMotion.enterTween(),
                                 placementSpec = SerieeMotion.PlacementSpring,
@@ -392,6 +492,7 @@ fun LibraryScreen(
                             item = item,
                             onClick = { onOpen(item) },
                             onPin = { onPin(item.id) },
+                            onRate = { ratingEditItem = item },
                             modifier = Modifier.animateItem(
                                 fadeInSpec = SerieeMotion.enterTween(),
                                 placementSpec = SerieeMotion.PlacementSpring,
@@ -402,6 +503,47 @@ fun LibraryScreen(
                 }
             }
         }
+    }
+
+    // Vetro P3c: in-place rating dialog opened from a card's score badge.
+    ratingEditItem?.let { target ->
+        var draft by remember(target.id) { mutableIntStateOf(target.rating) }
+        AlertDialog(
+            onDismissRequest = { ratingEditItem = null },
+            containerColor = p.surface,
+            title = {
+                Text(
+                    stringResource(R.string.rating_edit_title),
+                    fontWeight = FontWeight.Bold,
+                    color = p.text
+                )
+            },
+            text = {
+                Column {
+                    Text(target.title, fontSize = 13.sp, color = p.muted, maxLines = 1)
+                    Spacer(Modifier.height(8.dp))
+                    StarRatingBar(
+                        rating = draft,
+                        onRatingChange = { draft = it },
+                        starSize = 32.dp,
+                        showLabel = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onUpdateRating(target, draft)
+                    ratingEditItem = null
+                }) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { ratingEditItem = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }
 
@@ -458,6 +600,7 @@ private fun GridItem(
     item: MediaItem,
     onClick: () -> Unit,
     onPin: () -> Unit,
+    onRate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val p = LocalPalette.current
@@ -603,6 +746,8 @@ private fun GridItem(
                     modifier = Modifier
                         .align(if (item.status == WatchStatus.ComingSoon) Alignment.BottomEnd else Alignment.BottomStart)
                         .padding(4.dp)
+                        // Vetro P3c: tap the score to change it in place.
+                        .clickable { onRate() }
                 )
             }
             if (p.isNeoBrutalist) {
@@ -749,6 +894,7 @@ private fun ListItem(
     item: MediaItem,
     onClick: () -> Unit,
     onPin: () -> Unit,
+    onRate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val p = LocalPalette.current
@@ -799,7 +945,11 @@ private fun ListItem(
                     }
                     if (item.rating > 0) {
                         Spacer(Modifier.width(6.dp))
-                        StarRatingBadge(rating = item.rating)
+                        StarRatingBadge(
+                            rating = item.rating,
+                            // Vetro P3c: tap the score to change it in place.
+                            modifier = Modifier.clickable { onRate() }
+                        )
                     }
                 }
                 if (item.status == WatchStatus.ComingSoon) {

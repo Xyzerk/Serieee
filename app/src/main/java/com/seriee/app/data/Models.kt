@@ -143,7 +143,13 @@ data class MediaItem(
     /** User-defined custom lists this title belongs to (separate from tags). */
     val lists: List<String> = emptyList(),
     /** Real per-episode duration in minutes from metadata; 0 = unknown (Insights falls back to an estimate). */
-    val episodeDurationMin: Int = 0
+    val episodeDurationMin: Int = 0,
+    /** Vetro: short "thought bubble" comment shown on this title's share card (max 52 chars). */
+    val shareComment: String = "",
+    /** Vetro: when true, this title is excluded from reminders and the notification centre. */
+    val notificationsMuted: Boolean = false,
+    /** Vetro: per-season star ratings, keyed by seasonKey(season). Values 1..5. */
+    val seasonRatings: Map<String, Int> = emptyMap()
 ) {
     val effectiveSeasons: List<Season>
         get() = if (seasons.isNotEmpty()) seasons else {
@@ -175,3 +181,6 @@ data class MediaItem(
 
 /** Stable map key for per-episode data (ratings/notes): "S{season}E{episode}". */
 fun episodeKey(season: Int, episode: Int): String = "S${season}E${episode}"
+
+/** Stable map key for per-season data (ratings): "S{season}". */
+fun seasonKey(season: Int): String = "S${season}"

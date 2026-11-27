@@ -84,6 +84,19 @@ fun BackupRestoreDialog(
         }
     }
 
+    // Vetro P3d: export the collection as a PDF document.
+    val pdfExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        if (uri != null) {
+            writeCollectionPdf(context, uri, vm.items).onSuccess { count ->
+                Toast.makeText(context, context.getString(R.string.pdf_export_success, count), Toast.LENGTH_LONG).show()
+            }.onFailure { err ->
+                Toast.makeText(context, context.getString(R.string.pdf_export_failed, err.localizedMessage ?: ""), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     // F2: folder picker for automatic backups
     val autoBackupFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -398,6 +411,24 @@ fun BackupRestoreDialog(
                                 fontWeight = FontWeight.SemiBold,
                                 color = p.onAccent
                             )
+                        }
+                    }
+                    // Vetro P3d: PDF export of the collection, beside JSON backup.
+                    Text(
+                        stringResource(R.string.export_pdf_desc),
+                        fontSize = 12.sp,
+                        color = p.muted,
+                        lineHeight = 17.sp
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                            pdfExportLauncher.launch("seriee_collection_$timeStamp.pdf")
+                        }) {
+                            Text(stringResource(R.string.export_pdf_button), fontSize = 13.sp)
+                        }
+                        TextButton(onClick = { shareCollectionPdf(context, vm.items) }) {
+                            Text(stringResource(R.string.share_pdf_button), fontSize = 13.sp)
                         }
                     }
                 }

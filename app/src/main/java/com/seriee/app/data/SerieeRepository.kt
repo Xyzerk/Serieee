@@ -377,6 +377,11 @@ class SerieeRepository(context: Context) {
         m.lists.forEach { listsArr.put(it) }
         put("lists", listsArr)
         put("episodeDurationMin", m.episodeDurationMin)
+        put("shareComment", m.shareComment)
+        put("notificationsMuted", m.notificationsMuted)
+        val seasonRatings = JSONObject()
+        m.seasonRatings.forEach { (k, v) -> seasonRatings.put(k, v) }
+        put("seasonRatings", seasonRatings)
     }
 
     private fun fromJson(o: JSONObject): MediaItem {
@@ -460,7 +465,10 @@ class SerieeRepository(context: Context) {
             episodeNotes = parseStringMap(o.optJSONObject("episodeNotes")),
             rewatchCount = o.optInt("rewatchCount", 0).coerceAtLeast(0),
             lists = parseStringList(o.optJSONArray("lists")),
-            episodeDurationMin = o.optInt("episodeDurationMin", 0).coerceAtLeast(0)
+            episodeDurationMin = o.optInt("episodeDurationMin", 0).coerceAtLeast(0),
+            shareComment = o.optString("shareComment").take(52),
+            notificationsMuted = o.optBoolean("notificationsMuted", false),
+            seasonRatings = parseIntMap(o.optJSONObject("seasonRatings"))
         )
     }
 

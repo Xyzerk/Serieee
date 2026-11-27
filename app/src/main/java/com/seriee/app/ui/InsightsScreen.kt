@@ -148,6 +148,7 @@ fun InsightsScreen(
                 item(key = "insights-tags") { TagsCard(insights) }
             }
             item(key = "insights-activity") { ActivityCard(insights) }
+            item(key = "insights-advanced") { AdvancedInsightsCard(insights) }
             item(key = "insights-recent") {
                 RecentActivityCard(
                     insights = insights,
@@ -611,6 +612,120 @@ private fun RatingsCard(insights: Insights) {
                         textAlign = TextAlign.End,
                         modifier = Modifier.width(32.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Vetro P3b: advanced insights — finished vs dropped per genre, the last
+ * 90 days against all time, and episodes per month for the last 6 months.
+ */
+@Composable
+private fun AdvancedInsightsCard(insights: Insights) {
+    val p = LocalPalette.current
+    SerieeSurface(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionHeader(stringResource(R.string.insights_advanced_title))
+
+            Row(Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.insights_last_90_days),
+                        fontSize = 12.sp,
+                        color = p.muted
+                    )
+                    Text(
+                        "${insights.episodesLast90Days} ${stringResource(R.string.insights_episodes_unit)}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = p.text
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.insights_all_time),
+                        fontSize = 12.sp,
+                        color = p.muted
+                    )
+                    Text(
+                        "${insights.episodesAllTime} ${stringResource(R.string.insights_episodes_unit)}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = p.text
+                    )
+                }
+            }
+
+            if (insights.genreOutcomes.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.insights_genre_outcomes),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = p.text
+                )
+                insights.genreOutcomes.forEach { outcome ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            outcome.genre,
+                            fontSize = 12.sp,
+                            color = p.text,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1
+                        )
+                        Text(
+                            "${outcome.finished} ${stringResource(R.string.insights_finished_short)}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = p.success
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "${outcome.dropped} ${stringResource(R.string.insights_dropped_short)}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = p.danger
+                        )
+                    }
+                }
+            }
+
+            if (insights.monthlyCounts.any { it.second > 0 }) {
+                Text(
+                    stringResource(R.string.insights_monthly_title),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = p.text
+                )
+                val maxMonth = insights.monthlyCounts.maxOf { it.second }.coerceAtLeast(1)
+                insights.monthlyCounts.forEach { (month, count) ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            month,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = p.muted,
+                            modifier = Modifier.width(64.dp)
+                        )
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .height(10.dp)
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(p.chip)
+                        ) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth(count.toFloat() / maxMonth)
+                                    .height(10.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(p.primary)
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text("$count", fontSize = 12.sp, color = p.text)
+                    }
                 }
             }
         }

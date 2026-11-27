@@ -23,8 +23,24 @@ data class Insights(
     val topTags: List<Pair<String, Int>> = emptyList(),
     val estimatedMinutes: Int = 0,
     val dailyCounts: Map<LocalDate, Int> = emptyMap(),
-    val recent: List<WatchEvent> = emptyList()
+    val recent: List<WatchEvent> = emptyList(),
+    /** Vetro P3b: finished vs dropped counts per genre (tags act as genres). */
+    val genreOutcomes: List<GenreOutcome> = emptyList(),
+    /** Vetro P3b: episodes logged in the last 90 days vs across all history. */
+    val episodesLast90Days: Int = 0,
+    val episodesAllTime: Int = 0,
+    /** Vetro P3b: episodes per month for the last 6 months, oldest first ("yyyy-MM" to count). */
+    val monthlyCounts: List<Pair<String, Int>> = emptyList()
 )
+
+/** Finished/dropped tallies for one genre (tag). */
+data class GenreOutcome(
+    val genre: String,
+    val finished: Int,
+    val dropped: Int
+) {
+    val total: Int get() = finished + dropped
+}
 
 /**
  * Pure calculator backing [Insights]. It reuses [MediaItem.watchedEpisodes]
@@ -80,8 +96,59 @@ object InsightsCalculator {
                 .filter { it.type == MediaType.Series && it.status.countsProgress() }
                 .sumOf { it.watchedEpisodes * (it.episodeDurationMin.takeIf { d -> d > 0 } ?: MINUTES_PER_EPISODE) },
             dailyCounts = dailyCounts(history, watchDays, now, zone),
-            recent = history.sortedByDescending { it.watchedAt }.take(RECENT_LIMIT)
+            recent = history.sortedByDescending { it.watchedAt }.take(RECENT_LIMIT),
+            genreOutcomes = genreOutcomes(items),
+            episodesLast90Days = episodesSince(history, now - 90L * 86_400_000L),
+            episodesAllTime = history.sumOf { it.count.coerceAtLeast(1) },
+            monthlyCounts = monthlyCounts(history, now, zone)
         )
+    }
+
+    /** Finished (Completed) vs Dropped per genre; a title counts once per tag it carries. */
+    private fun genreOutcomes(items: List<MediaItem>): List<GenreOutcome> {
+        val byGenre = LinkedHashMap<String, GenreOutcome>()
+        items.forEach { item ->
+            if (item.status != WatchStatus.Completed && item.status != WatchStatus.Dropped) return@forEach
+            item.tags.map { it.trim() }.filter { it.isNotEmpty() }
+                .distinctBy { it.lowercase(Locale.ROOT) }
+                .forEach { tag ->
+                    val key = tag.lowercase(Locale.ROOT)
+                    val cur = byGenre[key] ?: GenreOutcome(tag, 0, 0)
+                    byGenre[key] = if (item.status == WatchStatus.Completed) {
+                        cur.copy(genre = cur.genre, finished = cur.finished + 1)
+                    } else {
+                        cur.copy(dropped = cur.dropped + 1)
+                    }
+                }
+        }
+        return byGenre.values
+            .sortedWith(compareByDescending<GenreOutcome> { it.total }.thenBy { it.genre.lowercase(Locale.ROOT) })
+            .take(8)
+    }
+
+    private fun episodesSince(history: List<WatchEvent>, cutoff: Long): Int =
+        history.filter { it.watchedAt >= cutoff }.sumOf { it.count.coerceAtLeast(1) }
+
+    /** Episode counts bucketed by month for the 6 months ending in the current one. */
+    private fun monthlyCounts(
+        history: List<WatchEvent>,
+        now: Long,
+        zone: ZoneId
+    ): List<Pair<String, Int>> {
+        val current = Instant.ofEpochMilli(now).atZone(zone).toLocalDate().withDayOfMonth(1)
+        val months = (5 downTo 0).map { current.minusMonths(it.toLong()) }
+        val counts = months.associate { month ->
+            "%04d-%02d".format(month.year, month.monthValue) to 0
+        }.toMutableMap()
+        history.forEach { event ->
+            val date = Instant.ofEpochMilli(event.watchedAt).atZone(zone).toLocalDate()
+            val key = "%04d-%02d".format(date.year, date.monthValue)
+            if (key in counts) counts[key] = (counts[key] ?: 0) + event.count.coerceAtLeast(1)
+        }
+        return months.map { month ->
+            val key = "%04d-%02d".format(month.year, month.monthValue)
+            key to (counts[key] ?: 0)
+        }
     }
 
     /**
