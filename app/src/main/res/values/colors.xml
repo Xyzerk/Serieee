@@ -2,7 +2,7 @@
 <resources>
     <!-- Replaced at runtime from the persisted theme in MainActivity. -->
     <color name="window_bg">#FFFDF5</color>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="ic_launcher_background">#FDF8EF</color>
 
     <!-- Home-screen widget (light). Mirrors the default Classic palette. -->
     <color name="widget_surface">#FFF8E7</color>
