@@ -8,8 +8,7 @@
     "groups": [
       {
         "group": "Guide",
-        "pages": ["index", "RELEASING"]
-        "pages": ["index", "feature-requests"]
+        "pages": ["index", "RELEASING", "feature-requests"]
       }
     ]
   },
