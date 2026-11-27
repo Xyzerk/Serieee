@@ -1,9 +1,16 @@
 package com.seriee.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,14 +28,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Movie
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.TrendingUp
-import androidx.compose.material.icons.rounded.VideoLibrary
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,7 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -48,27 +50,40 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.seriee.app.R
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 
 private data class WelcomePage(
-    val icon: ImageVector,
+    @DrawableRes val artRes: Int,
     val titleRes: Int,
     val descRes: Int
 )
 
 private val welcomePages = listOf(
-    WelcomePage(Icons.Rounded.Movie, R.string.welcome_1_title, R.string.welcome_1_desc),
-    WelcomePage(Icons.Rounded.TrendingUp, R.string.welcome_2_title, R.string.welcome_2_desc),
-    WelcomePage(Icons.Rounded.VideoLibrary, R.string.welcome_3_title, R.string.welcome_3_desc),
-    WelcomePage(Icons.Rounded.Insights, R.string.welcome_4_title, R.string.welcome_4_desc),
-    WelcomePage(Icons.Rounded.NotificationsActive, R.string.welcome_5_title, R.string.welcome_5_desc),
-    WelcomePage(Icons.Rounded.Lock, R.string.welcome_6_title, R.string.welcome_6_desc)
+    WelcomePage(R.drawable.welcome_bg_1, R.string.welcome_1_title, R.string.welcome_1_desc),
+    WelcomePage(R.drawable.welcome_bg_2, R.string.welcome_2_title, R.string.welcome_2_desc),
+    WelcomePage(R.drawable.welcome_bg_3, R.string.welcome_3_title, R.string.welcome_3_desc),
+    WelcomePage(R.drawable.welcome_bg_4, R.string.welcome_4_title, R.string.welcome_4_desc),
+    WelcomePage(R.drawable.welcome_bg_5, R.string.welcome_5_title, R.string.welcome_5_desc),
+    WelcomePage(R.drawable.welcome_bg_6, R.string.welcome_6_title, R.string.welcome_6_desc)
 )
+
+// The welcome artwork is a fixed light showcase (cream-based illustrations),
+// so the copy sitting on it uses fixed ink colours instead of the theme
+// palette: readable on the art in every theme, neo-brutalism included.
+private val WelcomeCream = Color(0xFFFDF8EF)
+private val WelcomeInk = Color(0xFF171A21)
+private val WelcomeMuted = Color(0xFF4B5160)
 
 /**
  * First-run welcome slides. [onFinish] is called when the person taps
  * "Get started" on the last page or skips; the caller persists that so the
  * slides are only shown once.
+ *
+ * Each slide is a full-bleed illustration behind the whole screen. The art
+ * crossfades between pages, drifts slower than the swipe (parallax) and
+ * breathes with a slow Ken Burns zoom; the copy fades and rises with the
+ * page offset, so the whole flow feels alive without any video assets.
  */
 @Composable
 fun WelcomeScreen(onFinish: () -> Unit) {
@@ -77,6 +92,30 @@ fun WelcomeScreen(onFinish: () -> Unit) {
     val scope = rememberCoroutineScope()
     val lastIndex = welcomePages.lastIndex
     val isLast = pagerState.currentPage == lastIndex
+    // Fractional pager position: currentPage is where the pager rests,
+    // the offset fraction carries the in-flight swipe.
+    val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+
+    // Slow Ken Burns breathing shared by every slide's artwork.
+    val kenBurns = rememberInfiniteTransition(label = "welcomeKenBurns")
+    val kbScale by kenBurns.animateFloat(
+        initialValue = 1.18f,
+        targetValue = 1.28f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 18000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "welcomeKbScale"
+    )
+    val kbDrift by kenBurns.animateFloat(
+        initialValue = -0.012f,
+        targetValue = 0.012f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 18000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "welcomeKbDrift"
+    )
 
     // Back goes to the previous slide; on the first slide it leaves the app as usual.
     BackHandler(enabled = pagerState.currentPage > 0) {
@@ -87,19 +126,17 @@ fun WelcomeScreen(onFinish: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(p.bg)
-            .then(
-                if (p.gradient != null && p.gradient.size >= 2 && !p.isNeoBrutalist) {
-                    Modifier.background(Brush.verticalGradient(p.gradient))
-                } else Modifier
-            )
     ) {
+        WelcomeBackground(position = position, kbScale = kbScale, kbDrift = kbDrift)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // Skip (kept in layout on the last page so nothing jumps).
+            // Skip (kept in layout on the last page so nothing jumps). It sits
+            // on the artwork, so it gets its own cream pill for readability.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -113,12 +150,13 @@ fun WelcomeScreen(onFinish: () -> Unit) {
                         stringResource(R.string.welcome_skip),
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
+                            .background(WelcomeCream.copy(alpha = 0.88f))
                             .clickable(role = Role.Button, onClick = onFinish)
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-                        color = p.muted
+                        color = WelcomeInk
                     )
                 }
             }
@@ -129,7 +167,10 @@ fun WelcomeScreen(onFinish: () -> Unit) {
                     .weight(1f)
                     .fillMaxWidth()
             ) { index ->
-                WelcomePageContent(welcomePages[index])
+                WelcomePageContent(
+                    page = welcomePages[index],
+                    offset = position - index
+                )
             }
 
             PageDots(
@@ -155,42 +196,70 @@ fun WelcomeScreen(onFinish: () -> Unit) {
     }
 }
 
+/**
+ * The stacked full-bleed artworks. Only slides within one page of the
+ * current position are composed; each one fades with its distance from
+ * the pager position, shifts at a fraction of the swipe (parallax) and
+ * shares the Ken Burns zoom/drift. A cream gradient scrim keeps the
+ * lower third calm so the copy, dots and button stay readable.
+ */
 @Composable
-private fun WelcomePageContent(page: WelcomePage) {
+private fun WelcomeBackground(position: Float, kbScale: Float, kbDrift: Float) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        welcomePages.forEachIndexed { index, page ->
+            val offset = position - index
+            if (abs(offset) < 1.05f) {
+                Image(
+                    painter = painterResource(page.artRes),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            alpha = (1f - abs(offset)).coerceIn(0f, 1f)
+                            translationX = offset * size.width * 0.15f
+                            translationY = kbDrift * size.height
+                            scaleX = kbScale
+                            scaleY = kbScale
+                        },
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.50f to Color.Transparent,
+                        0.76f to WelcomeCream.copy(alpha = 0.88f),
+                        1.0f to WelcomeCream
+                    )
+                )
+        )
+    }
+}
+
+@Composable
+private fun WelcomePageContent(page: WelcomePage, offset: Float) {
     val p = LocalPalette.current
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp),
+            .padding(horizontal = 32.dp)
+            .graphicsLayer {
+                alpha = (1f - abs(offset)).coerceIn(0f, 1f)
+                translationY = offset * 90f
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Bottom
     ) {
-        val shape = RoundedCornerShape(if (p.isNeoBrutalist) 16.dp else 36.dp)
-        Box(
-            modifier = Modifier
-                .size(136.dp)
-                .clip(shape)
-                .background(if (p.isNeoBrutalist) NeoBrutalistColors.Yellow else p.accentSoft)
-                .then(
-                    if (p.isNeoBrutalist) Modifier.border(3.dp, p.border, shape) else Modifier
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                page.icon,
-                contentDescription = null,
-                tint = if (p.isNeoBrutalist) NeoBrutalistColors.Black else p.accent,
-                modifier = Modifier.size(68.dp)
-            )
-        }
-        Spacer(Modifier.height(40.dp))
         Text(
             stringResource(page.titleRes),
-            fontSize = 26.sp,
-            lineHeight = 32.sp,
+            fontSize = 27.sp,
+            lineHeight = 33.sp,
             fontWeight = FontWeight.ExtraBold,
             fontFamily = if (p.isNeoBrutalist) FontFamily.Monospace else FontFamily.Default,
-            color = p.text,
+            color = WelcomeInk,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(14.dp))
@@ -198,9 +267,10 @@ private fun WelcomePageContent(page: WelcomePage) {
             stringResource(page.descRes),
             fontSize = 15.sp,
             lineHeight = 22.sp,
-            color = p.muted,
+            color = WelcomeMuted,
             textAlign = TextAlign.Center
         )
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -220,7 +290,7 @@ private fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .size(width = width, height = 8.dp)
                     .clip(CircleShape)
-                    .background(if (selected) p.accent else p.muted.copy(alpha = 0.35f))
+                    .background(if (selected) p.accent else WelcomeInk.copy(alpha = 0.22f))
             )
         }
     }
